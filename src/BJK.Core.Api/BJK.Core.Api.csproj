@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>BJK.Core.Api</RootNamespace>
+    <UserSecretsId>bjk-core-api</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BJK.Modules.Media" />
+    <PackageReference Include="BJK.Modules.Profiles" />
+    <PackageReference Include="BJK.Modules.Posts" />
+    <PackageReference Include="BJK.Modules.Email" />
+    <PackageReference Include="BJK.Modules.SMS" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+  </ItemGroup>
+
+</Project>
