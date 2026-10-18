@@ -1,0 +1,25 @@
+# Local RabbitMQ for development:  docker compose up -d
+# SQL Server comes from bjk-identity-server's docker-compose.yml (one SQL Server, databases idsrv and badjockeys).
+# The password comes from .env (git-ignored); copy .env.example to .env first.
+# Dashboard: http://localhost:15672 (user bjk). To start again empty:  docker compose down -v
+services:
+  rabbitmq:
+    image: rabbitmq:4-management
+    container_name: bjk-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: bjk
+      RABBITMQ_DEFAULT_PASS: ${BJK_RABBITMQ_PASSWORD:?Set BJK_RABBITMQ_PASSWORD in .env - see .env.example}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - bjk-rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+volumes:
+  bjk-rabbitmq-data:
