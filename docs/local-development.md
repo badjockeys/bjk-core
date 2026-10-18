@@ -5,7 +5,7 @@ This guide gets the whole platform running on your machine:
 | Piece | Repo | Runs on | Address |
 |---|---|---|---|
 | SQL Server | bjk-identity-server (`docker-compose.yml`) | Docker | `localhost,1433` |
-| RabbitMQ | bjk-core (`docker-compose.yml`) | Docker | `localhost:5672`, dashboard http://localhost:15672 |
+| RabbitMQ | bjk-identity-server (`docker-compose.yml`) | Docker | `localhost:5672`, dashboard http://localhost:15672 |
 | Identity server (sign-in + User module) | bjk-identity-server | .NET | https://localhost:5001 |
 | API (Media and later modules) | bjk-core, `src/BJK.Core.Api` | .NET | https://localhost:5101 |
 | Web app | bjk-core, `src/web` | Node.js (Next.js) | http://localhost:3000 |
@@ -89,41 +89,31 @@ The modules (`BJK.Modules.*`) are private NuGet packages on GitHub Packages, so 
 
 ## 4. Start SQL Server and RabbitMQ
 
-Each repo has a git-ignored `.env` file for its local Docker passwords. Choose your own passwords.
-
-**SQL Server** comes from the identity server repo:
+Both run in Docker from the identity server repo. Its `.env` file (git-ignored) holds your own local passwords:
 
 ```bash
 cd ~/Git/GitHub/badjockeys/bjk-identity-server
 cp .env.example .env
 # edit .env: BJK_SQL_PASSWORD=<8+ characters with upper case, lower case, a digit and a symbol>
+#            BJK_RABBITMQ_PASSWORD=<any password>
 docker compose up -d
+docker compose ps        # both should show "healthy" after about 30 seconds
 ```
 
-**RabbitMQ** comes from this repo:
+The RabbitMQ dashboard is at http://localhost:15672. Sign in as user `bjk` with your `.env` password.
 
-```bash
-cd ~/Git/GitHub/badjockeys/bjk-core
-cp .env.example .env
-# edit .env: BJK_RABBITMQ_PASSWORD=<any password>
-docker compose up -d
-```
+RabbitMQ carries two kinds of message:
 
-Check that both containers show **healthy**:
+| Exchange or queue | From → to | What |
+|---|---|---|
+| `media.process` | API → media workers | Process an upload |
+| `bjk.users` exchange → `bjk-core.user-events` queue | Identity server → API | A user deactivated, reactivated or was deleted |
 
-```bash
-docker ps --format "table {{.Names}}\t{{.Status}}"
-# bjk-sql        Up ... (healthy)
-# bjk-rabbitmq   Up ... (healthy)
-```
-
-You can see the RabbitMQ dashboard at http://localhost:15672. Sign in as user `bjk` with your `.env` password.
-
-| Command (run in the repo that owns the container) | Does |
+| Command (in bjk-identity-server) | Does |
 |---|---|
-| `docker compose stop` | Stops the container and keeps the data |
-| `docker compose up -d` | Starts it again |
-| `docker compose down -v` | Removes the container **and its data**, so you start fresh |
+| `docker compose stop` | Stops both and keeps the data |
+| `docker compose up -d` | Starts them again |
+| `docker compose down -v` | Removes the containers **and the data**, so you start fresh |
 
 ## 5. Get Cloudflare R2 keys for the dev buckets
 
@@ -160,7 +150,7 @@ The repos' `appsettings` files hold no environment settings. On your machine, se
 ```bash
 cd ~/Git/GitHub/badjockeys/bjk-identity-server
 cp user-secrets.template.json user-secrets.json        # git-ignored
-# edit user-secrets.json: put your SQL password from bjk-identity-server/.env into the connection string
+# edit user-secrets.json: your SQL and RabbitMQ passwords from bjk-identity-server/.env
 dotnet user-secrets set --project src/BJK.Idsrv.Host < user-secrets.json
 ```
 
@@ -177,6 +167,9 @@ The format is:
   },
   "Captcha": {
     "TurnstileSecretKey": "1x0000000000000000000000000000000AA"
+  },
+  "Messaging": {
+    "ConnectionUri": "amqp://bjk:<BJK_RABBITMQ_PASSWORD from your .env>@localhost:5672"
   }
 }
 ```
@@ -216,9 +209,12 @@ The format is:
       "PublicBaseUrl": "https://<public URL of bjk-dev-public>"
     },
     "Queue": {
-      "ConnectionUri": "amqp://bjk:<BJK_RABBITMQ_PASSWORD from bjk-core/.env>@localhost:5672",
       "QueueName": "media.process"
     }
+  },
+  "Messaging": {
+    "ConnectionUri": "amqp://bjk:<BJK_RABBITMQ_PASSWORD from bjk-identity-server/.env>@localhost:5672",
+    "UserEventsQueue": "bjk-core.user-events"
   }
 }
 ```
@@ -229,7 +225,9 @@ The format is:
 | `Authentication:Authority` | The identity server that issues the tokens the API accepts |
 | `Cors:AllowedOrigins` | The web app's address, so the browser can call the API |
 | `Media:Storage:*` | Your R2 keys and the dev buckets (step 5) |
-| `Media:Queue:*` | Local RabbitMQ; the queue for processing jobs is created automatically |
+| `Media:Queue:QueueName` | The queue for processing jobs; created automatically |
+| `Messaging:ConnectionUri` | Local RabbitMQ, shared by everything in the API |
+| `Messaging:UserEventsQueue` | Where the API receives account deactivations, reactivations and deletions from the identity server; created automatically |
 
 Some settings are optional:
 
@@ -349,7 +347,7 @@ cd ~/Git/GitHub/badjockeys/bjk-identity-server && docker compose down -v && dock
 - **`Connection string '...' is not configured` or `The ... field is required`.** Your user secrets aren't loaded (step 6), or the app isn't running in Development. The `https` launch profile sets Development.
 - **`Login failed for user 'sa'`.** The password in your user secret doesn't match `bjk-identity-server/.env`. If you changed `.env` after the container was first created, SQL Server still has the old password: run `docker compose down -v` (this deletes local data), then `docker compose up -d`.
 - **`A network-related or instance-specific error`.** SQL Server isn't running or isn't healthy yet. Run `docker ps`, then `docker compose logs sql` in bjk-identity-server.
-- **`None of the specified endpoints were reachable` (RabbitMQ).** RabbitMQ isn't running, or the password in `Media:Queue:ConnectionUri` doesn't match `bjk-core/.env`.
+- **`None of the specified endpoints were reachable` (RabbitMQ).** RabbitMQ isn't running, or the password in `Messaging:ConnectionUri` doesn't match `bjk-identity-server/.env`.
 - **The browser upload fails with a CORS error.** The dev originals bucket doesn't allow `PUT` from `http://localhost:3000` (see step 5).
 - **`SignatureDoesNotMatch` or `InvalidAccessKeyId` from R2.** The R2 keys are wrong, or the token isn't scoped to the dev buckets.
 - **The API returns `401` with a valid-looking token.** Check that `Authentication:Authority` is `https://localhost:5001`, that the identity server is running, and that you ran `dotnet dev-certs https --trust`.
