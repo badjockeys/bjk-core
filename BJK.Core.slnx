@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/BJK.Core.Api/BJK.Core.Api.csproj" />
+    <Project Path="src/BJK.Core.MediaWorker/BJK.Core.MediaWorker.csproj" />
   </Folder>
 </Solution>
