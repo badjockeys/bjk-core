@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# End-to-end smoke test for the API host, run by CI against real SQL Server, RabbitMQ and MinIO (standing in for
+# End-to-end smoke test for the API host, run by CI against real SQL Server, RabbitMQ and S3Mock (standing in for
 # Cloudflare R2), with fake-issuer.py standing in for bjk-identity-server.
 #
 # Covers: startup migrations; token validation (issuer, audience, expiry, token type, scopes); profiles; uploads to
@@ -11,7 +11,7 @@ PROJECT=${PROJECT:-src/BJK.Core.Api}
 BASE_URL=${BASE_URL:-http://localhost:5100}
 ISSUER_URL=${ISSUER_URL:-http://localhost:5999}
 APP_LOG=${APP_LOG:-app.log}
-S3_ENDPOINT=${S3_ENDPOINT:-http://localhost:9000}
+S3_ENDPOINT=${S3_ENDPOINT:-http://localhost:9090}
 ORIGINALS_BUCKET=${Media__Storage__OriginalsBucket:-bjk-ci-originals}
 RABBITMQ_MANAGEMENT_URL=${RABBITMQ_MANAGEMENT_URL:-http://localhost:15672}
 
@@ -195,7 +195,7 @@ MEDIA_ID=$(json .mediaId)
 UPLOAD_URL=$(json .upload.url)
 [[ "$UPLOAD_URL" == *"$USER_A/$MEDIA_ID/"* ]] || fail "Expected the storage key to start with {userId}/{mediaId}: $UPLOAD_URL"
 pass "storage key is {userId}/{mediaId}/..."
-# The signature covers the host and path, not the scheme; MinIO in CI speaks plain HTTP.
+# The signature covers the host and path, not the scheme; the CI storage speaks plain HTTP.
 STATUS=$(curl -s -o /dev/null -w '%{http_code}' -X PUT -H 'Content-Type: image/jpeg' --data-binary @photo.jpg "${UPLOAD_URL/https:/http:}")
 expect 200 "upload straight to object storage with the signed link"
 request POST "/api/media/$MEDIA_ID/complete" "" "$TOKEN_B"
