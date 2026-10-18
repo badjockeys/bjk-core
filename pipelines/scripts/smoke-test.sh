@@ -284,8 +284,8 @@ pass "video is capped at 30 frames a second"
 request GET "/api/media/$PHOTO_ID" "" "$TOKEN_B"
 expect 200 "others can see the media once it's ready"
 MEDIA_ID=$PHOTO_ID
-[ "$(queue_messages media.process)" = "0" ] || fail "Expected the media.process queue to be empty."
-pass "no jobs left on the queue"
+# RabbitMQ's management stats refresh every few seconds, so poll.
+wait_for "queue_messages media.process" 0 "no jobs left on the queue"
 
 # Browsers upload straight to storage, so it must answer a CORS preflight. Cloudflare R2 does once configured;
 # this reports whether the local stand-in (S3Mock) does too.
