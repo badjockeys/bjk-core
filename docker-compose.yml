@@ -1,0 +1,25 @@
+# Local stand-in for Cloudflare R2, for developers without R2 keys. SQL Server and RabbitMQ come from
+# bjk-identity-server's docker-compose.yml (see docs/local-development.md).
+#
+#   docker compose up -d       starts it on http://localhost:9090 with both dev buckets created
+#   docker compose down -v     removes it and every stored file
+#
+# Adobe's S3Mock speaks the same S3 API as R2, so the API and the media worker don't know the difference.
+# It doesn't check keys or signatures, so any access key works.
+services:
+  s3:
+    image: adobe/s3mock:3.12.0
+    ports:
+      - "9090:9090"
+    environment:
+      initialBuckets: bjk-dev-originals,bjk-dev-public
+      COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS: bjk-dev-originals,bjk-dev-public
+      root: /data
+      COM_ADOBE_TESTING_S3MOCK_STORE_ROOT: /data
+      retainFilesOnExit: "true"
+      COM_ADOBE_TESTING_S3MOCK_STORE_RETAIN_FILES_ON_EXIT: "true"
+    volumes:
+      - s3-data:/data
+
+volumes:
+  s3-data:

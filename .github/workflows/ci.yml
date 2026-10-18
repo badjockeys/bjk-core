@@ -83,8 +83,15 @@ jobs:
       - name: Build
         run: dotnet build BJK.Core.slnx --configuration Release --no-restore
 
-      - name: Build the container image
-        run: docker build --file src/BJK.Core.Api/Dockerfile --secret id=nuget,env=NuGetPackageSourceCredentials_badjockeys --tag bjk-core-api:ci .
+      - name: Build the container images
+        run: |
+          docker build --file src/BJK.Core.Api/Dockerfile --secret id=nuget,env=NuGetPackageSourceCredentials_badjockeys --tag bjk-core-api:ci .
+          docker build --file src/BJK.Core.MediaWorker/Dockerfile --secret id=nuget,env=NuGetPackageSourceCredentials_badjockeys --tag bjk-core-media-worker:ci .
+          docker run --rm --entrypoint ffmpeg bjk-core-media-worker:ci -hide_banner -encoders | grep -E 'libx264|libwebp'
+
+      # The smoke test runs the worker on the runner, so it needs ffmpeg here too (exiftool checks GPS is stripped).
+      - name: Install ffmpeg and exiftool
+        run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends ffmpeg libimage-exiftool-perl
 
       # Started here rather than as a service container, so a pull failure can fall back to another tag.
       - name: Start S3Mock and create the buckets

@@ -1,4 +1,4 @@
-# Keep local build output, secrets and the web app out of the API image's build context.
+# Keep local build output, secrets and the web app out of the images' build context.
 **/bin/
 **/obj/
 **/node_modules/

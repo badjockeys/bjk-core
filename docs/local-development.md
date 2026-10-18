@@ -8,10 +8,11 @@ This guide gets the whole platform running on your machine:
 | RabbitMQ | bjk-identity-server (`docker-compose.yml`) | Docker | `localhost:5672`, dashboard http://localhost:15672 |
 | Identity server (sign-in + User module) | bjk-identity-server | .NET | https://localhost:5001 |
 | API (Media, Profiles, Posts, Email and SMS modules) | bjk-core, `src/BJK.Core.Api` | .NET | https://localhost:5101 |
+| Media worker (converts uploads with ffmpeg) | bjk-core, `src/BJK.Core.MediaWorker` | .NET + ffmpeg | no address, reads the queue |
 | Web app | bjk-core, `src/web` | Node.js (Next.js) | http://localhost:3000 |
-| File storage | Cloudflare R2, shared dev buckets | Cloudflare | no local copy |
+| File storage | bjk-core (`docker-compose.yml`): S3Mock, standing in for Cloudflare R2 | Docker | http://localhost:9090 |
 
-> **Status (18 Oct 2026):** the identity server and the API run today. The web app (`src/web`) is being built next, so step 8 describes how it will run. The media processing worker isn't built yet, so uploads stay at `Processing` (see [Trying it end to end](#trying-it-end-to-end)).
+> **Status (18 Oct 2026):** the identity server, the API and the media worker run today. The web app (`src/web`) is being built next, so step 8 describes how it will run.
 
 One SQL Server holds both databases:
 
@@ -51,7 +52,7 @@ Then:
 
 4. **Install a SQL tool:** VS Code's **SQL Server (mssql)** extension, Rider's database window, or DataGrip.
 
-5. **Install ffmpeg (optional for now).** The media processing worker needs it, but that worker isn't built yet:
+5. **Install ffmpeg.** The media worker uses it to convert videos and photos:
 
    ```bash
    brew install ffmpeg
@@ -115,31 +116,33 @@ RabbitMQ carries two kinds of message:
 | `docker compose up -d` | Starts them again |
 | `docker compose down -v` | Removes the containers **and the data**, so you start fresh |
 
-## 5. Get Cloudflare R2 keys for the dev buckets
+## 5. Start local file storage
 
-Photos and videos are stored in Cloudflare R2 in every environment, including your machine. Developers share one pair of dev buckets, but each developer has their own keys.
+Photos and videos live in Cloudflare R2 in the cloud environments. On your machine you don't need a Cloudflare account: **S3Mock** runs in Docker and speaks the same S3 API, so the API and the worker can't tell the difference.
+
+```bash
+cd ~/Git/GitHub/badjockeys/bjk-core
+docker compose up -d        # S3Mock on http://localhost:9090, with both buckets created
+```
 
 | Bucket | Holds | Access |
 |---|---|---|
-| `bjk-dev-originals` | Files exactly as uploaded (kept for 90 days) | Private |
-| `bjk-dev-public` | Processed files: 720p video, WebP photos, thumbnails | Public, served by Cloudflare |
+| `bjk-dev-originals` | Files exactly as uploaded | Private: only reachable with a signed link from the API |
+| `bjk-dev-public` | Processed files: 720p video, WebP photos, thumbnails | Public: http://localhost:9090/bjk-dev-public/... |
 
-Ask whoever administers the Cloudflare account to do this, or do it yourself if you have access:
+How an upload works on your machine:
 
-1. In the Cloudflare dashboard, go to **R2 → Manage R2 API tokens → Create API token**.
-2. Set the permission to **Object Read & Write**, and limit it to the two `bjk-dev-*` buckets.
-3. Copy these three values. Cloudflare shows the secret only once.
-   - **Access Key ID**
-   - **Secret Access Key**
-   - **Account ID**, which is also part of the endpoint `https://<account id>.r2.cloudflarestorage.com`
-4. Note the public bucket's URL. It's under **R2 → bjk-dev-public → Settings → Public access**, and is either an `r2.dev` address or a custom domain.
+1. The web app asks the API for an upload link. The API signs a link to `http://localhost:9090/bjk-dev-originals/{userId}/{mediaId}/original.jpg`.
+2. The browser `PUT`s the file straight to S3Mock. It never passes through the API.
+3. The web app tells the API the upload is complete. The API puts a job on the `media.process` queue.
+4. The media worker downloads the original, converts it with ffmpeg, strips metadata such as GPS, writes the results to `bjk-dev-public`, and marks the media `Ready`.
+5. The web app shows the processed file from `http://localhost:9090/bjk-dev-public/...`.
 
-The code reaches R2 through its S3-compatible API, using the `AWSSDK.S3` client. Cloudflare recommends this client for .NET, and nothing is sent to AWS.
+S3Mock doesn't check keys, so the `local` keys in the template work as they are. Files survive `docker compose stop` and restarts; `docker compose down -v` deletes them all. If you reset the databases, reset the storage too so the two stay in step.
 
-Two pieces of bucket setup are done once by an administrator, not by each developer, and will move into Terraform:
+### Using Cloudflare R2 instead (later)
 
-- **CORS on `bjk-dev-originals`.** It must allow `PUT` from `http://localhost:3000` so the browser can upload directly.
-- **A lifecycle rule** that deletes originals after 90 days.
+Once there's a Cloudflare account, you can point your user secrets at shared dev buckets instead. Create an R2 API token with **Object Read & Write** limited to the `bjk-dev-*` buckets, then set `Media:Storage:ServiceUrl` to `https://<account id>.r2.cloudflarestorage.com`, the two keys to the token's values, and `PublicBaseUrl` to the public bucket's URL. The dev originals bucket also needs a CORS rule allowing `PUT` from `http://localhost:3000`, and a lifecycle rule that deletes originals after 90 days. Both will move into Terraform.
 
 ## 6. Load your settings into user secrets
 
@@ -181,7 +184,7 @@ The CAPTCHA key is Cloudflare's public test key, which always passes. The identi
 ```bash
 cd ~/Git/GitHub/badjockeys/bjk-core
 cp user-secrets.template.json user-secrets.json        # git-ignored
-# edit user-secrets.json: SQL password, RabbitMQ password and your R2 keys
+# edit user-secrets.json: your SQL and RabbitMQ passwords (the storage settings already point at S3Mock)
 dotnet user-secrets set --project src/BJK.Core.Api < user-secrets.json
 dotnet user-secrets list --project src/BJK.Core.Api    # check they're all there
 ```
@@ -201,15 +204,19 @@ The format is:
   },
   "Media": {
     "Storage": {
-      "ServiceUrl": "https://<cloudflare account id>.r2.cloudflarestorage.com",
-      "AccessKeyId": "<your R2 access key id>",
-      "SecretAccessKey": "<your R2 secret access key>",
+      "ServiceUrl": "http://localhost:9090",
+      "AccessKeyId": "local",
+      "SecretAccessKey": "local",
       "OriginalsBucket": "bjk-dev-originals",
       "PublicBucket": "bjk-dev-public",
-      "PublicBaseUrl": "https://<public URL of bjk-dev-public>"
+      "PublicBaseUrl": "http://localhost:9090/bjk-dev-public/"
     },
     "Queue": {
       "QueueName": "media.process"
+    },
+    "Processing": {
+      "FfmpegPath": "ffmpeg",
+      "FfprobePath": "ffprobe"
     }
   },
   "Messaging": {
@@ -224,8 +231,9 @@ The format is:
 | `ConnectionStrings:AppDatabase` | The main app database `badjockeys`, on the same SQL Server as `idsrv` |
 | `Authentication:Authority` | The identity server that issues the tokens the API accepts |
 | `Cors:AllowedOrigins` | The web app's address, so the browser can call the API |
-| `Media:Storage:*` | Your R2 keys and the dev buckets (step 5) |
+| `Media:Storage:*` | Local S3Mock and its two buckets (step 5), or R2 later |
 | `Media:Queue:QueueName` | The queue for processing jobs; created automatically |
+| `Media:Processing:FfmpegPath`, `FfprobePath` | Where ffmpeg is. `ffmpeg` and `ffprobe` work if they're on your `PATH`; otherwise use the full path, e.g. `/opt/homebrew/bin/ffmpeg` |
 | `Messaging:ConnectionUri` | Local RabbitMQ, shared by everything in the API |
 | `Messaging:UserEventsQueue` | Where the API receives account deactivations, reactivations and deletions from the identity server; created automatically |
 
@@ -240,6 +248,11 @@ Some settings are optional:
 | `Media:UploadUrlLifetime` | `00:15:00` |
 | `Media:OriginalRetention` | `90.00:00:00` |
 | `Email:Provider`, `SMS:Provider` | `Log`: emails and texts are written to the console, not sent |
+| `Media:Processing:MaxConcurrentJobs` | 1 |
+| `Media:Processing:VideoHeight`, `VideoCrf` | 720, 23 |
+| `Media:Processing:ImageMaxSize`, `ThumbnailMaxSize` | 2048, 640 pixels |
+
+The media worker shares the API's user secrets (same `UserSecretsId`), so you load them once.
 
 To change one setting later:
 
@@ -277,6 +290,10 @@ dotnet run --project src/BJK.Idsrv.Host --launch-profile https
 # 2. API: https://localhost:5101
 cd ~/Git/GitHub/badjockeys/bjk-core
 dotnet run --project src/BJK.Core.Api --launch-profile https
+
+# 3. Media worker (start the API once first: it creates the database)
+cd ~/Git/GitHub/badjockeys/bjk-core
+dotnet run --project src/BJK.Core.MediaWorker --launch-profile worker
 ```
 
 The first time each app starts, it creates its database and logs each schema being built, for example `MediaDbContext: applying migrations ...`. On later starts, each schema logs `database schema is up to date`.
@@ -304,18 +321,11 @@ Until the web app's sign-in page exists, you can test with the `.http` files and
 1. **Create a user and sign in.** Use `bjk-identity-server/src/BJK.Idsrv.Host/BJK.Idsrv.Host.http`, sending the requests from top to bottom. The sign-in returns an access token.
 2. **Try the API.** Use `bjk-core/src/BJK.Core.Api/BJK.Core.Api.http` with that token. For example, uploading:
    1. `POST /api/media/uploads` returns a signed upload URL.
-   2. `PUT` your file to that URL. It goes straight to R2, not through the API.
+   2. `PUT` your file to that URL. It goes straight to storage (S3Mock), not through the API.
    3. `POST /api/media/{id}/complete` queues the processing job. You'll see it appear on the `media.process` queue in the RabbitMQ dashboard.
-   4. `GET /api/media/mine` lists your uploads.
+   4. Within a few seconds the worker logs the job and the media turns `Ready`. `GET /api/media/mine` lists your uploads, and the processed file is in `bjk-dev-public`.
 
 Ask for the API's scopes when you sign in with the identity server's local test client: `scope=openid bjk.media bjk.profiles bjk.posts`. Each module checks its own scope.
-
-The media processing worker isn't built yet, so an upload stays at `Processing` and can't be posted. To try posting, mark it processed by hand:
-
-```sql
-USE badjockeys;
-UPDATE media.Media SET Status = 'Ready', PlaybackKey = OriginalKey, ThumbnailKey = OriginalKey, ProcessedAt = SYSDATETIMEOFFSET() WHERE Id = '<media id>';
-```
 
 Posting and commenting also need a confirmed email address (confirm it from the link in the identity server's console).
 
@@ -337,7 +347,7 @@ USE badjockeys;
 SELECT Id, UserId, MediaType, Status, OriginalFileName, CreatedAt FROM media.Media ORDER BY CreatedAt DESC;
 ```
 
-Every person has one id. A user's profile id equals their sign-in account id (the `sub` in their token). It's also the `{userId}` folder in R2 keys: `{userId}/{mediaId}/original.mp4`.
+Every person has one id. A user's profile id equals their sign-in account id (the `sub` in their token). It's also the `{userId}` folder in storage keys: `{userId}/{mediaId}/original.mp4`.
 
 ## Database changes
 
@@ -358,8 +368,11 @@ cd ~/Git/GitHub/badjockeys/bjk-identity-server && docker compose down -v && dock
 - **`Login failed for user 'sa'`.** The password in your user secret doesn't match `bjk-identity-server/.env`. If you changed `.env` after the container was first created, SQL Server still has the old password: run `docker compose down -v` (this deletes local data), then `docker compose up -d`.
 - **`A network-related or instance-specific error`.** SQL Server isn't running or isn't healthy yet. Run `docker ps`, then `docker compose logs sql` in bjk-identity-server.
 - **`None of the specified endpoints were reachable` (RabbitMQ).** RabbitMQ isn't running, or the password in `Messaging:ConnectionUri` doesn't match `bjk-identity-server/.env`.
-- **The browser upload fails with a CORS error.** The dev originals bucket doesn't allow `PUT` from `http://localhost:3000` (see step 5).
+- **An upload stays at `Processing`.** The media worker isn't running, or it can't find ffmpeg: check its console for `ffmpeg` errors, and set `Media:Processing:FfmpegPath` to the full path (`which ffmpeg`).
+- **An upload goes to `Failed`.** The file isn't a video or photo ffmpeg can read, or it's over the size or length limits. The worker logs the reason.
+- **`Connection refused` on port 9090.** S3Mock isn't running: `docker compose up -d` in bjk-core.
+- **The browser upload fails with a CORS error.** The storage doesn't allow `PUT` from `http://localhost:3000` (for R2, see step 5).
 - **`SignatureDoesNotMatch` or `InvalidAccessKeyId` from R2.** The R2 keys are wrong, or the token isn't scoped to the dev buckets.
 - **The API returns `401` with a valid-looking token.** Check that `Authentication:Authority` is `https://localhost:5001`, that the identity server is running, and that you ran `dotnet dev-certs https --trust`.
 - **The SQL container keeps restarting on an Apple Silicon Mac.** Turn on Rosetta in Docker Desktop (step 1).
-- **A port is already in use (1433, 5672, 15672, 5001, 5101 or 3000).** Stop whatever is using it (`lsof -i :<port>`), or change the left-hand port in the compose file and the matching setting.
+- **A port is already in use (1433, 5672, 15672, 9090, 5001, 5101 or 3000).** Stop whatever is using it (`lsof -i :<port>`), or change the left-hand port in the compose file and the matching setting.

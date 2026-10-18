@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <RootNamespace>BJK.Core.MediaWorker</RootNamespace>
+    <!-- Shares the API's user secrets: both read the same database, queue and storage settings. -->
+    <UserSecretsId>bjk-core-api</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BJK.Modules.Media" />
+  </ItemGroup>
+
+</Project>

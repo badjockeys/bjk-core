@@ -2,12 +2,17 @@
 # End-to-end smoke test for the API host, run by CI against real SQL Server, RabbitMQ and S3Mock (standing in for
 # Cloudflare R2), with fake-issuer.py standing in for bjk-identity-server.
 #
+# Also runs the media worker (src/BJK.Core.MediaWorker) with real ffmpeg, so uploads are processed for real.
+#
 # Covers: startup migrations; token validation (issuer, audience, expiry, token type, scopes); profiles; uploads to
 # object storage; the processing queue; posts, reactions, comments and reports; moderation rights; data export; the
 # user lifecycle events from the identity server (deactivate, reactivate, delete); and a restart.
 set -euo pipefail
 
 PROJECT=${PROJECT:-src/BJK.Core.Api}
+WORKER_PROJECT=${WORKER_PROJECT:-src/BJK.Core.MediaWorker}
+WORKER_LOG=${WORKER_LOG:-worker.log}
+PUBLIC_BUCKET=${Media__Storage__PublicBucket:-bjk-ci-public}
 BASE_URL=${BASE_URL:-http://localhost:5100}
 ISSUER_URL=${ISSUER_URL:-http://localhost:5999}
 APP_LOG=${APP_LOG:-app.log}
@@ -16,8 +21,10 @@ ORIGINALS_BUCKET=${Media__Storage__OriginalsBucket:-bjk-ci-originals}
 RABBITMQ_MANAGEMENT_URL=${RABBITMQ_MANAGEMENT_URL:-http://localhost:15672}
 
 APP_PID=""
+WORKER_PID=""
 PASSED=()
 : > "$APP_LOG"
+: > "$WORKER_LOG"
 
 # ---------- helpers ----------
 
@@ -26,8 +33,10 @@ fail() { echo "::error::$1"; exit 1; }
 on_exit() {
   local status=$?
   if [ -n "$APP_PID" ]; then kill "$APP_PID" 2>/dev/null || true; fi
+  if [ -n "$WORKER_PID" ]; then kill "$WORKER_PID" 2>/dev/null || true; fi
   if [ $status -ne 0 ]; then
     echo "::error title=App log (last 40 lines)::$(tail -40 "$APP_LOG" | sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g')"
+    echo "::error title=Worker log (last 40 lines)::$(tail -40 "$WORKER_LOG" | sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g')"
   fi
 }
 trap on_exit EXIT
@@ -47,6 +56,20 @@ stop_app() {
   kill "$APP_PID"
   wait "$APP_PID" 2>/dev/null || true
   APP_PID=""
+}
+
+start_worker() {
+  DOTNET_ENVIRONMENT=Development dotnet run --project "$WORKER_PROJECT" --configuration Release --no-build --no-launch-profile >> "$WORKER_LOG" 2>&1 &
+  WORKER_PID=$!
+  sleep 5
+  kill -0 "$WORKER_PID" 2>/dev/null || fail "The media worker exited during startup."
+  echo "ok  media worker is running"
+}
+
+stop_worker() {
+  kill "$WORKER_PID"
+  wait "$WORKER_PID" 2>/dev/null || true
+  WORKER_PID=""
 }
 
 pass() { echo "ok  $1"; PASSED+=("$1"); }
@@ -186,30 +209,94 @@ expect 201 "user B creates a profile"
 request GET /api/profiles/roadhog
 expect 200 "anyone can view a profile"
 
-# ---------- uploads ----------
+# ---------- uploads, processed by the media worker ----------
 
-head -c 2048 /dev/urandom > photo.jpg
-request POST /api/media/uploads "$(body '{fileName: "dashcam.jpg", contentType: "image/jpeg", sizeBytes: 2048}')" "$TOKEN_A"
-expect 201 "request an upload link"
-MEDIA_ID=$(json .mediaId)
-UPLOAD_URL=$(json .upload.url)
-[[ "$UPLOAD_URL" == *"$USER_A/$MEDIA_ID/"* ]] || fail "Expected the storage key to start with {userId}/{mediaId}: $UPLOAD_URL"
+start_worker
+pass "media worker starts"
+
+# A real photo, with a GPS tag the worker must strip, and a real 3-second dashcam-shaped video.
+ffmpeg -loglevel error -y -f lavfi -i testsrc2=size=3000x2000 -frames:v 1 photo.jpg
+exiftool -q -overwrite_original -GPSLatitude=53.8 -GPSLatitudeRef=N -GPSLongitude=1.55 -GPSLongitudeRef=W photo.jpg \
+  || echo "::warning::exiftool missing; the photo has no GPS tag to strip."
+ffmpeg -loglevel error -y -f lavfi -i testsrc2=size=1920x1080:rate=60 -f lavfi -i sine=frequency=440 -t 3 \
+  -c:v libx264 -pix_fmt yuv420p -c:a aac clip.mp4
+
+# upload FILE CONTENT_TYPE TOKEN  -> sets MEDIA_ID after requesting a link, uploading and completing
+upload() {
+  local file=$1 type=$2 bearer=$3 size url
+  size=$(stat -c %s "$file")
+  request POST /api/media/uploads "$(body --arg n "$(basename "$file")" --arg t "$type" --argjson s "$size" '{fileName: $n, contentType: $t, sizeBytes: $s}')" "$bearer"
+  expect 201 "request an upload link for $(basename "$file")"
+  MEDIA_ID=$(json .mediaId)
+  url=$(json .upload.url)
+  [[ "$url" == *"$USER_A/$MEDIA_ID/"* ]] || fail "Expected the storage key to start with {userId}/{mediaId}: $url"
+  STATUS=$(curl -s -o /dev/null -w '%{http_code}' -X PUT -H "Content-Type: $type" --data-binary @"$file" "$url")
+  expect 200 "upload $(basename "$file") straight to object storage with the signed link"
+}
+
+upload photo.jpg image/jpeg "$TOKEN_A"
 pass "storage key is {userId}/{mediaId}/..."
-# The signature covers the host and path, not the scheme; the CI storage speaks plain HTTP.
-STATUS=$(curl -s -o /dev/null -w '%{http_code}' -X PUT -H 'Content-Type: image/jpeg' --data-binary @photo.jpg "${UPLOAD_URL/https:/http:}")
-expect 200 "upload straight to object storage with the signed link"
 request POST "/api/media/$MEDIA_ID/complete" "" "$TOKEN_B"
 [ "$STATUS" = 403 ] || [ "$STATUS" = 404 ] || fail "Someone else completed user A's upload: HTTP $STATUS"
 pass "another user can't complete the upload ($STATUS)"
-request POST "/api/media/$MEDIA_ID/complete" "" "$TOKEN_A"
-expect 202 "complete the upload"
-[ "$(json .status)" = "Processing" ] || fail "Expected Processing, got $(json .status)"
-wait_for "queue_messages media.process" 1 "a processing job is on the media.process queue"
-
-# Stand in for the media worker (not built yet): mark the photo processed.
-sql "UPDATE media.Media SET Status = 'Ready', PlaybackKey = '$USER_A/$MEDIA_ID/image.webp', ThumbnailKey = '$USER_A/$MEDIA_ID/thumbnail.webp', Width = 1280, Height = 720, ProcessedAt = SYSDATETIMEOFFSET() WHERE Id = '$MEDIA_ID'" > /dev/null
 request GET "/api/media/$MEDIA_ID" "" "$TOKEN_B"
+[ "$STATUS" = 403 ] || [ "$STATUS" = 404 ] || fail "Others could see the media before it was ready: HTTP $STATUS"
+pass "others can't see the media before it's ready ($STATUS)"
+request POST "/api/media/$MEDIA_ID/complete" "" "$TOKEN_A"
+expect 202 "complete the photo upload"
+PHOTO_ID=$MEDIA_ID
+
+upload clip.mp4 video/mp4 "$TOKEN_A"
+request POST "/api/media/$MEDIA_ID/complete" "" "$TOKEN_A"
+expect 202 "complete the video upload"
+VIDEO_ID=$MEDIA_ID
+
+wait_for "sql \"SELECT Status FROM media.Media WHERE Id = '$PHOTO_ID'\"" Ready "the worker processes the photo"
+wait_for "sql \"SELECT Status FROM media.Media WHERE Id = '$VIDEO_ID'\"" Ready "the worker processes the video"
+
+for id in "$PHOTO_ID" "$VIDEO_ID"; do
+  for column in PlaybackKey ThumbnailKey; do
+    key=$(sql "SELECT $column FROM media.Media WHERE Id = '$id'")
+    s3 head-object --bucket "$PUBLIC_BUCKET" --key "$key" > /dev/null || fail "Expected $key in the public bucket."
+  done
+done
+pass "processed files and thumbnails are in the public bucket"
+
+PHOTO_KEY=$(sql "SELECT PlaybackKey FROM media.Media WHERE Id = '$PHOTO_ID'")
+s3 get-object --bucket "$PUBLIC_BUCKET" --key "$PHOTO_KEY" photo-out > /dev/null
+[ "$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width -of csv=p=0 photo-out)" = "webp,2048" ] \
+  || fail "Expected a 2048-pixel WebP photo: $(ffprobe -v error -show_entries stream=codec_name,width,height -of csv=p=0 photo-out)"
+pass "photo is a 2048-pixel WebP"
+if command -v exiftool > /dev/null && [ -n "$(exiftool -q -GPSLatitude photo-out)" ]; then
+  fail "The published photo still has its GPS location."
+fi
+pass "published photo has no GPS location"
+
+VIDEO_KEY=$(sql "SELECT PlaybackKey FROM media.Media WHERE Id = '$VIDEO_ID'")
+s3 get-object --bucket "$PUBLIC_BUCKET" --key "$VIDEO_KEY" video-out > /dev/null
+VIDEO_INFO=$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,height -of csv=p=0 video-out)
+[ "$VIDEO_INFO" = "h264,720" ] || fail "Expected 720p H.264 video, got $VIDEO_INFO"
+pass "video is 720p H.264"
+FPS=$(ffprobe -v error -select_streams v:0 -show_entries stream=avg_frame_rate -of csv=p=0 video-out)
+[ "$(awk -F/ '{ printf "%d", ($2 ? $1 / $2 : $1) + 0.5 }' <<< "$FPS")" -le 30 ] || fail "Expected at most 30 frames a second, got $FPS"
+pass "video is capped at 30 frames a second"
+
+request GET "/api/media/$PHOTO_ID" "" "$TOKEN_B"
 expect 200 "others can see the media once it's ready"
+MEDIA_ID=$PHOTO_ID
+# RabbitMQ's management stats refresh every few seconds, so poll.
+wait_for "queue_messages media.process" 0 "no jobs left on the queue"
+
+# Browsers upload straight to storage, so it must answer a CORS preflight. Cloudflare R2 does once configured;
+# this reports whether the local stand-in (S3Mock) does too.
+PREFLIGHT=$(curl -s -D - -o /dev/null -X OPTIONS "$S3_ENDPOINT/$ORIGINALS_BUCKET/cors-check" \
+  -H 'Origin: http://localhost:3000' -H 'Access-Control-Request-Method: PUT' -H 'Access-Control-Request-Headers: content-type' \
+  | grep -i '^access-control-allow-origin:' | tr -d '\r' || true)
+if [ -n "$PREFLIGHT" ]; then
+  echo "::notice title=S3Mock CORS::S3Mock allows browser uploads from http://localhost:3000 ($PREFLIGHT)"
+else
+  echo "::warning title=S3Mock CORS::S3Mock didn't answer the CORS preflight; the web app will need a dev upload proxy."
+fi
 
 # ---------- posts ----------
 
@@ -269,18 +356,15 @@ pass "export has profile, posts and media sections"
 
 user_event Deactivated "$USER_A"
 wait_for "curl -s -o /dev/null -w '%{http_code}' $BASE_URL/api/profiles/roadhog" 404 "deactivated user's profile disappears"
-request GET /api/posts
-[ "$(json .totalCount)" = "0" ] || fail "Expected the deactivated user's post to be hidden: $RESPONSE"
-pass "deactivated user's post is hidden from the feed"
+# Profiles and Posts each handle the event from their own queue binding, so allow for them finishing apart.
+wait_for "curl -s $BASE_URL/api/posts | jq -r .totalCount" 0 "deactivated user's post is hidden from the feed"
 request GET /api/profiles/handles/roadhog/availability
 [ "$(json .available)" = "false" ] || fail "Expected the handle to stay reserved while deactivated: $RESPONSE"
 pass "deactivated user's handle stays reserved"
 
 user_event Reactivated "$USER_A"
 wait_for "curl -s -o /dev/null -w '%{http_code}' $BASE_URL/api/profiles/roadhog" 200 "reactivated user's profile is back"
-request GET /api/posts
-[ "$(json .totalCount)" = "1" ] || fail "Expected the post back in the feed: $RESPONSE"
-pass "reactivated user's post is back in the feed"
+wait_for "curl -s $BASE_URL/api/posts | jq -r .totalCount" 1 "reactivated user's post is back in the feed"
 
 ORIGINAL_KEY=$(sql "SELECT OriginalKey FROM media.Media WHERE Id = '$MEDIA_ID'")
 s3 head-object --bucket "$ORIGINALS_BUCKET" --key "$ORIGINAL_KEY" > /dev/null || fail "Expected the original in storage before deletion."
@@ -299,6 +383,7 @@ pass "no events on the failed queue"
 
 # ---------- restart: migrations keep data ----------
 
+stop_worker
 stop_app
 start_app
 [ "$(grep -c 'database schema is up to date' "$APP_LOG")" -ge 3 ] || fail "Expected all three schemas to be up to date on restart."
