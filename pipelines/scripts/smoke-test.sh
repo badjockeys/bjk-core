@@ -216,7 +216,8 @@ expect 200 "others can see the media once it's ready"
 POST_BODY=$(body --arg m "$MEDIA_ID" --arg at "$(date -u -d '-2 hours' +%Y-%m-%dT%H:%M:%SZ)" \
   '{title: "Undertaking on the M62", description: "Lorry undertakes at junction 26.", category: "DangerousOvertaking", incidentAt: $at, latitude: 53.7457, longitude: -1.7181, placeName: "M62 J26", mediaIds: [$m]}')
 request POST /api/posts "$POST_BODY" "$(token "$(body --arg s "$USER_A" --argjson sc "$ALL_SCOPES" '{sub: $s, scope: $sc, email_verified: false}')")"
-expect 403 "posting needs a confirmed email"
+expect 400 "posting needs a confirmed email"
+[ "$(json '.errors.Email[0]')" = "Confirm your email address before posting." ] || fail "Expected the confirm-email message: $RESPONSE"
 request POST /api/posts "$POST_BODY" "$TOKEN_B"
 [ "$STATUS" -ge 400 ] || fail "User B posted user A's media: HTTP $STATUS"
 pass "can't post someone else's media ($STATUS)"
