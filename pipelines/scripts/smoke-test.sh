@@ -356,18 +356,15 @@ pass "export has profile, posts and media sections"
 
 user_event Deactivated "$USER_A"
 wait_for "curl -s -o /dev/null -w '%{http_code}' $BASE_URL/api/profiles/roadhog" 404 "deactivated user's profile disappears"
-request GET /api/posts
-[ "$(json .totalCount)" = "0" ] || fail "Expected the deactivated user's post to be hidden: $RESPONSE"
-pass "deactivated user's post is hidden from the feed"
+# Profiles and Posts each handle the event from their own queue binding, so allow for them finishing apart.
+wait_for "curl -s $BASE_URL/api/posts | jq -r .totalCount" 0 "deactivated user's post is hidden from the feed"
 request GET /api/profiles/handles/roadhog/availability
 [ "$(json .available)" = "false" ] || fail "Expected the handle to stay reserved while deactivated: $RESPONSE"
 pass "deactivated user's handle stays reserved"
 
 user_event Reactivated "$USER_A"
 wait_for "curl -s -o /dev/null -w '%{http_code}' $BASE_URL/api/profiles/roadhog" 200 "reactivated user's profile is back"
-request GET /api/posts
-[ "$(json .totalCount)" = "1" ] || fail "Expected the post back in the feed: $RESPONSE"
-pass "reactivated user's post is back in the feed"
+wait_for "curl -s $BASE_URL/api/posts | jq -r .totalCount" 1 "reactivated user's post is back in the feed"
 
 ORIGINAL_KEY=$(sql "SELECT OriginalKey FROM media.Media WHERE Id = '$MEDIA_ID'")
 s3 head-object --bucket "$ORIGINALS_BUCKET" --key "$ORIGINAL_KEY" > /dev/null || fail "Expected the original in storage before deletion."
