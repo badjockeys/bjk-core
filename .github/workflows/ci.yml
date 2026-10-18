@@ -1,0 +1,118 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+  packages: read   # BJK.Modules.* from GitHub Packages
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Credentials for the "badjockeys" source in nuget.config.
+  NuGetPackageSourceCredentials_badjockeys: Username=${{ github.actor }};Password=${{ secrets.GITHUB_TOKEN }}
+  # Throwaway passwords for the CI-only containers below.
+  SQL_PASSWORD: Ci-Passw0rd-2026
+  RABBITMQ_USER: bjk
+  RABBITMQ_PASSWORD: ci-rabbit-2026
+  AWS_ACCESS_KEY_ID: ci-s3
+  AWS_SECRET_ACCESS_KEY: ci-s3-secret
+  AWS_DEFAULT_REGION: us-east-1
+  # The same settings developers keep in user secrets (see user-secrets.template.json).
+  ConnectionStrings__AppDatabase: Server=localhost,1433;Database=badjockeys;User Id=sa;Password=Ci-Passw0rd-2026;TrustServerCertificate=True
+  Authentication__Authority: http://localhost:5999   # pipelines/scripts/fake-issuer.py, standing in for bjk-identity-server
+  Authentication__RequireHttpsMetadata: "false"
+  Cors__AllowedOrigins__0: http://localhost:3000
+  Messaging__ConnectionUri: amqp://bjk:ci-rabbit-2026@localhost:5672
+  # Adobe's S3Mock stands in for Cloudflare R2: both speak the S3 API.
+  Media__Storage__ServiceUrl: http://localhost:9090
+  Media__Storage__AccessKeyId: ci-s3
+  Media__Storage__SecretAccessKey: ci-s3-secret
+  S3_ENDPOINT: http://localhost:9090
+  Media__Storage__OriginalsBucket: bjk-ci-originals
+  Media__Storage__PublicBucket: bjk-ci-public
+  Media__Storage__PublicBaseUrl: http://localhost:9090/bjk-ci-public/
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    services:
+      sql:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: "Y"
+          MSSQL_SA_PASSWORD: Ci-Passw0rd-2026
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P Ci-Passw0rd-2026 -C -Q 'SELECT 1'"
+          --health-interval 10s --health-timeout 5s --health-retries 12
+      rabbitmq:
+        image: rabbitmq:4-management
+        env:
+          RABBITMQ_DEFAULT_USER: bjk
+          RABBITMQ_DEFAULT_PASS: ci-rabbit-2026
+        ports:
+          - 5672:5672
+          - 15672:15672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s --health-timeout 10s --health-retries 12
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: |
+          set -o pipefail
+          if ! dotnet restore BJK.Core.slnx 2>&1 | tee restore.log; then
+            grep -E "error" restore.log | sort -u | head -10 | sed 's/^/::error::/'
+            exit 1
+          fi
+
+      - name: Build
+        run: dotnet build BJK.Core.slnx --configuration Release --no-restore
+
+      - name: Build the container image
+        run: docker build --file src/BJK.Core.Api/Dockerfile --secret id=nuget,env=NuGetPackageSourceCredentials_badjockeys --tag bjk-core-api:ci .
+
+      # Started here rather than as a service container, so a pull failure can fall back to another tag.
+      - name: Start S3Mock and create the buckets
+        run: |
+          started=""
+          for image in adobe/s3mock:3.12.0 adobe/s3mock:latest; do
+            if out=$(docker run -d --name s3 -p 9090:9090 "$image" 2>&1); then started=$image; break; fi
+            echo "$out" | tail -3 | sed "s|^|::warning title=S3Mock $image::|"
+            docker rm -f s3 > /dev/null 2>&1 || true
+          done
+          [ -n "$started" ] || { echo "::error::Couldn't start S3Mock."; exit 1; }
+          for _ in $(seq 1 30); do curl -s -o /dev/null http://localhost:9090/ && break; sleep 1; done
+          aws --endpoint-url http://localhost:9090 s3api create-bucket --bucket bjk-ci-originals
+          aws --endpoint-url http://localhost:9090 s3api create-bucket --bucket bjk-ci-public
+          echo "Started $started"
+
+      - name: Start the stand-in token issuer
+        run: |
+          pip install --quiet cryptography
+          nohup python3 pipelines/scripts/fake-issuer.py 5999 > issuer.log 2>&1 &
+          for _ in $(seq 1 15); do curl -fs http://localhost:5999/.well-known/openid-configuration && break; sleep 1; done
+
+      - name: End-to-end smoke test
+        env:
+          ASPNETCORE_ENVIRONMENT: Development
+          ASPNETCORE_URLS: http://localhost:5100
+          SQL_CONTAINER: ${{ job.services.sql.id }}
+          Logging__Console__FormatterName: simple
+          Logging__Console__FormatterOptions__SingleLine: "true"
+          Logging__Console__FormatterOptions__ColorBehavior: Disabled
+        run: bash pipelines/scripts/smoke-test.sh

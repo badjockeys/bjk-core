@@ -1,0 +1,60 @@
+# Try the API by hand (Rider, or VS Code with the REST Client extension).
+# 1. Run the identity server and the API (docs/local-development.md, step 7).
+# 2. Get an access token from the identity server's .http file, using a client that asks for
+#    bjk.media bjk.profiles bjk.posts, and paste it below.
+
+@api = https://localhost:5101
+@token = <paste an access token>
+
+### Health
+GET {{api}}/health
+
+### The public feed (no token needed)
+GET {{api}}/api/posts
+
+### Create my profile
+POST {{api}}/api/profiles
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "handle": "roadhog", "displayName": "Road Hog", "location": "Leeds" }
+
+### My profile
+GET {{api}}/api/profiles/me
+Authorization: Bearer {{token}}
+
+### Ask for an upload link, then PUT the file to upload.url with the Content-Type it gives you
+POST {{api}}/api/media/uploads
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "fileName": "dashcam.mp4", "contentType": "video/mp4", "sizeBytes": 1048576 }
+
+### After uploading: queue it for processing
+@mediaId = <mediaId from above>
+POST {{api}}/api/media/{{mediaId}}/complete
+Authorization: Bearer {{token}}
+
+### My uploads
+GET {{api}}/api/media/mine
+Authorization: Bearer {{token}}
+
+### Post an incident (the media must be Ready; needs a confirmed email)
+POST {{api}}/api/posts
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "Undertaking on the M62",
+  "description": "Lorry undertakes at junction 26.",
+  "category": "DangerousOvertaking",
+  "incidentAt": "2026-10-18T08:30:00Z",
+  "latitude": 53.7457,
+  "longitude": -1.7181,
+  "placeName": "M62 J26",
+  "mediaIds": [ "{{mediaId}}" ]
+}
+
+### Download my data
+GET {{api}}/api/me/data-export
+Authorization: Bearer {{token}}

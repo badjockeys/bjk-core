@@ -1,0 +1,11 @@
+# Keep local build output, secrets and the web app out of the API image's build context.
+**/bin/
+**/obj/
+**/node_modules/
+**/.next/
+.git/
+.github/
+.env
+**/.env.local
+user-secrets.json
+*.log

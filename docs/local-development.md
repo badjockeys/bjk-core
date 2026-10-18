@@ -7,18 +7,18 @@ This guide gets the whole platform running on your machine:
 | SQL Server | bjk-identity-server (`docker-compose.yml`) | Docker | `localhost,1433` |
 | RabbitMQ | bjk-identity-server (`docker-compose.yml`) | Docker | `localhost:5672`, dashboard http://localhost:15672 |
 | Identity server (sign-in + User module) | bjk-identity-server | .NET | https://localhost:5001 |
-| API (Media and later modules) | bjk-core, `src/BJK.Core.Api` | .NET | https://localhost:5101 |
+| API (Media, Profiles, Posts, Email and SMS modules) | bjk-core, `src/BJK.Core.Api` | .NET | https://localhost:5101 |
 | Web app | bjk-core, `src/web` | Node.js (Next.js) | http://localhost:3000 |
 | File storage | Cloudflare R2, shared dev buckets | Cloudflare | no local copy |
 
-> **Status (18 Oct 2026):** the identity server runs today. The API host (`src/BJK.Core.Api`) and the web app (`src/web`) are the next things being built. Until they land, steps 7 and 8 describe how they will run, and you can complete everything else now: the prerequisites, Docker, user secrets and R2 keys.
+> **Status (18 Oct 2026):** the identity server and the API run today. The web app (`src/web`) is being built next, so step 8 describes how it will run. The media processing worker isn't built yet, so uploads stay at `Processing` (see [Trying it end to end](#trying-it-end-to-end)).
 
 One SQL Server holds both databases:
 
 | Database | Used by | Schemas |
 |---|---|---|
 | `idsrv` | Identity server | `auth` (accounts), `idsrv` (tokens, keys), `users` (profiles) |
-| `badjockeys` | API | `media`, and one schema per module added later |
+| `badjockeys` | API | `media`, `profiles`, `posts` (one schema per module) |
 
 Neither app needs you to create its database. Each one creates its database and applies schema changes when it starts, and refuses any change that would delete data (see [Database changes](#database-changes)).
 
@@ -239,6 +239,7 @@ Some settings are optional:
 | `Media:MaxVideoDurationSeconds` | 300 |
 | `Media:UploadUrlLifetime` | `00:15:00` |
 | `Media:OriginalRetention` | `90.00:00:00` |
+| `Email:Provider`, `SMS:Provider` | `Log`: emails and texts are written to the console, not sent |
 
 To change one setting later:
 
@@ -301,13 +302,22 @@ Then open http://localhost:3000.
 Until the web app's sign-in page exists, you can test with the `.http` files and the identity server's local test clients:
 
 1. **Create a user and sign in.** Use `bjk-identity-server/src/BJK.Idsrv.Host/BJK.Idsrv.Host.http`, sending the requests from top to bottom. The sign-in returns an access token.
-2. **Try the Media endpoints.** Use `bjk-core/src/BJK.Core.Api/BJK.Core.Api.http` with that token:
+2. **Try the API.** Use `bjk-core/src/BJK.Core.Api/BJK.Core.Api.http` with that token. For example, uploading:
    1. `POST /api/media/uploads` returns a signed upload URL.
    2. `PUT` your file to that URL. It goes straight to R2, not through the API.
    3. `POST /api/media/{id}/complete` queues the processing job. You'll see it appear on the `media.process` queue in the RabbitMQ dashboard.
    4. `GET /api/media/mine` lists your uploads.
 
-The Media endpoints need the `bjk.media` scope. The identity server's local client will offer it once the media scopes are added there.
+Ask for the API's scopes when you sign in with the identity server's local test client: `scope=openid bjk.media bjk.profiles bjk.posts`. Each module checks its own scope.
+
+The media processing worker isn't built yet, so an upload stays at `Processing` and can't be posted. To try posting, mark it processed by hand:
+
+```sql
+USE badjockeys;
+UPDATE media.Media SET Status = 'Ready', PlaybackKey = OriginalKey, ThumbnailKey = OriginalKey, ProcessedAt = SYSDATETIMEOFFSET() WHERE Id = '<media id>';
+```
+
+Posting and commenting also need a confirmed email address (confirm it from the link in the identity server's console).
 
 ## Data and handy queries
 
