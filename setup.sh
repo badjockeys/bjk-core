@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # Bad Jockeys: complete local setup on macOS. Safe to run again; it skips whatever is already done.
 #
-#   bash setup.sh        (it can be the only file you have; it fetches the repos itself)
+#   bash setup.sh             (it can be the only file you have; it fetches the repos itself)
+#   bash setup.sh --upgrade   also upgrades the tools to their latest versions (restarts Docker Desktop)
+#
+# Run it again any time: it pulls the latest code into each repo that's on master with no uncommitted
+# changes (others are left alone), and restarts itself if that brought a newer setup.sh.
 #
 # It installs any missing tools with Homebrew (installing Homebrew first if needed): GitHub CLI, .NET 10 SDK,
 # Node.js 24, Docker Desktop, ffmpeg, VS Code, plus Rosetta on Apple Silicon. It signs you in to GitHub in your
@@ -11,6 +15,18 @@
 #
 # On Linux, install the tools with your package manager (see docs/local-development.md); this script then does the rest.
 set -uo pipefail
+
+# Fingerprint of this script as it started, to spot a newer one after the repos are updated.
+SELF_SUM="$(cksum < "$0")"
+
+UPGRADE=0
+for arg in "$@"; do
+  case "$arg" in
+    --upgrade) UPGRADE=1 ;;
+    -h|--help) sed -n '2,20p' "$0"; exit 0 ;;
+    *) printf 'Unknown option: %s (try --help)\n' "$arg"; exit 1 ;;
+  esac
+done
 
 ORG=badjockeys
 REPOS=(bjk-core bjk-identity-server bjk-modules bjk-mobile)
@@ -82,6 +98,18 @@ if [ "$(uname -s)" = Darwin ]; then
   install "Docker Desktop" has_docker --cask --force docker
   install "VS Code" has_code --cask visual-studio-code
 
+  if [ "$UPGRADE" = 1 ]; then
+    step "Upgrading the tools (--upgrade)"
+    brew update
+    for f in gh node@24 ffmpeg; do
+      brew list --formula "$f" >/dev/null 2>&1 && { brew upgrade "$f" || echo "Couldn't upgrade $f; carrying on."; }
+    done
+    for c in dotnet-sdk docker visual-studio-code; do
+      brew list --cask "$c" >/dev/null 2>&1 && { brew upgrade --cask "$c" || echo "Couldn't upgrade $c; carrying on."; }
+    done
+    echo "Tools installed some other way (not with Homebrew) were left as they are."
+  fi
+
   if [ "$(uname -m)" = arm64 ] && ! /usr/bin/pgrep -q oahd; then
     echo "Installing Rosetta (SQL Server only runs on x86-64)..."
     softwareupdate --install-rosetta --agree-to-license || fail "Rosetta didn't install: softwareupdate --install-rosetta"
@@ -93,6 +121,7 @@ else
   node_ok || missing+=("Node.js 24+")
   [ ${#missing[@]} -eq 0 ] || fail "Install these with your package manager, then run this again: ${missing[*]}"
   echo "All tools installed"
+  [ "$UPGRADE" = 1 ] && echo "On Linux, upgrade the tools with your package manager; --upgrade only covers macOS."
 fi
 
 # --- Docker ----------------------------------------------------------------------------------------------------------
@@ -156,12 +185,35 @@ else
   root="$HOME/Git/GitHub/badjockeys"
 fi
 mkdir -p "$root"
+# Pulls the latest master, but only when that can't disturb anyone's work: on master, nothing uncommitted.
+update_repo() { # repo path
+  local repo=$1 path=$2 branch
+  if ! git -C "$path" rev-parse -q --verify HEAD >/dev/null; then echo "$repo: no commits yet"; return; fi
+  branch="$(git -C "$path" branch --show-current)"
+  if [ "$branch" != master ]; then
+    printf '\033[33m%s: on branch %s, so not updated (switch to master to get the latest)\033[0m\n' "$repo" "${branch:-(detached)}"
+  elif [ -n "$(git -C "$path" status --porcelain)" ]; then
+    printf '\033[33m%s: has uncommitted changes, so not updated\033[0m\n' "$repo"
+  elif git -C "$path" pull --ff-only -q; then
+    echo "$repo: up to date ($(git -C "$path" log --oneline -1))"
+  else
+    printf '\033[33m%s: couldn'"'"'t pull the latest master; carrying on with what you have\033[0m\n' "$repo"
+  fi
+}
+
 for repo in "${REPOS[@]}"; do
-  if [ -d "$root/$repo/.git" ]; then echo "$repo: already cloned"; continue; fi
+  if [ -d "$root/$repo/.git" ]; then update_repo "$repo" "$root/$repo"; continue; fi
   gh repo clone "$ORG/$repo" "$root/$repo" || fail "Couldn't clone $ORG/$repo. Check that your GitHub account has access to the $ORG organisation."
   done_ "$repo: cloned"
 done
 core="$root/bjk-core"
+
+# If bjk-core now has a different setup.sh than the one running (it was just updated, or this copy was a
+# download), carry on with that one so the latest steps run. Once only.
+if [ -z "${BJK_SETUP_RESTARTED:-}" ] && [ -f "$core/setup.sh" ] && [ "$(cksum < "$core/setup.sh")" != "$SELF_SUM" ]; then
+  echo "Restarting with the latest setup.sh from bjk-core..."
+  BJK_SETUP_RESTARTED=1 exec bash "$core/setup.sh" "$@"
+fi
 
 # --- Project setup ---------------------------------------------------------------------------------------------------
 step "Setting up the project"
