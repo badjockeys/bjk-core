@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# End-to-end smoke test for the API host, run by CI against real SQL Server, RabbitMQ and S3Mock (standing in for
-# Cloudflare R2), with fake-issuer.py standing in for bjk-identity-server.
+# End-to-end smoke test for the API host, run by CI against real SQL Server (which also holds the message queues,
+# schema messaging) and S3Mock (standing in for Cloudflare R2), with fake-issuer.py standing in for bjk-identity-server.
 #
-# Also runs the media worker (src/BJK.Core.MediaWorker) with real ffmpeg, so uploads are processed for real.
+# Also runs the media worker (src/BJK.Core.MediaWorker) with real ffmpeg and the blurring models, so uploads are
+# processed for real.
 #
 # Covers: startup migrations; token validation (issuer, audience, expiry, token type, scopes); profiles; uploads to
 # object storage; the processing queue; posts, reactions, comments and reports; moderation rights; data export; the
@@ -18,7 +19,6 @@ ISSUER_URL=${ISSUER_URL:-http://localhost:5999}
 APP_LOG=${APP_LOG:-app.log}
 S3_ENDPOINT=${S3_ENDPOINT:-http://localhost:9090}
 ORIGINALS_BUCKET=${Media__Storage__OriginalsBucket:-bjk-ci-originals}
-RABBITMQ_MANAGEMENT_URL=${RABBITMQ_MANAGEMENT_URL:-http://localhost:15672}
 
 APP_PID=""
 WORKER_PID=""
@@ -120,18 +120,23 @@ wait_for() {
   fail "$label: expected $expected, last saw '$actual'."
 }
 
-rabbit() { curl -fs -u "$RABBITMQ_USER:$RABBITMQ_PASSWORD" "$@"; }
+# queue_messages QUEUE  - messages in a queue table (waiting, being worked on, or waiting for a retry)
+queue_messages() { sql "SELECT CASE WHEN OBJECT_ID('[messaging].[$1]') IS NULL THEN -1 ELSE (SELECT COUNT(*) FROM [messaging].[$1]) END"; }
 
-queue_messages() { rabbit "$RABBITMQ_MANAGEMENT_URL/api/queues/%2F/$1" | jq -r '.messages'; }
-
-# user_event TYPE USER_ID  - publishes a user lifecycle event as the identity server would
+# user_event TYPE USER_ID  - publishes a user lifecycle event as the identity server does: a row (Rebus's JSON headers,
+# the event as JSON) in every queue subscribed to the bjk.users topic
 user_event() {
-  local payload
-  payload=$(body --arg id "$(cat /proc/sys/kernel/random/uuid)" --arg user "$2" --arg type "$1" \
+  local id payload headers queues
+  id=$(cat /proc/sys/kernel/random/uuid)
+  payload=$(body --arg id "$id" --arg user "$2" --arg type "$1" \
     --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '{eventId: $id, userId: $user, type: $type, occurredAt: $at}')
-  rabbit -X POST -H 'Content-Type: application/json' "$RABBITMQ_MANAGEMENT_URL/api/exchanges/%2F/bjk.users/publish" \
-    -d "$(body --arg p "$payload" '{properties: {delivery_mode: 2, content_type: "application/json"}, routing_key: "", payload: $p, payload_encoding: "string"}')" \
-    | jq -e '.routed == true' > /dev/null || fail "The $1 event wasn't routed to the API's queue."
+  headers=$(body --arg id "$id" '{"rbs2-msg-id": $id, "rbs2-msg-type": "UserLifecycleEvent", "rbs2-content-type": "application/json;charset=utf-8", "rbs2-intent": "pub"}')
+  queues=$(sql "SELECT [address] FROM [messaging].[subscriptions] WHERE [topic] = 'bjk.users'")
+  [ -n "$queues" ] || fail "Nothing subscribes to bjk.users, so the $1 event would go nowhere."
+  while read -r queue; do
+    sql "INSERT INTO $queue ([headers], [body], [priority], [visible], [expiration])
+         VALUES (CAST('$headers' AS varbinary(max)), CAST('$payload' AS varbinary(max)), 0, SYSDATETIMEOFFSET(), DATEADD(year, 1, SYSDATETIMEOFFSET()))" > /dev/null
+  done <<< "$queues"
 }
 
 s3() { aws --endpoint-url "$S3_ENDPOINT" s3api "$@"; }
@@ -149,7 +154,10 @@ for context in MediaDbContext ProfilesDbContext PostsDbContext; do
 done
 pass "media, profiles and posts schemas created on first start"
 expect_sql "SELECT COUNT(*) FROM sys.schemas WHERE name IN ('media', 'profiles', 'posts')" 3 "three module schemas in badjockeys"
-wait_for "grep -c \"Listening for user lifecycle events on 'bjk-core.user-events'\" $APP_LOG" 1 "listening for user lifecycle events"
+wait_for "grep -c \"Reading the 'bjk-core.user-events' queue\" $APP_LOG" 1 "reading the user lifecycle events queue"
+wait_for "grep -c \"Reading the 'bjk-core.media-events' queue\" $APP_LOG" 1 "reading the media events queue"
+expect_sql "SELECT COUNT(*) FROM [messaging].[subscriptions] WHERE [topic] IN ('bjk.users', 'bjk.media')" 2 "the API's queues subscribe to bjk.users and bjk.media"
+expect_sql "SELECT COUNT(*) FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE s.name = 'messaging' AND t.name IN ('bjk-core.user-events', 'bjk-core.user-events.failed', 'bjk-core.media-events', 'bjk-core.media-events.failed')" 4 "queue and dead-letter tables created in the messaging schema"
 
 # ---------- who may call ----------
 
@@ -245,6 +253,7 @@ pass "others can't see the media before it's ready ($STATUS)"
 request POST "/api/media/$MEDIA_ID/complete" "" "$TOKEN_A"
 expect 202 "complete the photo upload"
 PHOTO_ID=$MEDIA_ID
+expect_sql "SELECT CASE WHEN EXISTS (SELECT 1 FROM [messaging].[media.process] WHERE CAST([body] AS varchar(max)) LIKE '%$PHOTO_ID%') OR EXISTS (SELECT 1 FROM media.Media WHERE Id = '$PHOTO_ID' AND Status <> 'Processing') THEN 'queued' ELSE 'missing' END" queued "the photo's job is on the media.process queue"
 
 upload clip.mp4 video/mp4 "$TOKEN_A"
 request POST "/api/media/$MEDIA_ID/complete" "" "$TOKEN_A"
@@ -284,8 +293,8 @@ pass "video is capped at 30 frames a second"
 request GET "/api/media/$PHOTO_ID" "" "$TOKEN_B"
 expect 200 "others can see the media once it's ready"
 MEDIA_ID=$PHOTO_ID
-# RabbitMQ's management stats refresh every few seconds, so poll.
 wait_for "queue_messages media.process" 0 "no jobs left on the queue"
+expect_sql "SELECT COUNT(*) FROM [messaging].[media.process.failed]" 0 "no jobs in the dead-letter table"
 
 # Browsers upload straight to storage, so it must answer a CORS preflight. Cloudflare R2 does once configured;
 # this reports whether the local stand-in (S3Mock) does too.
@@ -378,8 +387,9 @@ if s3 head-object --bucket "$ORIGINALS_BUCKET" --key "$ORIGINAL_KEY" > /dev/null
 fi
 pass "and their files in object storage"
 expect_sql "SELECT COUNT(*) FROM profiles.Profiles WHERE Id = '$USER_B'" 1 "user B is untouched"
-[ "$(queue_messages bjk-core.user-events.failed)" = "0" ] || fail "An event ended up on the failed queue."
-pass "no events on the failed queue"
+wait_for "queue_messages bjk-core.user-events" 0 "every user event handled and removed from the queue"
+[ "$(queue_messages bjk-core.user-events.failed)" = "0" ] || fail "An event ended up in the dead-letter table."
+pass "no events in the dead-letter table"
 
 # ---------- restart: migrations keep data ----------
 

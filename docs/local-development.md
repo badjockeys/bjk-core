@@ -4,8 +4,7 @@ This guide gets the whole platform running on your machine:
 
 | Piece | Repo | Runs on | Address |
 |---|---|---|---|
-| SQL Server | bjk-identity-server (`docker-compose.yml`) | Docker | `localhost,1433` |
-| RabbitMQ | bjk-identity-server (`docker-compose.yml`) | Docker | `localhost:5672`, dashboard http://localhost:15672 |
+| SQL Server (also holds the message queues) | bjk-identity-server (`docker-compose.yml`) | Docker | `localhost,1433` |
 | Identity server (sign-in + User module) | bjk-identity-server | .NET | https://localhost:5001 |
 | API (Media, Profiles, Posts, Email and SMS modules) | bjk-core, `src/BJK.Core.Api` | .NET | https://localhost:5101 |
 | Media worker (converts uploads with ffmpeg) | bjk-core, `src/BJK.Core.MediaWorker` | .NET + ffmpeg | no address, reads the queue |
@@ -19,7 +18,7 @@ One SQL Server holds both databases:
 | Database | Used by | Schemas |
 |---|---|---|
 | `idsrv` | Identity server | `auth` (accounts), `idsrv` (tokens, keys), `users` (profiles) |
-| `badjockeys` | API | `media`, `profiles`, `posts` (one schema per module) |
+| `badjockeys` | API, media worker | `media`, `profiles`, `posts` (one schema per module), `messaging` (the queues) |
 
 Neither app needs you to create its database. Each one creates its database and applies schema changes when it starts, and refuses any change that would delete data (see [Database changes](#database-changes)).
 
@@ -88,31 +87,29 @@ The modules (`BJK.Modules.*`) are private NuGet packages on GitHub Packages, so 
 
 3. **Start your editor from that terminal** (for example `open -a Rider`). Otherwise, log out and back in so the editor sees the variable.
 
-## 4. Start SQL Server and RabbitMQ
+## 4. Start SQL Server
 
-Both run in Docker from the identity server repo. Its `.env` file (git-ignored) holds your own local passwords:
+It runs in Docker from the identity server repo. Its `.env` file (git-ignored) holds your own local password:
 
 ```bash
 cd ~/Git/GitHub/badjockeys/bjk-identity-server
 cp .env.example .env
 # edit .env: BJK_SQL_PASSWORD=<8+ characters with upper case, lower case, a digit and a symbol>
-#            BJK_RABBITMQ_PASSWORD=<any password>
 docker compose up -d
-docker compose ps        # both should show "healthy" after about 30 seconds
+docker compose ps        # should show "healthy" after about 30 seconds
 ```
 
-The RabbitMQ dashboard is at http://localhost:15672. Sign in as user `bjk` with your `.env` password.
+There's no message broker to run: the queues are tables in the `messaging` schema of `badjockeys`, created by the API on its first start (see [messaging.md](messaging.md)):
 
-RabbitMQ carries two kinds of message:
-
-| Exchange or queue | From → to | What |
+| Queue | From → to | What |
 |---|---|---|
-| `media.process` | API → media workers | Process an upload |
-| `bjk.users` exchange → `bjk-core.user-events` queue | Identity server → API | A user deactivated, reactivated or was deleted |
+| `[messaging].[media.process]` | API → media workers | Process an upload (and, for longer videos, each segment) |
+| `[messaging].[bjk-core.media-events]` (topic `bjk.media`) | API and workers → API | Media ready or failed, to publish posts made while it was processing |
+| `[messaging].[bjk-core.user-events]` (topic `bjk.users`) | Identity server → API | A user deactivated, reactivated or was deleted |
 
 | Command (in bjk-identity-server) | Does |
 |---|---|
-| `docker compose stop` | Stops both and keeps the data |
+| `docker compose stop` | Stops it and keeps the data |
 | `docker compose up -d` | Starts them again |
 | `docker compose down -v` | Removes the containers **and the data**, so you start fresh |
 
@@ -153,7 +150,7 @@ The repos' `appsettings` files hold no environment settings. On your machine, se
 ```bash
 cd ~/Git/GitHub/badjockeys/bjk-identity-server
 cp user-secrets.template.json user-secrets.json        # git-ignored
-# edit user-secrets.json: your SQL and RabbitMQ passwords from bjk-identity-server/.env
+# edit user-secrets.json: your SQL password from bjk-identity-server/.env (in both connection strings)
 dotnet user-secrets set --project src/BJK.Idsrv.Host < user-secrets.json
 ```
 
@@ -162,7 +159,8 @@ The format is:
 ```json
 {
   "ConnectionStrings": {
-    "IdentityDatabase": "Server=localhost,1433;Database=idsrv;User Id=sa;Password=<BJK_SQL_PASSWORD from your .env>;TrustServerCertificate=True;MultipleActiveResultSets=true"
+    "IdentityDatabase": "Server=localhost,1433;Database=idsrv;User Id=sa;Password=<BJK_SQL_PASSWORD from your .env>;TrustServerCertificate=True;MultipleActiveResultSets=true",
+    "Messaging": "Server=localhost,1433;Database=badjockeys;User Id=sa;Password=<BJK_SQL_PASSWORD from your .env>;TrustServerCertificate=True"
   },
   "Email": {
     "FromAddress": "no-reply@badjockeys.local",
@@ -172,19 +170,20 @@ The format is:
     "TurnstileSecretKey": "1x0000000000000000000000000000000AA"
   },
   "Messaging": {
-    "ConnectionUri": "amqp://bjk:<BJK_RABBITMQ_PASSWORD from your .env>@localhost:5672"
+    "ConnectionStringName": "Messaging",
+    "CreateTables": false
   }
 }
 ```
 
-The CAPTCHA key is Cloudflare's public test key, which always passes. The identity server's own guide (`bjk-identity-server/docs/local-development.md`) explains it, along with the email placeholder and the test clients.
+The identity server writes user events straight into the API's queue table in `badjockeys` (`ConnectionStrings:Messaging`). Until the API has started once and created it, the events wait in the identity server's outbox. The CAPTCHA key is Cloudflare's public test key, which always passes. The identity server's own guide (`bjk-identity-server/docs/local-development.md`) explains it, along with the email placeholder and the test clients.
 
 ### API
 
 ```bash
 cd ~/Git/GitHub/badjockeys/bjk-core
 cp user-secrets.template.json user-secrets.json        # git-ignored
-# edit user-secrets.json: your SQL and RabbitMQ passwords (the storage settings already point at S3Mock)
+# edit user-secrets.json: your SQL password (the storage settings already point at S3Mock)
 dotnet user-secrets set --project src/BJK.Core.Api < user-secrets.json
 dotnet user-secrets list --project src/BJK.Core.Api    # check they're all there
 ```
@@ -219,9 +218,16 @@ The format is:
       "FfprobePath": "ffprobe"
     }
   },
+  "Captcha": {
+    "TurnstileSecretKey": "1x0000000000000000000000000000000AA"
+  },
+  "Safety": {
+    "RequireAgeVerification": false
+  },
   "Messaging": {
-    "ConnectionUri": "amqp://bjk:<BJK_RABBITMQ_PASSWORD from bjk-identity-server/.env>@localhost:5672",
-    "UserEventsQueue": "bjk-core.user-events"
+    "PollingInterval": "00:00:01",
+    "UserEventsQueue": "bjk-core.user-events",
+    "MediaEventsQueue": "bjk-core.media-events"
   }
 }
 ```
@@ -234,8 +240,9 @@ The format is:
 | `Media:Storage:*` | Local S3Mock and its two buckets (step 5), or R2 later |
 | `Media:Queue:QueueName` | The queue for processing jobs; created automatically |
 | `Media:Processing:FfmpegPath`, `FfprobePath` | Where ffmpeg is. `ffmpeg` and `ffprobe` work if they're on your `PATH`; otherwise use the full path, e.g. `/opt/homebrew/bin/ffmpeg` |
-| `Messaging:ConnectionUri` | Local RabbitMQ, shared by everything in the API |
-| `Messaging:UserEventsQueue` | Where the API receives account deactivations, reactivations and deletions from the identity server; created automatically |
+| `Captcha:TurnstileSecretKey` | Cloudflare's test secret, for the public report form |
+| `Safety:RequireAgeVerification` | `false` locally, so writes don't need the identity server's `age_verified` claim |
+| `Messaging:*` | Optional. The queues are tables in `AppDatabase` (schema `messaging`), created automatically. `UserEventsQueue` receives account deactivations, reactivations and deletions from the identity server; `MediaEventsQueue` receives media ready/failed for Posts |
 
 Some settings are optional:
 
@@ -249,6 +256,7 @@ Some settings are optional:
 | `Media:OriginalRetention` | `90.00:00:00` |
 | `Email:Provider`, `SMS:Provider` | `Log`: emails and texts are written to the console, not sent |
 | `Media:Processing:MaxConcurrentJobs` | 1 |
+| `Media:Redaction:FaceModelPath`, `PlateModelPath` | Unset: blurring can't run, so every upload goes to `NeedsReview`. Download the models with `pipelines/scripts/download-redaction-models.sh ~/bjk-models` and point these at the two `.onnx` files to get `Ready` media locally |
 | `Media:Processing:VideoHeight`, `VideoCrf` | 720, 23 |
 | `Media:Processing:ImageMaxSize`, `ThumbnailMaxSize` | 2048, 640 pixels |
 
@@ -322,7 +330,7 @@ Until the web app's sign-in page exists, you can test with the `.http` files and
 2. **Try the API.** Use `bjk-core/src/BJK.Core.Api/BJK.Core.Api.http` with that token. For example, uploading:
    1. `POST /api/media/uploads` returns a signed upload URL.
    2. `PUT` your file to that URL. It goes straight to storage (S3Mock), not through the API.
-   3. `POST /api/media/{id}/complete` queues the processing job. You'll see it appear on the `media.process` queue in the RabbitMQ dashboard.
+   3. `POST /api/media/{id}/complete` queues the processing job: a row in `[messaging].[media.process]` until the worker finishes it.
    4. Within a few seconds the worker logs the job and the media turns `Ready`. `GET /api/media/mine` lists your uploads, and the processed file is in `bjk-dev-public`.
 
 Ask for the API's scopes when you sign in with the identity server's local test client: `scope=openid bjk.media bjk.profiles bjk.posts`. Each module checks its own scope.
@@ -367,7 +375,7 @@ cd ~/Git/GitHub/badjockeys/bjk-identity-server && docker compose down -v && dock
 - **`Connection string '...' is not configured` or `The ... field is required`.** Your user secrets aren't loaded (step 6), or the app isn't running in Development. The `https` launch profile sets Development.
 - **`Login failed for user 'sa'`.** The password in your user secret doesn't match `bjk-identity-server/.env`. If you changed `.env` after the container was first created, SQL Server still has the old password: run `docker compose down -v` (this deletes local data), then `docker compose up -d`.
 - **`A network-related or instance-specific error`.** SQL Server isn't running or isn't healthy yet. Run `docker ps`, then `docker compose logs sql` in bjk-identity-server.
-- **`None of the specified endpoints were reachable` (RabbitMQ).** RabbitMQ isn't running, or the password in `Messaging:ConnectionUri` doesn't match `bjk-identity-server/.env`.
+- **A job or event doesn't arrive.** Look in the queue tables (`SELECT * FROM [messaging].[media.process]`) and their `.failed` tables; [messaging.md](messaging.md) shows how to read why a message was dead-lettered.
 - **An upload stays at `Processing`.** The media worker isn't running, or it can't find ffmpeg: check its console for `ffmpeg` errors, and set `Media:Processing:FfmpegPath` to the full path (`which ffmpeg`).
 - **An upload goes to `Failed`.** The file isn't a video or photo ffmpeg can read, or it's over the size or length limits. The worker logs the reason.
 - **`Connection refused` on port 9090.** S3Mock isn't running: `docker compose up -d` in bjk-core.
@@ -375,4 +383,4 @@ cd ~/Git/GitHub/badjockeys/bjk-identity-server && docker compose down -v && dock
 - **`SignatureDoesNotMatch` or `InvalidAccessKeyId` from R2.** The R2 keys are wrong, or the token isn't scoped to the dev buckets.
 - **The API returns `401` with a valid-looking token.** Check that `Authentication:Authority` is `https://localhost:5001`, that the identity server is running, and that you ran `dotnet dev-certs https --trust`.
 - **The SQL container keeps restarting on an Apple Silicon Mac.** Turn on Rosetta in Docker Desktop (step 1).
-- **A port is already in use (1433, 5672, 15672, 9090, 5001, 5101 or 3000).** Stop whatever is using it (`lsof -i :<port>`), or change the left-hand port in the compose file and the matching setting.
+- **A port is already in use (1433, 9090, 5001, 5101 or 3000).** Stop whatever is using it (`lsof -i :<port>`), or change the left-hand port in the compose file and the matching setting.

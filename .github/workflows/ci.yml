@@ -18,8 +18,6 @@ env:
   NuGetPackageSourceCredentials_badjockeys: Username=${{ github.actor }};Password=${{ secrets.GITHUB_TOKEN }}
   # Throwaway passwords for the CI-only containers below.
   SQL_PASSWORD: Ci-Passw0rd-2026
-  RABBITMQ_USER: bjk
-  RABBITMQ_PASSWORD: ci-rabbit-2026
   AWS_ACCESS_KEY_ID: ci-s3
   AWS_SECRET_ACCESS_KEY: ci-s3-secret
   AWS_DEFAULT_REGION: us-east-1
@@ -28,7 +26,10 @@ env:
   Authentication__Authority: http://localhost:5999   # pipelines/scripts/fake-issuer.py, standing in for bjk-identity-server
   Authentication__RequireHttpsMetadata: "false"
   Cors__AllowedOrigins__0: http://localhost:3000
-  Messaging__ConnectionUri: amqp://bjk:ci-rabbit-2026@localhost:5672
+  # The queues are tables in the messaging schema of the same database. Short waits keep the smoke test quick.
+  Messaging__PollingInterval: "00:00:00.250"
+  Messaging__RetryDelay: "00:00:01"
+  Captcha__TurnstileSecretKey: 1x0000000000000000000000000000000AA   # Cloudflare's public "always passes" test key
   # Adobe's S3Mock stands in for Cloudflare R2: both speak the S3 API.
   Media__Storage__ServiceUrl: http://localhost:9090
   Media__Storage__AccessKeyId: ci-s3
@@ -53,17 +54,6 @@ jobs:
         options: >-
           --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P Ci-Passw0rd-2026 -C -Q 'SELECT 1'"
           --health-interval 10s --health-timeout 5s --health-retries 12
-      rabbitmq:
-        image: rabbitmq:4-management
-        env:
-          RABBITMQ_DEFAULT_USER: bjk
-          RABBITMQ_DEFAULT_PASS: ci-rabbit-2026
-        ports:
-          - 5672:5672
-          - 15672:15672
-        options: >-
-          --health-cmd "rabbitmq-diagnostics -q ping"
-          --health-interval 10s --health-timeout 10s --health-retries 12
 
     steps:
       - uses: actions/checkout@v5
@@ -108,6 +98,10 @@ jobs:
           aws --endpoint-url http://localhost:9090 s3api create-bucket --bucket bjk-ci-public
           echo "Started $started"
 
+      # The face and number plate models the worker blurs with (the worker image downloads them the same way).
+      - name: Download the blurring models
+        run: sh pipelines/scripts/download-redaction-models.sh "$RUNNER_TEMP/models"
+
       - name: Start the stand-in token issuer
         run: |
           pip install --quiet cryptography
@@ -119,6 +113,8 @@ jobs:
           ASPNETCORE_ENVIRONMENT: Development
           ASPNETCORE_URLS: http://localhost:5100
           SQL_CONTAINER: ${{ job.services.sql.id }}
+          Media__Redaction__FaceModelPath: ${{ runner.temp }}/models/face_detection_yunet_2026may.onnx
+          Media__Redaction__PlateModelPath: ${{ runner.temp }}/models/license_plate_detection_lpd_yunet_2023mar.onnx
           Logging__Console__FormatterName: simple
           Logging__Console__FormatterOptions__SingleLine: "true"
           Logging__Console__FormatterOptions__ColorBehavior: Disabled

@@ -11,6 +11,9 @@ RUN --mount=type=secret,id=nuget,env=NuGetPackageSourceCredentials_badjockeys \
     dotnet restore src/BJK.Core.MediaWorker/BJK.Core.MediaWorker.csproj
 COPY src/BJK.Core.MediaWorker/ src/BJK.Core.MediaWorker/
 RUN dotnet publish src/BJK.Core.MediaWorker/BJK.Core.MediaWorker.csproj --configuration Release --no-restore --output /app
+# The face and number plate detection models for automatic blurring (pinned, SHA-256 checked; MIT and Apache 2.0).
+COPY pipelines/scripts/download-redaction-models.sh /tmp/
+RUN sh /tmp/download-redaction-models.sh /opt/bjk/models
 
 FROM mcr.microsoft.com/dotnet/runtime:10.0
 # ffmpeg and ffprobe do the conversions. Debian's build includes libx264 (video) and libwebp (photos).
@@ -19,6 +22,9 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /app ./
+COPY --from=build /opt/bjk/models /opt/bjk/models
+ENV Media__Redaction__FaceModelPath=/opt/bjk/models/face_detection_yunet_2026may.onnx \
+    Media__Redaction__PlateModelPath=/opt/bjk/models/license_plate_detection_lpd_yunet_2023mar.onnx
 # Settings come from environment variables (Key Vault references in Azure), never from files in the image.
 USER $APP_UID
 ENTRYPOINT ["dotnet", "BJK.Core.MediaWorker.dll"]

@@ -56,6 +56,10 @@ def token(request: dict) -> str:
     }
     if request.get("role"):
         claims["role"] = request["role"]
+    # Issued by the identity server once the account passes the age check. Present unless the request sets it to null.
+    age_verified = request.get("age_verified", "true")
+    if age_verified is not None:
+        claims["age_verified"] = age_verified
     header = {"alg": "RS256", "kid": KID, "typ": request.get("typ", "at+jwt")}
     return sign(header, claims)
 
