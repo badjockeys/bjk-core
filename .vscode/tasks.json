@@ -107,22 +107,8 @@
       "options": {
         "cwd": "${workspaceFolder}"
       },
-      "dependsOn": [
-        "Stop SQL Server"
-      ],
-      "problemMatcher": []
-    },
-    {
-      "label": "Stop SQL Server",
-      "type": "shell",
-      "command": "docker compose stop",
-      "options": {
-        "cwd": "${workspaceFolder}/../bjk-identity-server"
-      },
       "problemMatcher": [],
-      "presentation": {
-        "reveal": "silent"
-      }
+      "detail": "Stops SQL Server and S3Mock (Docker group bad-jockeys), keeping their data"
     },
     {
       "label": "Start Docker services",

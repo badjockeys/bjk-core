@@ -3,8 +3,8 @@
 //
 //   node scripts/start-docker.mjs
 //
-// If Docker Desktop is closed, it opens it and waits (up to 3 minutes) for it to be ready, then starts both
-// containers with docker compose and waits until they're up (SQL Server until it's healthy). When everything is
+// If Docker Desktop is closed, it opens it and waits (up to 3 minutes) for it to be ready, then starts the
+// "bad-jockeys" group (bjk-core's docker-compose.yml) and waits until it's up (SQL Server until it's healthy). When everything is
 // already running it takes a second or two. If it can't get there, it says why in plain words and exits non-zero,
 // so VS Code stops before launching apps that would only fail on their database connection.
 // Uses only Node.js built-ins.
@@ -13,9 +13,9 @@ import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { removeOldGroups, startServices } from "./docker-services.mjs";
 
 const core = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const idsrv = resolve(core, "..", "bjk-identity-server");
 const WAIT_SECONDS = 180;
 
 function fail(text) {
@@ -68,15 +68,10 @@ async function ensureDocker() {
   );
 }
 
-function composeUp(dir, what) {
-  if (!existsSync(join(dir, "docker-compose.yml"))) fail(`Can't find ${what}'s docker-compose.yml in ${dir}.`);
-  const result = spawnSync("docker", ["compose", "up", "-d", "--wait"], { cwd: dir, stdio: "inherit" });
-  if (result.status !== 0) {
-    fail(`${what} didn't start. Run 'docker compose logs' in ${dir} to see why.`);
-  }
-}
-
 await ensureDocker();
-composeUp(idsrv, "SQL Server (bjk-identity-server)");
-composeUp(core, "S3Mock file storage (bjk-core)");
-console.log("SQL Server and S3Mock are running.");
+if (!existsSync(join(core, ".env"))) {
+  fail("bjk-core/.env (the local SQL Server password) is missing. Run the setup first: node scripts/setup-local.mjs");
+}
+removeOldGroups();
+if (!startServices(core)) fail(`SQL Server or S3Mock didn't start. Run 'docker compose logs' in ${core} to see why.`);
+console.log("SQL Server and S3Mock are running (Docker group bad-jockeys).");
