@@ -62,6 +62,8 @@ const USERS = {
     plan: "premium",
   },
   newbie: { id: "00000000-0000-4000-8000-0000000000c3", email: "new@example.com", ageVerified: false },
+  // Has a profile but hasn't taken the age check (for sensitive posts).
+  larry: { id: "00000000-0000-4000-8000-0000000000d4", email: "larry@example.com", ageVerified: false },
 };
 export const SEED = {
   photoPost: "8f2e1c3a-0000-4000-8000-000000000001",
@@ -151,7 +153,7 @@ function seed() {
         isSensitive: true,
       }),
       post(SEED.videoPost, dave, "Undertaking a lorry on the M62", "Undertaking", ["m-4"], ago(300)),
-      post(SEED.secondVideo, dave, "Tailgater on the A64", "Tailgating", ["m-7"], ago(400), {
+      post(SEED.secondVideo, dave, "Cutting up on the A64", "CuttingUp", ["m-7"], ago(400), {
         placeName: "A64, York",
       }),
       post(SEED.thirdVideo, dave, "Phone at the wheel in Leeds", "MobilePhoneUse", ["m-8"], ago(500), {
@@ -1134,6 +1136,7 @@ const server = createServer(async (req, res) => {
     }
     if (url.pathname === "/__reset" && req.method === "POST") {
       USERS.newbie.ageVerified = false;
+      USERS.larry.ageVerified = false;
       seed();
       return send(res, 200, { ok: true, seed: SEED });
     }

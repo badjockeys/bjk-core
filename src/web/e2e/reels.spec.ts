@@ -9,7 +9,7 @@ test.beforeEach(async ({ request }) => {
 test("visitors watch their free reels, then are asked to join", async ({ page }) => {
   // The mock API allows 2 reels a day when logged out (the real API: 10), counted by the signed viewer cookie.
   await page.goto("/reels");
-  await expect(page.getByRole("heading", { name: "Reels" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Reels", exact: true })).toBeVisible();
   await expect(page.getByText("2 of 2 free today")).toBeVisible();
   expect(await page.evaluate(() => document.cookie)).not.toContain("bjk_viewer");
 
@@ -43,9 +43,9 @@ test("members see their free allowance, filter by category and can open the prem
     page.getByRole("navigation", { name: "Main" }).first().getByRole("link", { name: "Reels" }),
   ).toHaveAttribute("aria-current", "page");
 
-  await page.getByLabel("Category").selectOption("Tailgating");
-  await expect(page).toHaveURL(/\/reels\?category=tailgating$/);
-  await expect(page.getByRole("region", { name: "Tailgater on the A64" })).toBeVisible();
+  await page.getByLabel("Category").selectOption("CuttingUp");
+  await expect(page).toHaveURL(/\/reels\?category=cutting-up$/);
+  await expect(page.getByRole("region", { name: "Cutting up on the A64" })).toBeVisible();
   await expect(page.getByRole("region", { name: "Undertaking a lorry on the M62" })).toHaveCount(0);
 
   await page.getByRole("link", { name: "Get Premium" }).first().click();

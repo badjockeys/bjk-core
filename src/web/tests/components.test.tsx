@@ -177,8 +177,6 @@ describe("sensitive posts", () => {
         viewer={ANONYMOUS}
       />,
     );
-    const img =
-      container.querySelector("article img:not(.avatar img)") ?? container.querySelectorAll("img")[0];
     expect(container.innerHTML).toContain('src="/1-feed.webp"');
     expect(container.innerHTML).not.toContain('src="/1.webp"');
   });

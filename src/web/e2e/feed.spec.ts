@@ -56,7 +56,7 @@ test("members who haven't verified their age are offered the age check for sensi
   page,
   request,
 }) => {
-  await request.post(`${MOCK}/__next-user`, { data: "newbie" });
+  await request.post(`${MOCK}/__next-user`, { data: "larry" });
   await signIn(page, `/p/${SEED.sensitivePost}`);
   const verify = page.getByRole("link", { name: "Verify your age to view" });
   await expect(verify).toHaveAttribute(
