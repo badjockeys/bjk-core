@@ -380,7 +380,7 @@ You need Node.js 24 (step 1). The first time:
 ```bash
 cd ~/Git/GitHub/badjockeys/bjk-core/src/web
 cp .env.local.example .env.local      # then set AUTH_SECRET (openssl rand -base64 32)
-npm install                           # again after package.json changes
+npm ci                                # installs exactly what package-lock.json says; again after it changes
 
 # Node.js doesn't read the system certificate store, so give it the .NET development certificate for https://localhost:5001
 dotnet dev-certs https --export-path ~/.aspnet/dev-cert.pem --format PEM --no-password
