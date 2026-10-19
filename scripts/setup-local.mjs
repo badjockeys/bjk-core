@@ -314,7 +314,9 @@ function build() {
   mustRun("dotnet", ["build", join(core, "BJK.Core.slnx"), "-v", "quiet", "-nologo"], {}, hint);
 
   step("Installing the web app's packages");
-  mustRun("npm", ["install", "--no-audit", "--no-fund"], { cwd: web });
+  // npm ci installs exactly what package-lock.json says and never rewrites it (npm install can, depending on the npm
+  // version, which would leave a stray change in git and stop the setup updating bjk-core).
+  mustRun("npm", ["ci", "--no-audit", "--no-fund"], { cwd: web });
 }
 
 if (configOnly) {
