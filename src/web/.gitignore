@@ -6,3 +6,4 @@
 /blob-report
 *.tsbuildinfo
 .env*.local
+vitest-results.json

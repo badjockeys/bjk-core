@@ -63,6 +63,32 @@ interface Fields {
 const PARALLEL_UPLOADS = 3;
 let nextKey = 0;
 
+interface UploadQueue {
+  add: (job: () => Promise<void>) => void;
+}
+
+/** Runs uploads a few at a time. */
+function createQueue(limit: number): UploadQueue {
+  const jobs: (() => Promise<void>)[] = [];
+  let running = 0;
+  const pump = () => {
+    while (running < limit && jobs.length > 0) {
+      const job = jobs.shift()!;
+      running++;
+      void job().finally(() => {
+        running--;
+        pump();
+      });
+    }
+  };
+  return {
+    add(job) {
+      jobs.push(job);
+      pump();
+    },
+  };
+}
+
 /** Screens 08, 24 and 09: add photos or a video, trim a video, then the details. */
 export function NewPostWizard({
   defaultDate,
@@ -99,8 +125,7 @@ export function NewPostWizard({
   const [pending, startTransition] = useTransition();
   const photoInput = useRef<HTMLInputElement>(null);
   const videoInput = useRef<HTMLInputElement>(null);
-  const queue = useRef<{ key: string; run: () => Promise<void> }[]>([]);
-  const running = useRef(0);
+  const uploads = useRef<UploadQueue | null>(null);
 
   const kind: "Image" | "Video" | null = items[0]?.kind ?? null;
   const photosLeft = MAX_PHOTOS - items.filter((i) => i.kind === "Image").length;
@@ -111,43 +136,28 @@ export function NewPostWizard({
     setItems((current) => current.map((i) => (i.key === key ? { ...i, ...change } : i)));
   }, []);
 
-  // Uploads run a few at a time.
-  const pump = useCallback(() => {
-    while (running.current < PARALLEL_UPLOADS && queue.current.length > 0) {
-      const job = queue.current.shift()!;
-      running.current++;
-      void job.run().finally(() => {
-        running.current--;
-        pump();
-      });
-    }
-  }, []);
-
   const startUpload = useCallback(
     (key: string, prepare: () => Promise<{ blob: Blob; name: string; type: string }>) => {
-      queue.current.push({
-        key,
-        run: async () => {
-          try {
-            const file = await prepare();
-            const uploaded = await uploadFile(file.blob, file.name, file.type, (p) =>
-              patch(key, { progress: p }),
-            );
-            patch(key, { progress: 1, status: "processing", mediaId: uploaded.mediaId });
-          } catch (error) {
-            if (error instanceof UploadError && followBlocker(error.blocker)) {
-              return;
-            }
-            patch(key, {
-              status: "failed",
-              error: error instanceof Error ? error.message : "The upload failed. Remove it and try again.",
-            });
+      uploads.current ??= createQueue(PARALLEL_UPLOADS);
+      uploads.current.add(async () => {
+        try {
+          const file = await prepare();
+          const uploaded = await uploadFile(file.blob, file.name, file.type, (p) =>
+            patch(key, { progress: p }),
+          );
+          patch(key, { progress: 1, status: "processing", mediaId: uploaded.mediaId });
+        } catch (error) {
+          if (error instanceof UploadError && followBlocker(error.blocker)) {
+            return;
           }
-        },
+          patch(key, {
+            status: "failed",
+            error: error instanceof Error ? error.message : "The upload failed. Remove it and try again.",
+          });
+        }
       });
-      pump();
     },
-    [patch, pump],
+    [patch],
   );
 
   // Keep an eye on processing so a file the server rejects (e.g. a video over 30 seconds) shows up straight away.
@@ -518,7 +528,7 @@ export function NewPostWizard({
               {errors.title ? <span className="error">{errors.title}</span> : null}
             </label>
 
-            <div className="facts">
+            <div className="facts-split">
               <label className="field">
                 <span className="label">What happened?</span>
                 <select

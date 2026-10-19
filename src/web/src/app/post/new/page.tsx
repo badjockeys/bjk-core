@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { NewPostWizard } from "@/components/NewPostWizard";
@@ -31,9 +32,9 @@ export default async function NewPostPage() {
         <a href={checkAgePath("/post/new")} className="btn btn-primary btn-block">
           Check my age
         </a>
-        <a href="/" className="btn btn-block">
+        <Link href="/" className="btn btn-block">
           Not now
-        </a>
+        </Link>
       </main>
     );
   }

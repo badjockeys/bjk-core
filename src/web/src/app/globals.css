@@ -471,6 +471,12 @@ p {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.facts-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
 .fact {
   display: flex;
   flex-direction: column;
@@ -846,15 +852,29 @@ p {
 }
 
 .tw-name {
+  flex: none;
+  max-width: 60%;
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .tw-handle {
+  flex: 0 1 auto;
+  min-width: 0;
   color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.tw-time {
+  flex: none;
+  color: var(--muted);
+}
+
+.tw-head .menu-wrap {
+  margin-left: auto;
+  flex: none;
 }
 
 .tw-more {
@@ -1679,6 +1699,10 @@ dialog.lightbox {
 
   .facts-3 {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .facts-split {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .auth-card {

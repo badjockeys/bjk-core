@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Poppins } from "next/font/google";
 
 import { Toaster } from "@/components/toast";
-import { getConfig } from "@/lib/config";
 
 import "./globals.css";
 
@@ -14,9 +13,12 @@ const poppins = Poppins({
   variable: "--font-poppins",
 });
 
+// Every page depends on who's signed in, so nothing is rendered at build time (when settings aren't available).
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata(): Promise<Metadata> {
   return {
-    metadataBase: getConfig().appUrl,
+    metadataBase: process.env.APP_URL ? new URL(process.env.APP_URL) : undefined,
     title: { default: "Bad Jockeys", template: "%s · Bad Jockeys" },
     description:
       "Dashcam clips and photos of bad driving and terrible parking from around the UK. Faces and number plates blurred.",

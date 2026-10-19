@@ -72,6 +72,11 @@ test("signing in goes to the identity server and comes back to the page", async 
   ).toBeVisible();
   expect(await page.evaluate(() => document.cookie)).not.toContain("bjk_session");
   await expect(page.getByText("Serious crash on the A64")).toBeVisible();
+
+  // Your own profile shows posts that are still processing, which only you can see.
+  await page.goto("/@roadhog");
+  await expect(page.getByText("Wrong way round the roundabout")).toBeVisible();
+  await expect(page.getByText("Processing: only you can see this for now")).toBeVisible();
 });
 
 test("members can sign out", async ({ page }) => {

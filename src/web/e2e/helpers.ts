@@ -6,6 +6,7 @@ export const SEED = {
   photoPost: "8f2e1c3a-0000-4000-8000-000000000001",
   videoPost: "8f2e1c3a-0000-4000-8000-000000000002",
   sensitivePost: "8f2e1c3a-0000-4000-8000-000000000003",
+  processingPost: "8f2e1c3a-0000-4000-8000-000000000004",
 };
 
 // A real (tiny) PNG to upload.

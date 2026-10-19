@@ -142,20 +142,12 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 24
+          cache: npm
+          cache-dependency-path: src/web/package-lock.json
 
       - name: Install
         id: install
-        run: |
-          if [ -f package-lock.json ]; then
-            bash "$CI_STEP" "npm ci" npm ci --no-audit --no-fund
-          else
-            # First run only: no lockfile yet, so resolve one and publish it as notices to be committed.
-            bash "$CI_STEP" "npm install" npm install --no-audit --no-fund
-            gzip -9 -c package-lock.json | base64 -w0 > lock.b64
-            split -b 50000 -d -a 2 lock.b64 lock.part.
-            for part in lock.part.*; do echo "::notice title=lockfile ${part#lock.part.}::$(cat "$part")"; done
-            echo "::notice title=lockfile sha256::$(sha256sum package-lock.json | cut -d' ' -f1)"
-          fi
+        run: bash "$CI_STEP" "npm ci" npm ci --no-audit --no-fund
 
       - name: Licences
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
@@ -175,7 +167,9 @@ jobs:
 
       - name: Unit tests
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
-        run: bash "$CI_STEP" "Unit tests" npm test
+        run: |
+          bash "$CI_STEP" "Unit tests" npx vitest run --reporter=default --reporter=json --outputFile=vitest-results.json
+          node -e 'const r=require("./vitest-results.json"); console.log(`::notice title=Web unit tests::${r.numPassedTests} of ${r.numTotalTests} passed in ${r.numTotalTestSuites} suites`)'
 
       - name: Build
         id: build
@@ -203,4 +197,7 @@ jobs:
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         env:
           CI_STEP_LINES: "250"
-        run: bash "$CI_STEP" "End-to-end tests" npm run e2e
+        run: |
+          bash "$CI_STEP" "End-to-end tests" npm run e2e
+          node -e 'const s=require("./test-results/results.json").stats; console.log(`::notice title=Web end-to-end tests::${s.expected} passed, ${s.unexpected} failed, ${s.flaky} flaky, ${s.skipped} skipped`)'
+

@@ -47,8 +47,9 @@ export function PostCard({ post, viewer }: { post: PostDto; viewer: Viewer }) {
           ) : (
             <span className="tw-name">{post.author.displayName}</span>
           )}
-          <span className="tw-handle">
-            {post.author.handle ? `@${post.author.handle} · ` : ""}
+          {post.author.handle ? <span className="tw-handle">@{post.author.handle}</span> : null}
+          <span className="tw-time">
+            ·{" "}
             <time dateTime={post.createdAt} suppressHydrationWarning>
               {timeAgo(post.createdAt)}
             </time>

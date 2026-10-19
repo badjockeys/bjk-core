@@ -1,12 +1,12 @@
 // Checks the licences of everything that ships in the web app (production dependencies in package-lock.json).
-// Fails on copyleft licences (GPL, AGPL). LGPL is allowed only for the server-side image library's native binaries,
-// which Next.js loads on the server and never sends to browsers. Prints a summary for the pull request.
+// Fails on copyleft licences (GPL, AGPL). LGPL is allowed only for sharp's prebuilt binaries (@img/sharp-*, which bundle
+// libvips), Next.js's optional server-side image optimiser: they never reach a browser. Prints a summary for the pull request.
 import { readFileSync } from "node:fs";
 
 const lock = JSON.parse(readFileSync(new URL("../package-lock.json", import.meta.url), "utf8"));
 const ALLOWED =
   /^(MIT|ISC|BSD-2-Clause|BSD-3-Clause|0BSD|Apache-2\.0|MPL-2\.0|CC0-1\.0|CC-BY-4\.0|BlueOak-1\.0\.0|Unlicense|Python-2\.0)$/;
-const SERVER_ONLY_LGPL = /^node_modules\/@img\/sharp-libvips-/;
+const SERVER_ONLY_LGPL = /^node_modules\/@img\/sharp-/;
 
 const counts = new Map();
 const problems = [];

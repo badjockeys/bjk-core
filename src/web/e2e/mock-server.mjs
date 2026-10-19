@@ -48,6 +48,7 @@ export const SEED = {
   photoPost: "8f2e1c3a-0000-4000-8000-000000000001",
   videoPost: "8f2e1c3a-0000-4000-8000-000000000002",
   sensitivePost: "8f2e1c3a-0000-4000-8000-000000000003",
+  processingPost: "8f2e1c3a-0000-4000-8000-000000000004",
 };
 
 let db;
@@ -111,6 +112,18 @@ function seed() {
       ].map((m) => [m.id, m]),
     ),
     posts: [
+      post(
+        SEED.processingPost,
+        USERS.roadhog.id,
+        "Wrong way round the roundabout",
+        "Other",
+        ["m-6"],
+        ago(1),
+        {
+          placeName: "Armley Gyratory, Leeds",
+          mediaState: "Pending",
+        },
+      ),
       post(SEED.sensitivePost, dave, "Serious crash on the A64", "RoadRage", ["m-5"], ago(30), {
         isSensitive: true,
       }),
