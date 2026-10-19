@@ -20,7 +20,7 @@ import { api } from "@/lib/api";
 import { getAccessToken, getViewer } from "@/lib/auth";
 import { categoryHref, categoryLabel } from "@/lib/categories";
 import { dateTime, plural, postedAt } from "@/lib/format";
-import { checkAgePath, joinPath, postPath, profilePath, signInPath } from "@/lib/paths";
+import { joinPath, postPath, profilePath, signInPath } from "@/lib/paths";
 import { earliestExpiry } from "@/lib/links";
 import { loadPost, postCount } from "@/lib/posts";
 import type { CommentDto, PagedResult, PostDto } from "@/lib/types";
@@ -337,18 +337,6 @@ function OwnerNotices({ post, kind }: { post: PostDto; kind: string | null }) {
 
 function commentBlocker(viewer: Viewer, returnTo: string): React.ReactNode {
   const blocker = participationBlocker(viewer, { profile: true, email: true });
-  if (blocker === "age") {
-    return (
-      <div className="notice">
-        <span>
-          Check your age to comment.{" "}
-          <a className="link" href={checkAgePath(returnTo)}>
-            Check my age
-          </a>
-        </span>
-      </div>
-    );
-  }
   if (blocker === "profile") {
     return (
       <div className="notice">

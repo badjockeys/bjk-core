@@ -563,10 +563,6 @@ const CATEGORIES = new Set([
   "Other",
 ]);
 const REACTIONS = new Set(["Like", "Angry", "Shocked", "Laugh"]);
-const AGE_PROBLEM = {
-  type: "https://badjockeys.com/problems/age-verification-required",
-  code: "age_verification_required",
-};
 
 async function api(req, res, url) {
   const path = url.pathname;
@@ -581,13 +577,6 @@ async function api(req, res, url) {
   const requireUser = () => {
     if (!me) {
       problem(res, 401, "Unauthorized");
-      return false;
-    }
-    return true;
-  };
-  const requireAge = () => {
-    if (!viewer.ageVerified) {
-      problem(res, 403, "Complete the age check before you post, comment, react or report.", AGE_PROBLEM);
       return false;
     }
     return true;
@@ -739,7 +728,7 @@ async function api(req, res, url) {
     );
   }
   if (path === "/api/posts" && method === "POST") {
-    if (!requireUser() || !requireAge()) return;
+    if (!requireUser()) return;
     const body = await json();
     if (!db.profiles.has(me)) return invalid(res, "Profile", "Create your profile before posting.");
     if (!body.title?.trim()) return invalid(res, "Title", "Add a title.");
@@ -790,7 +779,6 @@ async function api(req, res, url) {
     if (!p || !canSee(p, me)) return problem(res, 404, `Post ${m[1]} was not found.`);
     const rest = m[2];
     if (rest === "reaction") {
-      if (!requireAge()) return;
       const map = db.reactions.get(p.id) ?? new Map();
       db.reactions.set(p.id, map);
       if (method === "PUT") {
@@ -811,7 +799,6 @@ async function api(req, res, url) {
       );
     }
     if (rest === "comments" && method === "POST") {
-      if (!requireAge()) return;
       const { body } = await json();
       if (!body?.trim()) return invalid(res, "Body", "Write something first.");
       if (/\b[A-Z]{2}\d{2} ?[A-Z]{3}\b/.test(body))
@@ -819,7 +806,6 @@ async function api(req, res, url) {
       return send(res, 201, commentDto(addComment(p.id, me, body.trim(), null), me, true));
     }
     if (rest === "reports" && method === "POST") {
-      if (!requireAge()) return;
       const body = await json();
       if (db.reports.some((r) => r.target === p.id && r.by === me))
         return invalid(res, "", "You've already reported this post.");
@@ -852,7 +838,6 @@ async function api(req, res, url) {
         );
       }
       if (action === "replies" && method === "POST") {
-        if (!requireAge()) return;
         if (comment.parentId)
           return invalid(res, "ParentCommentId", "Replies go one level deep: reply to the comment instead.");
         const { body } = await json();
@@ -860,7 +845,6 @@ async function api(req, res, url) {
         return send(res, 201, commentDto(addComment(p.id, me, body.trim(), comment.id), me, false));
       }
       if (action === "reaction") {
-        if (!requireAge()) return;
         const map = db.commentReactions.get(comment.id) ?? new Map();
         db.commentReactions.set(comment.id, map);
         if (method === "PUT") map.set(me, (await json()).type);

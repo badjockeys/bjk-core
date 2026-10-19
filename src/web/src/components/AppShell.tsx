@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { checkAgePath, joinPath, profilePath, signInPath } from "@/lib/paths";
+import { joinPath, profilePath, signInPath } from "@/lib/paths";
 import type { Viewer } from "@/lib/viewer";
 
 import { Avatar } from "./Avatar";
@@ -112,7 +112,6 @@ export function AppShell({
         </nav>
 
         <main className="d-main" id="main">
-          {viewer.signedIn && !viewer.ageVerified && !dark ? <AgeCheckBanner returnTo={returnTo} /> : null}
           {children}
         </main>
 
@@ -210,29 +209,6 @@ function JoinCard({ returnTo }: { returnTo: string }) {
       <a href={signInPath(returnTo)} className="btn">
         Sign in
       </a>
-    </div>
-  );
-}
-
-/** Shown to signed-in members who haven't passed the age check: posting, commenting and reacting need it. */
-export function AgeCheckBanner({ returnTo }: { returnTo: string }) {
-  return (
-    <div className="pad">
-      <div className="notice" role="note">
-        <span className="col">
-          <span>
-            <strong>Check your age to join in.</strong> Bad Jockeys is for adults: you need to pass a quick
-            age check before you post, comment or react.
-          </span>
-          <a
-            href={checkAgePath(returnTo)}
-            className="btn btn-sm btn-primary"
-            style={{ alignSelf: "flex-start" }}
-          >
-            Check my age
-          </a>
-        </span>
-      </div>
     </div>
   );
 }

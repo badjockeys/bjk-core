@@ -58,6 +58,9 @@ test("members who haven't verified their age are offered the age check for sensi
 }) => {
   await request.post(`${MOCK}/__next-user`, { data: "larry" });
   await signIn(page, `/p/${SEED.sensitivePost}`);
+  // Since 19 Oct the age check is only for sensitive posts: no banner, and commenting isn't gated on it.
+  await expect(page.getByText("Check your age to join in.")).toHaveCount(0);
+  await expect(page.getByText("Check your age to comment.")).toHaveCount(0);
   const verify = page.getByRole("link", { name: "Verify your age to view" });
   await expect(verify).toHaveAttribute(
     "href",

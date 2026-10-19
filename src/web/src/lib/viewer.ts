@@ -3,7 +3,7 @@ export interface Viewer {
   signedIn: boolean;
   userId: string | null;
   email: string | null;
-  /** Passed the age check (18+): needed to post, comment, react and report. */
+  /** Passed the age check (18+): needed only to view sensitive posts unblurred (19 Oct 2026 policy). */
   ageVerified: boolean;
   /** Confirmed their email address: needed to post and comment. */
   emailVerified: boolean;
@@ -26,7 +26,10 @@ export const ANONYMOUS: Viewer = {
   avatarUrl: null,
 };
 
-/** What's stopping the viewer from posting, commenting or reacting, if anything. */
+/**
+ * What's stopping the viewer from posting, commenting or reacting, if anything. No age check: since 19 Oct 2026 writes
+ * don't need it ("age" only comes back from the API if Safety:RequireAgeVerification is ever switched on again).
+ */
 export type Blocker = "signin" | "age" | "profile" | "email" | null;
 
 export function participationBlocker(
@@ -35,9 +38,6 @@ export function participationBlocker(
 ): Blocker {
   if (!viewer.signedIn) {
     return "signin";
-  }
-  if (!viewer.ageVerified) {
-    return "age";
   }
   if (needs.profile && !viewer.hasProfile) {
     return "profile";
