@@ -82,36 +82,94 @@
         }
       },
       {
-        "label": "Start SQL Server",
-        "type": "shell",
-        "command": "docker compose up -d --wait",
-        "options": {
-          "cwd": "${workspaceFolder:bjk-identity-server}"
-        },
-        "problemMatcher": [],
-        "presentation": {
-          "reveal": "silent"
-        }
-      },
-      {
-        "label": "Start S3Mock",
-        "type": "shell",
-        "command": "docker compose up -d",
-        "options": {
-          "cwd": "${workspaceFolder:bjk-core}"
-        },
-        "problemMatcher": [],
-        "presentation": {
-          "reveal": "silent"
-        }
-      },
-      {
-        "label": "Start Docker services",
-        "dependsOn": [
-          "Start SQL Server",
-          "Start S3Mock"
+        "label": "Docker for all apps",
+        "type": "process",
+        "command": "node",
+        "args": [
+          "${workspaceFolder:bjk-core}/scripts/start-docker.mjs"
         ],
-        "problemMatcher": []
+        "problemMatcher": [],
+        "presentation": {
+          "reveal": "always",
+          "panel": "shared",
+          "clear": false
+        },
+        "hide": true
+      },
+      {
+        "label": "Docker for identity server",
+        "type": "process",
+        "command": "node",
+        "args": [
+          "${workspaceFolder:bjk-core}/scripts/start-docker.mjs"
+        ],
+        "problemMatcher": [],
+        "presentation": {
+          "reveal": "always",
+          "panel": "shared",
+          "clear": false
+        },
+        "hide": true
+      },
+      {
+        "label": "Prepare identity server",
+        "dependsOn": [
+          "Docker for identity server",
+          "Build identity server"
+        ],
+        "dependsOrder": "sequence",
+        "problemMatcher": [],
+        "hide": true
+      },
+      {
+        "label": "Docker for API",
+        "type": "process",
+        "command": "node",
+        "args": [
+          "${workspaceFolder:bjk-core}/scripts/start-docker.mjs"
+        ],
+        "problemMatcher": [],
+        "presentation": {
+          "reveal": "always",
+          "panel": "shared",
+          "clear": false
+        },
+        "hide": true
+      },
+      {
+        "label": "Prepare API",
+        "dependsOn": [
+          "Docker for API",
+          "Build API"
+        ],
+        "dependsOrder": "sequence",
+        "problemMatcher": [],
+        "hide": true
+      },
+      {
+        "label": "Docker for media worker",
+        "type": "process",
+        "command": "node",
+        "args": [
+          "${workspaceFolder:bjk-core}/scripts/start-docker.mjs"
+        ],
+        "problemMatcher": [],
+        "presentation": {
+          "reveal": "always",
+          "panel": "shared",
+          "clear": false
+        },
+        "hide": true
+      },
+      {
+        "label": "Prepare media worker",
+        "dependsOn": [
+          "Docker for media worker",
+          "Build media worker"
+        ],
+        "dependsOrder": "sequence",
+        "problemMatcher": [],
+        "hide": true
       }
     ]
   },
@@ -122,7 +180,7 @@
         "name": "Identity server",
         "type": "coreclr",
         "request": "launch",
-        "preLaunchTask": "Build identity server",
+        "preLaunchTask": "Prepare identity server",
         "program": "${workspaceFolder:bjk-identity-server}/src/BJK.Idsrv.Host/bin/Debug/net10.0/BJK.Idsrv.Host.dll",
         "cwd": "${workspaceFolder:bjk-identity-server}/src/BJK.Idsrv.Host",
         "launchSettingsFilePath": "${workspaceFolder:bjk-identity-server}/src/BJK.Idsrv.Host/Properties/launchSettings.json",
@@ -134,7 +192,7 @@
         "name": "API",
         "type": "coreclr",
         "request": "launch",
-        "preLaunchTask": "Build API",
+        "preLaunchTask": "Prepare API",
         "program": "${workspaceFolder:bjk-core}/src/BJK.Core.Api/bin/Debug/net10.0/BJK.Core.Api.dll",
         "cwd": "${workspaceFolder:bjk-core}/src/BJK.Core.Api",
         "launchSettingsFilePath": "${workspaceFolder:bjk-core}/src/BJK.Core.Api/Properties/launchSettings.json",
@@ -146,7 +204,7 @@
         "name": "Media worker",
         "type": "coreclr",
         "request": "launch",
-        "preLaunchTask": "Build media worker",
+        "preLaunchTask": "Prepare media worker",
         "program": "${workspaceFolder:bjk-core}/src/BJK.Core.MediaWorker/bin/Debug/net10.0/BJK.Core.MediaWorker.dll",
         "cwd": "${workspaceFolder:bjk-core}/src/BJK.Core.MediaWorker",
         "launchSettingsFilePath": "${workspaceFolder:bjk-core}/src/BJK.Core.MediaWorker/Properties/launchSettings.json",
@@ -180,7 +238,7 @@
           "Web app"
         ],
         "stopAll": true,
-        "preLaunchTask": "Start Docker services"
+        "preLaunchTask": "Docker for all apps"
       }
     ]
   }
