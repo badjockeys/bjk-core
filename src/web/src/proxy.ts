@@ -11,12 +11,14 @@ import {
   writeSession,
   type CookieOptions,
 } from "./lib/session";
+import { newViewerCookie, readViewerId, viewerCookieName, viewerCookieOptions } from "./lib/viewer-id";
 
 /**
  * Runs before every page and server action:
  * - refreshes the user's access token a minute before it expires (the refresh token is one-time, so the new one is
  *   saved straight away), and passes the new cookie on to the page being rendered;
- * - sets the Content-Security-Policy with a fresh nonce for Next.js's scripts.
+ * - sets the Content-Security-Policy with a fresh nonce for Next.js's scripts;
+ * - gives each browser a signed, httpOnly viewer id (lib/viewer-id.ts), which counts logged-out reel plays.
  */
 export async function proxy(request: NextRequest) {
   const config = getConfig();
@@ -52,11 +54,20 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  if (written || cleared) {
+  // A viewer id for every browser that hasn't got a valid one yet.
+  let viewer: { name: string; value: string } | null = null;
+  if (!(await readViewerId(request.cookies, authSecret(), secure))) {
+    viewer = { name: viewerCookieName(secure), value: (await newViewerCookie(authSecret())).value };
+  }
+
+  if (written || cleared || viewer) {
     // The page being rendered should see the new cookies, not the ones the browser sent.
     const name = sessionCookieName(secure);
-    const others = request.cookies.getAll().filter((c) => !c.name.startsWith(`${name}.`));
-    const all = [...others, ...(written ?? [])];
+    const others = request.cookies
+      .getAll()
+      .filter((c) => !c.name.startsWith(`${name}.`) || !(written || cleared))
+      .filter((c) => !viewer || c.name !== viewer.name);
+    const all = [...others, ...(written ?? []), ...(viewer ? [viewer] : [])];
     requestHeaders.set("cookie", all.map((c) => `${c.name}=${c.value}`).join("; "));
   }
 
@@ -70,6 +81,9 @@ export async function proxy(request: NextRequest) {
   }
   for (const [name, value, options] of pending.set) {
     response.cookies.set(name, value, options);
+  }
+  if (viewer) {
+    response.cookies.set(viewer.name, viewer.value, viewerCookieOptions(secure));
   }
   return response;
 }

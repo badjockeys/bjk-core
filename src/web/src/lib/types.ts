@@ -58,11 +58,20 @@ export interface LocationDto {
 export interface PostMediaDto {
   mediaId: string;
   mediaType: MediaType;
-  playbackUrl: string;
+  /** The full photo (2048 px) or the video. Null when the media is blurred for this viewer. */
+  playbackUrl: string | null;
   thumbnailUrl: string | null;
   durationSeconds: number | null;
   width: number | null;
   height: number | null;
+  /** A heavily blurred 480 px preview, for sensitive posts (null for a few seconds until it's made). */
+  previewUrl?: string | null;
+  /** Sensitive media this viewer may not see yet: only previewUrl is set. */
+  isBlurred?: boolean;
+  /** When the signed links to sensitive media stop working: fetch the post again before then. */
+  linksExpireAt?: string | null;
+  /** Photos: a 1080 px copy for feeds and lists (null for videos, blurred media and older photos). */
+  feedUrl?: string | null;
 }
 
 export type ReactionCounts = Partial<Record<ReactionType, number>>;
@@ -90,6 +99,89 @@ export interface PostDto {
   mediaState?: PostMediaState;
   mediaFailureReason?: string | null;
   isProcessing?: boolean;
+  /** Sensitive and this viewer hasn't passed the age check (or isn't signed in): the media come blurred. */
+  requiresAgeVerification?: boolean;
+  sensitiveSource?: "None" | "Author" | "Moderator" | "Automatic";
+}
+
+/** GET /api/reels. Null limits mean unlimited (Premium). */
+export interface ReelsPage {
+  items: PostDto[];
+  nextCursor: string | null;
+  playsRemainingToday: number | null;
+  dailyPlayLimit: number | null;
+  playsToday: number;
+  resetsAt: string;
+}
+
+/** POST /api/reels/{id}/play. */
+export interface ReelPlayResult {
+  counted: boolean;
+  playsRemainingToday: number | null;
+  dailyPlayLimit: number | null;
+  playsToday: number;
+  resetsAt: string;
+}
+
+export type SubscriptionPlan = "Free" | "Premium" | "PremiumPlus";
+export type HeatmapDays = "All" | "Weekdays" | "Weekends";
+
+/** What the plan allowed for a heat map request, and what was applied. Dates are UK days (yyyy-mm-dd). */
+export interface HeatmapAccess {
+  plan: SubscriptionPlan;
+  historyDays: number;
+  filtersAllowed: boolean;
+  exportAllowed: boolean;
+  from: string;
+  to: string;
+  historyCapped: boolean;
+  filtersIgnored: boolean;
+}
+
+export interface HeatmapCell {
+  latitude: number;
+  longitude: number;
+  minLatitude: number;
+  minLongitude: number;
+  maxLatitude: number;
+  maxLongitude: number;
+  count: number;
+}
+
+/** GET /api/heatmap. */
+export interface HeatmapDto {
+  cells: HeatmapCell[];
+  cellLatitudeSize: number;
+  cellLongitudeSize: number;
+  minCellCount: number;
+  maxCount: number;
+  truncated: boolean;
+  access: HeatmapAccess;
+}
+
+/** GET /api/heatmap/area. Everything but the dates is empty when suppressed (fewer than 3 incidents). */
+export interface AreaStatsDto {
+  suppressed: boolean;
+  total: number | null;
+  changePercent: number | null;
+  busiestHour: number | null;
+  topCategories: { category: IncidentCategory; count: number; percent: number }[];
+  topPlaces: { name: string; count: number }[];
+  placeName: string | null;
+  previousFrom: string;
+  previousTo: string;
+  access: HeatmapAccess;
+}
+
+/** The heat map's query: a box (minLon,minLat,maxLon,maxLat), the map zoom, and optional filters. */
+export interface HeatmapQuery {
+  bbox: string;
+  zoom?: number;
+  from?: string;
+  to?: string;
+  categories?: string;
+  hours?: string;
+  days?: HeatmapDays;
 }
 
 export interface CommentDto {
@@ -204,4 +296,7 @@ export interface ProblemDetails {
   detail?: string;
   code?: string;
   errors?: Record<string, string[]>;
+  /** daily_limit: when the allowance starts again. */
+  resetsAt?: string;
+  limit?: number;
 }

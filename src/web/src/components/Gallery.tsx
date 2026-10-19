@@ -8,7 +8,8 @@ import { BackIcon, ChevronIcon, CloseIcon } from "./icons";
 
 /**
  * A post's photos. Phones: swipe through them full width, with "1 / 3" and dots. Desktop: a grid; any photo opens a
- * full-screen viewer with previous / next (arrow keys work too).
+ * full-screen viewer with previous / next (arrow keys work too). The page shows the 1080 px feed copy (`feedUrl`);
+ * the full 2048 px image loads in the viewer, when a photo is tapped.
  */
 export function Gallery({ photos, title }: { photos: PostMediaDto[]; title: string }) {
   const [index, setIndex] = useState(0);
@@ -62,11 +63,18 @@ export function Gallery({ photos, title }: { photos: PostMediaDto[]; title: stri
               aria-roledescription="slide"
               aria-label={`Photo ${i + 1} of ${count}`}
             >
-              <img
-                src={photo.playbackUrl}
-                alt={`Photo ${i + 1} of ${count}`}
-                loading={i === 0 ? "eager" : "lazy"}
-              />
+              <button
+                type="button"
+                className="gallery-open"
+                onClick={() => setViewing(i)}
+                aria-label={`View photo ${i + 1} of ${count} full size`}
+              >
+                <img
+                  src={photo.feedUrl ?? photo.playbackUrl ?? undefined}
+                  alt={`Photo ${i + 1} of ${count}`}
+                  loading={i === 0 ? "eager" : "lazy"}
+                />
+              </button>
             </div>
           ))}
         </div>
@@ -92,7 +100,14 @@ export function Gallery({ photos, title }: { photos: PostMediaDto[]; title: stri
             onClick={() => setViewing(i)}
             aria-label={`View photo ${i + 1} of ${count}`}
           >
-            <img src={count === 1 ? photo.playbackUrl : (photo.thumbnailUrl ?? photo.playbackUrl)} alt="" />
+            <img
+              src={
+                (count === 1 ? photo.feedUrl : (photo.thumbnailUrl ?? photo.feedUrl)) ??
+                photo.playbackUrl ??
+                undefined
+              }
+              alt=""
+            />
             {i === shown.length - 1 && extra > 0 ? <span className="more">+{extra}</span> : null}
           </button>
         ))}
@@ -109,7 +124,9 @@ export function Gallery({ photos, title }: { photos: PostMediaDto[]; title: stri
         }}
       >
         <div className="lightbox-inner">
-          {current ? <img src={current.playbackUrl} alt={`Photo ${(viewing ?? 0) + 1} of ${count}`} /> : null}
+          {current?.playbackUrl ? (
+            <img src={current.playbackUrl} alt={`Photo ${(viewing ?? 0) + 1} of ${count}`} />
+          ) : null}
           <button
             type="button"
             className="icon-btn"

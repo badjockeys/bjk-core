@@ -29,6 +29,26 @@ pages; the web app redirects there (OpenID Connect with PKCE, client `bjk-web`) 
 httpOnly session cookie. Photos and videos upload straight from the browser to storage with signed links, and videos
 are trimmed to 30 seconds and shrunk to 720p in the browser first.
 
+Pages beyond the feed and posts:
+
+- **Reels** (`/reels`, screens 27 and 29): a full-screen vertical feed of video posts (swipe, scroll or the arrow keys).
+  The reel in view plays muted and loops, and after 3 seconds it's reported as played (`POST /api/reels/{id}/play`).
+  Daily allowance: 10 logged out, 25 on Free, unlimited on Premium; the counter shows "N of 25 free today" and the last
+  slide is the daily-limit sheet (Premium £19.99/year or £2.49/month; "Get Premium" goes to `/premium`, which says
+  subscriptions are coming soon). Logged-out viewers are counted by a random id in a signed, httpOnly cookie
+  (`bjk_viewer`, set by `src/proxy.ts`, signed with `AUTH_SECRET`), sent to the API as `X-Viewer-Id`.
+- **Incident map** (`/map`, screen 28, members only): Leaflet with the API's grid cells drawn as squares shaded from
+  #E6F7FC to #00B5E5 to #00607F, filters (category, period, time of day, weekdays/weekends; locked with a "Premium"
+  label on the Free plan, which shows the last 7 days) and the figures for a tapped area. Tiles come from
+  `MAP_TILE_URL` (OpenStreetMap's public tiles by default, with attribution). **Heavy production use needs a tile
+  provider**: OpenStreetMap's tile usage policy doesn't allow it, so choose one (e.g. a paid OSM-based provider) and set
+  `MAP_TILE_URL` and `MAP_ATTRIBUTION`.
+- **Sensitive posts** (bjk-modules #17): everyone gets them, but until a member has verified their age the media is a
+  blurred preview with "Sensitive content — Injuries or a serious crash" and "Verify your age to view" (the identity
+  server's age check, then back to the same page) or, logged out, "Sign in to view". Authors see their own. Signed links
+  to the real files expire after about 10 minutes (`linksExpireAt`), so pages fetch fresh ones shortly before. Feeds
+  show photos' 1080 px copy (`feedUrl`); the full image opens on tap.
+
 Run it with `npm run dev` in `src/web` after copying `.env.local.example` to `.env.local` (see the guide, step 8).
 `npm run lint`, `npm run typecheck`, `npm test` (Vitest) and `npm run e2e` (Playwright, against a mock identity
 server and API in `e2e/mock-server.mjs`) are the checks CI runs. `src/web/Dockerfile` builds the container

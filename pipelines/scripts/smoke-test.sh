@@ -7,7 +7,8 @@
 #
 # Covers: startup migrations; token validation (issuer, audience, expiry, token type, scopes); profiles; uploads to
 # object storage; the processing queue; posts, reactions, comments and reports; moderation rights; data export; the
-# user lifecycle events from the identity server (deactivate, reactivate, delete); and a restart.
+# user lifecycle events from the identity server (deactivate, reactivate, delete); reels (daily limits by plan) and the
+# incident heat map (suppression, entitlements); and a restart.
 set -euo pipefail
 
 PROJECT=${PROJECT:-src/BJK.Core.Api}
@@ -144,11 +145,13 @@ s3() { aws --endpoint-url "$S3_ENDPOINT" s3api "$@"; }
 USER_A=$(cat /proc/sys/kernel/random/uuid)
 USER_B=$(cat /proc/sys/kernel/random/uuid)
 MODERATOR=$(cat /proc/sys/kernel/random/uuid)
+USER_PLUS=$(cat /proc/sys/kernel/random/uuid)   # Premium + through Plans:Overrides (billing isn't built yet)
 ALL_SCOPES='["bjk.media", "bjk.profiles", "bjk.posts"]'
 
 # ---------- first start: databases and schemas are created ----------
 
-start_app
+# One free reel a day for logged-out viewers, so the daily limit is reached with the one video in this test.
+start_app Reels__DailyPlays__Anonymous=1 "Plans__Overrides__$USER_PLUS=premium_plus"
 for context in MediaDbContext ProfilesDbContext PostsDbContext; do
   grep -q "$context: applying migrations" "$APP_LOG" || fail "Expected $context to apply its migrations on first start."
 done
@@ -348,6 +351,13 @@ pass "post shows the author's handle"
 request GET /api/posts
 [ "$(json .totalCount)" = "1" ] || fail "Expected 1 post in the feed: $RESPONSE"
 pass "the post is in the public feed"
+expect_sql "SELECT CASE WHEN OriginalDeletedAt IS NULL THEN 0 ELSE 1 END FROM media.Media WHERE Id = '$MEDIA_ID'" 1 \
+  "the uploaded original is deleted once the post is published"
+ORIGINAL_KEY=$(sql "SELECT OriginalKey FROM media.Media WHERE Id = '$MEDIA_ID'")
+if s3 head-object --bucket "$ORIGINALS_BUCKET" --key "$ORIGINAL_KEY" > /dev/null 2>&1; then
+  fail "The published photo's original is still in storage."
+fi
+pass "and removed from storage"
 request PUT "/api/posts/$POST_ID/reaction" "$(body '{type: "Angry"}')" "$TOKEN_B"
 expect 204 "user B reacts"
 request POST "/api/posts/$POST_ID/comments" "$(body '{body: "Shocking driving."}')" "$TOKEN_B"
@@ -359,6 +369,72 @@ request GET "/api/posts/$POST_ID" "" "$TOKEN_B"
 [ "$(json .reactions.Angry)" = "1" ] && [ "$(json .commentCount)" = "1" ] && [ "$(json .myReaction)" = "Angry" ] \
   || fail "Expected 1 Angry reaction, 1 comment and my reaction: $RESPONSE"
 pass "post shows the reaction, the comment count and my reaction"
+
+# ---------- reels and the incident heat map ----------
+
+VIDEO_POST_BODY=$(body --arg m "$VIDEO_ID" --arg at "$(date -u -d '-3 hours' +%Y-%m-%dT%H:%M:%SZ)" \
+  '{title: "Close pass on the A64", category: "ClosePass", incidentAt: $at, latitude: 53.9590, longitude: -1.0815, placeName: "A64, York", mediaIds: [$m]}')
+request POST /api/posts "$VIDEO_POST_BODY" "$TOKEN_A"
+expect 201 "user A posts the video"
+VIDEO_POST_ID=$(json .id)
+expect_sql "SELECT CAST(HasVideo AS int) FROM posts.Posts WHERE Id = '$VIDEO_POST_ID'" 1 "the video post is a reel"
+
+VIEWER='X-Viewer-Id: smoke-viewer-0001'
+reels() { STATUS=$(curl -s -o response.json -w '%{http_code}' "$@"); RESPONSE=$(cat response.json); }
+reels -H "$VIEWER" "$BASE_URL/api/reels"
+expect 200 "logged-out viewers get reels"
+[ "$(json '.items | length')" = "1" ] && [ "$(json '.items[0].id')" = "$VIDEO_POST_ID" ] \
+  || fail "Expected only the video post in reels: $RESPONSE"
+[ "$(json .dailyPlayLimit)" = "1" ] && [ "$(json .playsRemainingToday)" = "1" ] \
+  || fail "Expected 1 play left of 1 (Reels:DailyPlays:Anonymous=1): $RESPONSE"
+pass "reels are video posts only, with today's allowance"
+reels -X POST -H "$VIEWER" "$BASE_URL/api/reels/$VIDEO_POST_ID/play"
+expect 200 "a play is recorded after 3 seconds"
+[ "$(json .counted)" = "true" ] && [ "$(json .playsRemainingToday)" = "0" ] || fail "Expected the play to count: $RESPONSE"
+reels -X POST -H "$VIEWER" "$BASE_URL/api/reels/$VIDEO_POST_ID/play"
+expect 200 "replaying today's reel is free"
+[ "$(json .counted)" = "false" ] || fail "Expected the replay not to count: $RESPONSE"
+reels -H "$VIEWER" "$BASE_URL/api/reels"
+expect 403 "no reels left today"
+[ "$(json .code)" = "daily_limit" ] && [ "$(json .resetsAt)" != "null" ] || fail "Expected code daily_limit and resetsAt: $RESPONSE"
+pass "the daily limit says when it resets"
+reels -H "X-Viewer-Id: smoke-viewer-0002" "$BASE_URL/api/reels"
+expect 200 "another logged-out viewer has their own allowance"
+reels -X POST -H "$VIEWER" "$BASE_URL/api/reels/$POST_ID/play"
+expect 404 "photo posts aren't reels"
+expect_sql "SELECT SUM(Plays) FROM posts.ReelPlayDailyCounts WHERE PostId = '$VIDEO_POST_ID'" 1 "plays are counted per post and day"
+
+request GET /api/reels "" "$TOKEN_B"
+[ "$(json .dailyPlayLimit)" = "25" ] || fail "Expected 25 a day on the Free plan: $RESPONSE"
+pass "Free members get 25 reels a day"
+request GET /api/reels "" "$(token "$(body --arg s "$USER_B" --argjson sc "$ALL_SCOPES" '{sub: $s, scope: $sc, plan: "premium"}')")"
+[ "$(json .playsRemainingToday)" = "null" ] && [ "$(json .dailyPlayLimit)" = "null" ] || fail "Expected unlimited reels on Premium: $RESPONSE"
+pass "Premium (plan claim) is unlimited"
+
+BBOX="-2.0,53.0,-0.5,54.5"
+request GET "/api/heatmap?bbox=$BBOX&zoom=8"
+expect 401 "the heat map needs signing in"
+request GET "/api/heatmap?bbox=$BBOX&zoom=8&categories=ClosePass" "" "$TOKEN_B"
+expect 200 "a Free member gets the heat map"
+[ "$(json .access.plan)" = "Free" ] && [ "$(json .access.filtersIgnored)" = "true" ] && [ "$(json .minCellCount)" = "3" ] \
+  || fail "Expected the Free teaser with filters ignored: $RESPONSE"
+[ "$(json '.cells | length')" = "0" ] || fail "Expected cells under 3 incidents to be hidden: $RESPONSE"
+pass "the Free teaser hides small cells and ignores filters"
+request GET "/api/heatmap/area?bbox=$BBOX" "" "$TOKEN_B"
+expect 200 "area figures"
+[ "$(json .suppressed)" = "true" ] && [ "$(json .total)" = "null" ] || fail "Expected area figures under 3 incidents to be hidden: $RESPONSE"
+pass "area figures under 3 incidents are hidden"
+request GET "/api/heatmap/export.csv?bbox=$BBOX" "" "$TOKEN_B"
+expect 403 "CSV export isn't on the Free plan"
+TOKEN_PLUS=$(token "$(body --arg s "$USER_PLUS" --argjson sc "$ALL_SCOPES" '{sub: $s, scope: $sc}')")
+request GET "/api/heatmap/export.csv?bbox=$BBOX&from=2024-01-01" "" "$TOKEN_PLUS"
+expect 200 "Premium + (Plans:Overrides) exports CSV"
+head -1 response.json | grep -q '^from,to,centre_latitude' || fail "Expected the CSV header: $(head -c 200 response.json)"
+pass "the export is aggregated cells"
+request GET "/api/heatmap?bbox=$BBOX&zoom=14&from=2020-01-01&categories=ClosePass&hours=7-10&days=Weekdays" "" "$TOKEN_PLUS"
+[ "$(json .access.plan)" = "PremiumPlus" ] && [ "$(json .access.historyCapped)" = "true" ] && [ "$(json .access.filtersAllowed)" = "true" ] \
+  || fail "Expected Premium + with 5 years of history and filters: $RESPONSE"
+pass "Premium + gets filters and 5 years of history"
 
 # ---------- moderation ----------
 
@@ -388,24 +464,25 @@ pass "export has profile, posts and media sections"
 user_event Deactivated "$USER_A"
 wait_for "curl -s -o /dev/null -w '%{http_code}' $BASE_URL/api/profiles/roadhog" 404 "deactivated user's profile disappears"
 # Profiles and Posts each handle the event from their own queue binding, so allow for them finishing apart.
-wait_for "curl -s $BASE_URL/api/posts | jq -r .totalCount" 0 "deactivated user's post is hidden from the feed"
+wait_for "curl -s $BASE_URL/api/posts | jq -r .totalCount" 0 "deactivated user's posts are hidden from the feed"
 request GET /api/profiles/handles/roadhog/availability
 [ "$(json .available)" = "false" ] || fail "Expected the handle to stay reserved while deactivated: $RESPONSE"
 pass "deactivated user's handle stays reserved"
 
 user_event Reactivated "$USER_A"
 wait_for "curl -s -o /dev/null -w '%{http_code}' $BASE_URL/api/profiles/roadhog" 200 "reactivated user's profile is back"
-wait_for "curl -s $BASE_URL/api/posts | jq -r .totalCount" 1 "reactivated user's post is back in the feed"
+wait_for "curl -s $BASE_URL/api/posts | jq -r .totalCount" 2 "reactivated user's posts are back in the feed"
 
-ORIGINAL_KEY=$(sql "SELECT OriginalKey FROM media.Media WHERE Id = '$MEDIA_ID'")
-s3 head-object --bucket "$ORIGINALS_BUCKET" --key "$ORIGINAL_KEY" > /dev/null || fail "Expected the original in storage before deletion."
+# The original was deleted when the post was published (bjk-modules #17), so check the processed photo instead.
+PLAYBACK_KEY=$(sql "SELECT PlaybackKey FROM media.Media WHERE Id = '$MEDIA_ID'")
+s3 head-object --bucket "$PUBLIC_BUCKET" --key "$PLAYBACK_KEY" > /dev/null || fail "Expected the processed photo in storage before deletion."
 user_event Deleted "$USER_A"
 wait_for "sql \"SELECT COUNT(*) FROM profiles.Profiles WHERE Id = '$USER_A'\"" 0 "deleted user's profile is removed"
 expect_sql "SELECT COUNT(*) FROM posts.Posts WHERE AuthorId = '$USER_A'" 0 "and their posts"
 expect_sql "SELECT COUNT(*) FROM posts.Comments WHERE PostId = '$POST_ID'" 0 "and the comments on their posts"
 expect_sql "SELECT COUNT(*) FROM media.Media WHERE UserId = '$USER_A'" 0 "and their media records"
-if s3 head-object --bucket "$ORIGINALS_BUCKET" --key "$ORIGINAL_KEY" > /dev/null 2>&1; then
-  fail "The deleted user's original file is still in storage."
+if s3 head-object --bucket "$PUBLIC_BUCKET" --key "$PLAYBACK_KEY" > /dev/null 2>&1; then
+  fail "The deleted user's photo is still in storage."
 fi
 pass "and their files in object storage"
 expect_sql "SELECT COUNT(*) FROM profiles.Profiles WHERE Id = '$USER_B'" 1 "user B is untouched"

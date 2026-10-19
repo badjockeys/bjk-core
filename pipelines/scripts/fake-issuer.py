@@ -56,6 +56,9 @@ def token(request: dict) -> str:
     }
     if request.get("role"):
         claims["role"] = request["role"]
+    # The subscription plan (free, premium, premium_plus), as the identity server will issue it once billing exists.
+    if request.get("plan"):
+        claims["plan"] = request["plan"]
     # Issued by the identity server once the account passes the age check. Present unless the request sets it to null.
     age_verified = request.get("age_verified", "true")
     if age_verified is not None:

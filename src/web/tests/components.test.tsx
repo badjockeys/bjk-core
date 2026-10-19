@@ -131,6 +131,57 @@ describe("PostCard", () => {
   });
 });
 
+describe("sensitive posts", () => {
+  const sensitive: PostDto = {
+    ...post,
+    isSensitive: true,
+    requiresAgeVerification: true,
+    media: [
+      {
+        mediaId: "m1",
+        mediaType: "Image",
+        playbackUrl: null,
+        thumbnailUrl: null,
+        durationSeconds: null,
+        width: 2048,
+        height: 1536,
+        previewUrl: "/1-preview.webp",
+        isBlurred: true,
+      },
+    ],
+  };
+
+  it("show visitors the blurred preview and ask them to sign in", () => {
+    const { container } = render(<PostCard post={sensitive} viewer={ANONYMOUS} />);
+    expect(screen.getByText("Sensitive content")).toBeInTheDocument();
+    expect(screen.getByText("Injuries or a serious crash")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Sign in to view" })).toHaveAttribute(
+      "href",
+      `/auth/sign-in?returnTo=${encodeURIComponent(`/p/${post.id}`)}`,
+    );
+    expect(container.querySelector("img.sensitive-preview")?.getAttribute("src")).toBe("/1-preview.webp");
+  });
+
+  it("offer signed-in members the age check", () => {
+    render(<PostCard post={sensitive} viewer={{ ...member, ageVerified: false }} />);
+    expect(screen.getByRole("link", { name: "Verify your age to view" })).toHaveAttribute(
+      "href",
+      `/auth/check-age?returnTo=${encodeURIComponent(`/p/${post.id}`)}`,
+    );
+  });
+
+  it("use the 1080 px feed copy of photos in the feed", () => {
+    const { container } = render(
+      <PostCard
+        post={{ ...post, media: [{ ...post.media[0]!, feedUrl: "/1-feed.webp" }] }}
+        viewer={ANONYMOUS}
+      />,
+    );
+    expect(container.innerHTML).toContain('src="/1-feed.webp"');
+    expect(container.innerHTML).not.toContain('src="/1.webp"');
+  });
+});
+
 describe("ReactionBar", () => {
   it("switches the reaction and puts it back if the server refuses", async () => {
     actions.reactToPost.mockResolvedValueOnce({ ok: true, data: undefined });

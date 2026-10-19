@@ -9,15 +9,19 @@ import { BackButton } from "@/components/BackButton";
 import { Comments } from "@/components/Comments";
 import { Gallery } from "@/components/Gallery";
 import { ClockIcon, SpinnerIcon } from "@/components/icons";
+import { LinkExpiryRefresh } from "@/components/LinkExpiryRefresh";
 import { PostMoreMenu } from "@/components/PostMoreMenu";
 import { ProcessingWatcher } from "@/components/ProcessingWatcher";
+import { isBlurred } from "@/components/PostMedia";
 import { ReactionBar } from "@/components/ReactionBar";
+import { SensitiveCover } from "@/components/SensitiveCover";
 import { appealPost } from "@/actions/posts";
 import { api } from "@/lib/api";
 import { getAccessToken, getViewer } from "@/lib/auth";
 import { categoryHref, categoryLabel } from "@/lib/categories";
 import { dateTime, plural, postedAt } from "@/lib/format";
-import { checkAgePath, joinPath, postPath, profilePath, signInPath } from "@/lib/paths";
+import { joinPath, postPath, profilePath, signInPath } from "@/lib/paths";
+import { earliestExpiry } from "@/lib/links";
 import { loadPost, postCount } from "@/lib/posts";
 import type { CommentDto, PagedResult, PostDto } from "@/lib/types";
 import { participationBlocker, type Viewer } from "@/lib/viewer";
@@ -37,10 +41,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const summary = `${categoryLabel(post.category)}${where}, ${dateTime(post.incidentAt)}.`;
   const description = post.description ? `${summary} ${post.description.slice(0, 160)}` : summary;
   const first = post.media[0];
-  // Thumbnails are made by the media worker after faces and number plates are blurred.
-  const image = first
-    ? (first.thumbnailUrl ?? (first.mediaType === "Image" ? first.playbackUrl : null))
-    : null;
+  // Thumbnails are made by the media worker after faces and number plates are blurred. Sensitive posts only ever
+  // share their heavily blurred preview.
+  const image = !first
+    ? null
+    : post.isSensitive
+      ? (first.previewUrl ?? null)
+      : (first.thumbnailUrl ?? (first.mediaType === "Image" ? (first.feedUrl ?? first.playbackUrl) : null));
   const visible = post.status === "Published" && (post.mediaState ?? "Ready") === "Ready";
   return {
     title: post.title,
@@ -90,6 +97,7 @@ export default async function PostPage({ params, searchParams }: Props) {
       }
     >
       <ProcessingWatcher processing={isMine && processing} justPosted={isMine && Boolean(posted)} />
+      <LinkExpiryRefresh expiresAt={earliestExpiry([post])} />
       <header className="top">
         <div className="top-left">
           <BackButton />
@@ -130,7 +138,13 @@ export default async function PostPage({ params, searchParams }: Props) {
         </h1>
         {post.description ? <p className="post-text">{post.description}</p> : null}
 
-        <PostBody post={post} processing={processing} kind={typeof posted === "string" ? posted : null} />
+        <PostBody
+          post={post}
+          processing={processing}
+          kind={typeof posted === "string" ? posted : null}
+          signedIn={viewer.signedIn}
+          here={here}
+        />
 
         <div className="facts facts-3">
           {post.location.placeName ? (
@@ -150,7 +164,10 @@ export default async function PostPage({ params, searchParams }: Props) {
         </div>
 
         {post.isSensitive ? (
-          <p className="help">Marked sensitive: only signed-in, age-checked members see this post.</p>
+          <p className="help">
+            Marked sensitive: injuries or a serious crash. It&apos;s blurred until you&apos;ve verified your
+            age.
+          </p>
         ) : null}
 
         {!processing && post.status === "Published" ? (
@@ -208,7 +225,19 @@ async function firstComments(postId: string): Promise<PagedResult<CommentDto> | 
   }
 }
 
-function PostBody({ post, processing, kind }: { post: PostDto; processing: boolean; kind: string | null }) {
+function PostBody({
+  post,
+  processing,
+  kind,
+  signedIn,
+  here,
+}: {
+  post: PostDto;
+  processing: boolean;
+  kind: string | null;
+  signedIn: boolean;
+  here: string;
+}) {
   if (processing && post.media.length === 0) {
     return (
       <div className="media tw-processing ph" role="status">
@@ -217,8 +246,18 @@ function PostBody({ post, processing, kind }: { post: PostDto; processing: boole
       </div>
     );
   }
+  if (post.media.length > 0 && isBlurred(post)) {
+    return (
+      <SensitiveCover
+        previewUrl={post.media[0]!.previewUrl}
+        signedIn={signedIn}
+        returnTo={here}
+        className="media"
+      />
+    );
+  }
   const video = post.media.find((m) => m.mediaType === "Video");
-  if (video) {
+  if (video?.playbackUrl) {
     return (
       <video
         className="post-video"
@@ -298,18 +337,6 @@ function OwnerNotices({ post, kind }: { post: PostDto; kind: string | null }) {
 
 function commentBlocker(viewer: Viewer, returnTo: string): React.ReactNode {
   const blocker = participationBlocker(viewer, { profile: true, email: true });
-  if (blocker === "age") {
-    return (
-      <div className="notice">
-        <span>
-          Check your age to comment.{" "}
-          <a className="link" href={checkAgePath(returnTo)}>
-            Check my age
-          </a>
-        </span>
-      </div>
-    );
-  }
   if (blocker === "profile") {
     return (
       <div className="notice">

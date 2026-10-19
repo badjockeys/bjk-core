@@ -1,11 +1,13 @@
 import Link from "next/link";
 
 import type { FeedSource } from "@/actions/posts";
+import { earliestExpiry } from "@/lib/links";
 import type { PagedResult, PostDto } from "@/lib/types";
 import type { Viewer } from "@/lib/viewer";
 
 import { FeedList } from "./FeedList";
 import { LogoMark } from "./icons";
+import { LinkExpiryRefresh } from "./LinkExpiryRefresh";
 import { PostCard } from "./PostCard";
 
 /** A server-rendered first page of posts, continued by FeedList in the browser. */
@@ -37,6 +39,7 @@ export function Feed({
       hasMore={hasMore}
       nextHref={`${basePath}${separator}page=${page.page + 1}`}
     >
+      <LinkExpiryRefresh expiresAt={earliestExpiry(page.items)} />
       {page.items.map((post) => (
         <PostCard key={post.id} post={post} viewer={viewer} />
       ))}
