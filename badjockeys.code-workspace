@@ -32,5 +32,123 @@
       "dbaeumer.vscode-eslint",
       "esbenp.prettier-vscode"
     ]
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Build identity server",
+        "type": "process",
+        "command": "dotnet",
+        "args": [
+          "build",
+          "${workspaceFolder:bjk-identity-server}/src/BJK.Idsrv.Host/BJK.Idsrv.Host.csproj",
+          "/property:GenerateFullPaths=true",
+          "/consoleloggerparameters:NoSummary"
+        ],
+        "problemMatcher": "$msCompile",
+        "presentation": {
+          "reveal": "silent"
+        }
+      },
+      {
+        "label": "Build API",
+        "type": "process",
+        "command": "dotnet",
+        "args": [
+          "build",
+          "${workspaceFolder:bjk-core}/src/BJK.Core.Api/BJK.Core.Api.csproj",
+          "/property:GenerateFullPaths=true",
+          "/consoleloggerparameters:NoSummary"
+        ],
+        "problemMatcher": "$msCompile",
+        "presentation": {
+          "reveal": "silent"
+        }
+      },
+      {
+        "label": "Build media worker",
+        "type": "process",
+        "command": "dotnet",
+        "args": [
+          "build",
+          "${workspaceFolder:bjk-core}/src/BJK.Core.MediaWorker/BJK.Core.MediaWorker.csproj",
+          "/property:GenerateFullPaths=true",
+          "/consoleloggerparameters:NoSummary"
+        ],
+        "problemMatcher": "$msCompile",
+        "presentation": {
+          "reveal": "silent"
+        }
+      }
+    ]
+  },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Identity server",
+        "type": "coreclr",
+        "request": "launch",
+        "preLaunchTask": "Build identity server",
+        "program": "${workspaceFolder:bjk-identity-server}/src/BJK.Idsrv.Host/bin/Debug/net10.0/BJK.Idsrv.Host.dll",
+        "cwd": "${workspaceFolder:bjk-identity-server}/src/BJK.Idsrv.Host",
+        "launchSettingsFilePath": "${workspaceFolder:bjk-identity-server}/src/BJK.Idsrv.Host/Properties/launchSettings.json",
+        "launchSettingsProfile": "https",
+        "console": "integratedTerminal",
+        "stopAtEntry": false
+      },
+      {
+        "name": "API",
+        "type": "coreclr",
+        "request": "launch",
+        "preLaunchTask": "Build API",
+        "program": "${workspaceFolder:bjk-core}/src/BJK.Core.Api/bin/Debug/net10.0/BJK.Core.Api.dll",
+        "cwd": "${workspaceFolder:bjk-core}/src/BJK.Core.Api",
+        "launchSettingsFilePath": "${workspaceFolder:bjk-core}/src/BJK.Core.Api/Properties/launchSettings.json",
+        "launchSettingsProfile": "https",
+        "console": "integratedTerminal",
+        "stopAtEntry": false
+      },
+      {
+        "name": "Media worker",
+        "type": "coreclr",
+        "request": "launch",
+        "preLaunchTask": "Build media worker",
+        "program": "${workspaceFolder:bjk-core}/src/BJK.Core.MediaWorker/bin/Debug/net10.0/BJK.Core.MediaWorker.dll",
+        "cwd": "${workspaceFolder:bjk-core}/src/BJK.Core.MediaWorker",
+        "launchSettingsFilePath": "${workspaceFolder:bjk-core}/src/BJK.Core.MediaWorker/Properties/launchSettings.json",
+        "launchSettingsProfile": "worker",
+        "console": "integratedTerminal",
+        "stopAtEntry": false
+      },
+      {
+        "name": "Web app",
+        "type": "node-terminal",
+        "request": "launch",
+        "command": "npm run dev",
+        "cwd": "${workspaceFolder:bjk-core}/src/web",
+        "env": {
+          "NODE_EXTRA_CA_CERTS": "${userHome}/.aspnet/dev-cert.pem"
+        },
+        "serverReadyAction": {
+          "pattern": "Local:\\s+(https?://\\S+)",
+          "uriFormat": "%s",
+          "action": "openExternally"
+        }
+      }
+    ],
+    "compounds": [
+      {
+        "name": "Bad Jockeys (all)",
+        "configurations": [
+          "Identity server",
+          "API",
+          "Media worker",
+          "Web app"
+        ],
+        "stopAll": true
+      }
+    ]
   }
 }
