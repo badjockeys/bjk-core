@@ -3,6 +3,10 @@
 
   Run it from PowerShell (it can be the only file you have; it fetches the repos itself):
       powershell -ExecutionPolicy Bypass -File setup.ps1
+      powershell -ExecutionPolicy Bypass -File setup.ps1 -Upgrade    (also upgrades the tools; restarts Docker Desktop)
+
+  Run it again any time: it pulls the latest code into each repo that's on master with no uncommitted changes
+  (others are left alone), and restarts itself if that brought a newer setup.ps1.
 
   It installs any missing tools with winget (Git, GitHub CLI, .NET 10 SDK, Node.js LTS, Docker Desktop, ffmpeg,
   VS Code), turns on WSL 2 for Docker, signs you in to GitHub in your browser (that sign-in also gives access to the
@@ -12,9 +16,13 @@
   Windows will ask for permission (UAC) for some installs, and once to trust the HTTPS development certificate.
   If WSL 2 has to be switched on, restart when asked and run this again.
 #>
+param([switch]$Upgrade)
+# Fingerprint of this script as it started, to spot a newer one after the repos are updated.
+$SelfHash = if ($PSCommandPath) { (Get-FileHash $PSCommandPath).Hash } else { '' }
 $ErrorActionPreference = 'Continue'   # native commands report through $LASTEXITCODE; Stop breaks on their stderr in PowerShell 5.1
 $Org = 'badjockeys'
 $Repos = @('bjk-core', 'bjk-identity-server', 'bjk-modules', 'bjk-mobile')
+$Package = 'BJK.Modules.Media'   # stands in for the private BJK.Modules NuGet packages
 
 function Step([string]$Text) { Write-Host "`n== $Text" -ForegroundColor Cyan }
 function Done([string]$Text) { Write-Host $Text -ForegroundColor Green }
@@ -50,6 +58,16 @@ foreach ($tool in $tools) {
         Fail "$($tool.Name) didn't install (winget exit code $LASTEXITCODE). Close this window, open a new PowerShell and run the script again; if it still fails, install it by hand: winget install --id $($tool.Id)"
     }
     Done "$($tool.Name): installed"
+}
+
+if ($Upgrade) {
+    Step 'Upgrading the tools (-Upgrade)'
+    foreach ($tool in $tools) {
+        Write-Host "$($tool.Name)..."
+        winget upgrade --id $tool.Id --exact --silent --accept-source-agreements --accept-package-agreements | Out-Host
+    }
+    Refresh-Path
+    Write-Host 'Tools installed some other way (not with winget) were left as they are.'
 }
 
 # --- WSL 2 and Docker ------------------------------------------------------------------------------------------------
@@ -98,7 +116,32 @@ if ($LASTEXITCODE -ne 0) {
     }
 }
 gh auth setup-git -h github.com | Out-Null
-Done "Signed in to GitHub as $(gh api user --jq .login)"
+$login = gh api user --jq .login
+Done "Signed in to GitHub as $login"
+
+Step 'Checking your access to the Bad Jockeys repos and packages'
+$noAccess = @()
+foreach ($repo in $Repos) {
+    gh api "repos/$Org/$repo" --silent *> $null
+    if ($LASTEXITCODE -ne 0) { $noAccess += "repo $Org/$repo" }
+}
+# The private BJK.Modules NuGet packages (GitHub Packages); one stands in for all of them.
+gh api "orgs/$Org/packages/nuget/$Package" --silent *> $null
+if ($LASTEXITCODE -ne 0) { $noAccess += "package $Package (the BJK.Modules NuGet packages)" }
+if ($noAccess.Count -gt 0) {
+    Write-Host "`nYour GitHub account $login can't see:" -ForegroundColor Red
+    foreach ($item in $noAccess) { Write-Host "  - $item" }
+    Write-Host @"
+
+Ask an owner of the $Org organisation on GitHub to:
+  1. invite $login to the organisation (it then has to be accepted, from the email or github.com/$Org), and
+  2. give $login (or a team $login is in) access to all four repos, bjk-modules included, since the packages
+     come with it. If the package still isn't visible: org > Packages > $Package > Package settings > Manage access.
+Then run this script again.
+"@
+    exit 1
+}
+Done 'You can see all four repos and the packages'
 
 # --- Repos -----------------------------------------------------------------------------------------------------------
 Step 'Getting the code'
@@ -108,14 +151,43 @@ if ($PSScriptRoot -and (Test-Path (Join-Path $PSScriptRoot 'scripts\setup-local.
     $root = Join-Path $HOME 'Git\badjockeys'
 }
 New-Item -ItemType Directory -Force -Path $root | Out-Null
+# Pulls the latest master, but only when that can't disturb anyone's work: on master, nothing uncommitted.
+function Update-Repo([string]$Repo, [string]$Path) {
+    git -C $Path rev-parse -q --verify HEAD *> $null
+    if ($LASTEXITCODE -ne 0) { Write-Host "${Repo}: no commits yet"; return }
+    $branch = git -C $Path branch --show-current
+    if ($branch -ne 'master') {
+        if (-not $branch) { $branch = '(detached)' }
+        Write-Host "${Repo}: on branch $branch, so not updated (switch to master to get the latest)" -ForegroundColor Yellow
+    } elseif (git -C $Path status --porcelain) {
+        Write-Host "${Repo}: has uncommitted changes, so not updated" -ForegroundColor Yellow
+    } else {
+        git -C $Path pull --ff-only -q
+        if ($LASTEXITCODE -eq 0) { Write-Host "${Repo}: up to date ($(git -C $Path log --oneline -1))" }
+        else { Write-Host "${Repo}: couldn't pull the latest master; carrying on with what you have" -ForegroundColor Yellow }
+    }
+}
+
 foreach ($repo in $Repos) {
     $path = Join-Path $root $repo
-    if (Test-Path (Join-Path $path '.git')) { Write-Host "${repo}: already cloned"; continue }
+    if (Test-Path (Join-Path $path '.git')) { Update-Repo $repo $path; continue }
     gh repo clone "$Org/$repo" $path
     if ($LASTEXITCODE -ne 0) { Fail "Couldn't clone $Org/$repo. Check that your GitHub account has access to the $Org organisation." }
     Done "${repo}: cloned"
 }
 $core = Join-Path $root 'bjk-core'
+
+# If bjk-core now has a different setup.ps1 than the one running (it was just updated, or this copy was a
+# download), carry on with that one so the latest steps run. Once only.
+$latest = Join-Path $core 'setup.ps1'
+if (-not $env:BJK_SETUP_RESTARTED -and (Test-Path $latest) -and ((Get-FileHash $latest).Hash -ne $SelfHash)) {
+    Write-Host 'Restarting with the latest setup.ps1 from bjk-core...'
+    $env:BJK_SETUP_RESTARTED = '1'
+    $passOn = @('-ExecutionPolicy', 'Bypass', '-File', $latest)
+    if ($Upgrade) { $passOn += '-Upgrade' }
+    & powershell.exe @passOn
+    exit $LASTEXITCODE
+}
 
 # --- Project setup ---------------------------------------------------------------------------------------------------
 Step 'Setting up the project'

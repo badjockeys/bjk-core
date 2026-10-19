@@ -29,7 +29,9 @@ On a new computer, one script installs everything and sets it all up. It only ne
 | Windows 10 or 11 | `powershell -ExecutionPolicy Bypass -File setup.ps1` |
 | Mac | `bash setup.sh` |
 
-It's safe to run again, and skips whatever is already done. It:
+It's safe to run again, and skips whatever is already done. Each run also pulls the latest code into every repo that's on `master` with no uncommitted changes (repos on another branch, or with work in progress, are left alone and listed), and restarts itself if that brought a newer version of the script. To upgrade the tools to their latest versions too, run it with `--upgrade` (Mac) or `-Upgrade` (Windows); that restarts Docker Desktop, so local SQL Server and S3Mock stop until the setup starts them again.
+
+It:
 
 1. installs whatever tools are missing (Git, GitHub CLI, .NET 10 SDK, Node.js 24, Docker Desktop, ffmpeg, VS Code) with winget on Windows or Homebrew on a Mac, plus WSL 2 on Windows and Rosetta on Apple Silicon;
 2. starts Docker Desktop;

@@ -137,7 +137,8 @@ function ensurePackageCredentials() {
 
   const login = output("gh", ["api", "user", "--jq", ".login"]);
   const token = login && output("gh", ["auth", "token", "-h", "github.com"]);
-  const canReadPackages = token && output("gh", ["api", "user/packages?package_type=nuget&per_page=1"]) !== null;
+  // One of the private packages stands in for all of them: this checks both the read:packages scope and access.
+  const canReadPackages = token && output("gh", ["api", "orgs/badjockeys/packages/nuget/BJK.Modules.Media"]) !== null;
   if (!canReadPackages) {
     if (hasOurs) {
       ok(`Using the credentials in ${file}`);
@@ -146,7 +147,8 @@ function ensurePackageCredentials() {
     fail(
       "No GitHub access for the private BJK.Modules packages. Either run the full setup (setup.ps1 on Windows,\n" +
         "setup.sh on a Mac), or sign in with the GitHub CLI and run this again:\n" +
-        "  gh auth login --web --scopes read:packages      (or, if you're already signed in: gh auth refresh -s read:packages)",
+        "  gh auth login --web --scopes read:packages      (or, if you're already signed in: gh auth refresh -s read:packages)\n" +
+        "If you're signed in but still see this, your GitHub account needs access to the badjockeys organisation's repos.",
     );
   }
 

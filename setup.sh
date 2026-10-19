@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # Bad Jockeys: complete local setup on macOS. Safe to run again; it skips whatever is already done.
 #
-#   bash setup.sh        (it can be the only file you have; it fetches the repos itself)
+#   bash setup.sh             (it can be the only file you have; it fetches the repos itself)
+#   bash setup.sh --upgrade   also upgrades the tools to their latest versions (restarts Docker Desktop)
+#
+# Run it again any time: it pulls the latest code into each repo that's on master with no uncommitted
+# changes (others are left alone), and restarts itself if that brought a newer setup.sh.
 #
 # It installs any missing tools with Homebrew (installing Homebrew first if needed): GitHub CLI, .NET 10 SDK,
 # Node.js 24, Docker Desktop, ffmpeg, VS Code, plus Rosetta on Apple Silicon. It signs you in to GitHub in your
@@ -12,8 +16,21 @@
 # On Linux, install the tools with your package manager (see docs/local-development.md); this script then does the rest.
 set -uo pipefail
 
+# Fingerprint of this script as it started, to spot a newer one after the repos are updated.
+SELF_SUM="$(cksum < "$0")"
+
+UPGRADE=0
+for arg in "$@"; do
+  case "$arg" in
+    --upgrade) UPGRADE=1 ;;
+    -h|--help) sed -n '2,20p' "$0"; exit 0 ;;
+    *) printf 'Unknown option: %s (try --help)\n' "$arg"; exit 1 ;;
+  esac
+done
+
 ORG=badjockeys
 REPOS=(bjk-core bjk-identity-server bjk-modules bjk-mobile)
+PACKAGE=BJK.Modules.Media
 
 step() { printf '\n\033[1;36m== %s\033[0m\n' "$1"; }
 done_() { printf '\033[32m%s\033[0m\n' "$1"; }
@@ -23,7 +40,8 @@ node_ok() { has node && [ "$(node --version | sed 's/^v//; s/\..*//')" -ge 24 ];
 dotnet_ok() { has dotnet && dotnet --list-sdks 2>/dev/null | grep -q '^10\.'; }
 
 # Tools that may be installed but not yet on this shell's PATH.
-export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/local/share/dotnet:$HOME/.docker/bin:/Applications/Docker.app/Contents/Resources/bin:$PATH"
+# Microsoft's .NET install (/usr/local/share/dotnet) goes first: Homebrew's own "dotnet" formula only sees its own SDK.
+export PATH="/usr/local/share/dotnet:/opt/homebrew/bin:/usr/local/bin:$HOME/.docker/bin:/Applications/Docker.app/Contents/Resources/bin:$PATH"
 
 # --- Tools -----------------------------------------------------------------------------------------------------------
 step "Checking tools"
@@ -43,16 +61,30 @@ if [ "$(uname -s)" = Darwin ]; then
     if $check; then echo "$name: installed"; return; fi
     printf '\033[33m%s: installing...\033[0m\n' "$name"
     brew install "$@" || fail "$name didn't install: brew install $*"
-    $check || fail "$name installed but isn't on your PATH. Open a new terminal and run this again."
+    $check || fail "$name installed, but this terminal still finds an older copy or none. Open a new terminal and run this again; if it repeats, run: which -a ${name%% *}"
     done_ "$name: installed"
   }
   has_gh() { has gh; }
   has_ffmpeg() { has ffmpeg; }
-  has_docker() { has docker || [ -d /Applications/Docker.app ]; }
+  # The Docker Desktop app itself; a docker command on its own (Homebrew's docker formula, minikube) isn't
+  # enough, unless some other Docker engine is already running and answering.
+  has_docker() { [ -d /Applications/Docker.app ] || docker info >/dev/null 2>&1; }
   has_code() { has code || [ -d "/Applications/Visual Studio Code.app" ]; }
 
   install "GitHub CLI" has_gh gh
   install ".NET 10 SDK" dotnet_ok --cask dotnet-sdk
+
+  # A Homebrew "dotnet" formula (brew install dotnet) puts its own dotnet on the PATH, which only knows its own
+  # SDK and hides Microsoft's install. Unlink it (it stays installed; brew link dotnet restores it).
+  if brew list --formula dotnet >/dev/null 2>&1 && [ -e "$(brew --prefix)/bin/dotnet" ]; then
+    echo "Unlinking Homebrew's dotnet formula, which hides the .NET 10 SDK (brew link dotnet puts it back)."
+    brew unlink dotnet >/dev/null
+  fi
+  # Make sure new terminals (and VS Code) find Microsoft's install first too, even if ~/.zshrc sets PATH itself.
+  if [ -x /usr/local/share/dotnet/dotnet ] && ! grep -qs '/usr/local/share/dotnet' "$HOME/.zshrc"; then
+    printf '\n# .NET SDK (added by Bad Jockeys setup.sh)\nexport PATH="/usr/local/share/dotnet:$PATH"\n' >> "$HOME/.zshrc"
+    echo "Added /usr/local/share/dotnet to your PATH in ~/.zshrc"
+  fi
   if ! node_ok; then
     printf '\033[33mNode.js 24: installing...\033[0m\n'
     brew install node@24 && brew link --overwrite --force node@24 || fail "Node.js didn't install: brew install node@24"
@@ -62,8 +94,21 @@ if [ "$(uname -s)" = Darwin ]; then
     echo "Node.js 24+: installed"
   fi
   install "ffmpeg" has_ffmpeg ffmpeg
-  install "Docker Desktop" has_docker --cask docker
+  # --force: Homebrew's docker formula (CLI only) owns /opt/homebrew/bin/docker, which would block the app's links.
+  install "Docker Desktop" has_docker --cask --force docker
   install "VS Code" has_code --cask visual-studio-code
+
+  if [ "$UPGRADE" = 1 ]; then
+    step "Upgrading the tools (--upgrade)"
+    brew update
+    for f in gh node@24 ffmpeg; do
+      brew list --formula "$f" >/dev/null 2>&1 && { brew upgrade "$f" || echo "Couldn't upgrade $f; carrying on."; }
+    done
+    for c in dotnet-sdk docker visual-studio-code; do
+      brew list --cask "$c" >/dev/null 2>&1 && { brew upgrade --cask "$c" || echo "Couldn't upgrade $c; carrying on."; }
+    done
+    echo "Tools installed some other way (not with Homebrew) were left as they are."
+  fi
 
   if [ "$(uname -m)" = arm64 ] && ! /usr/bin/pgrep -q oahd; then
     echo "Installing Rosetta (SQL Server only runs on x86-64)..."
@@ -76,12 +121,15 @@ else
   node_ok || missing+=("Node.js 24+")
   [ ${#missing[@]} -eq 0 ] || fail "Install these with your package manager, then run this again: ${missing[*]}"
   echo "All tools installed"
+  [ "$UPGRADE" = 1 ] && echo "On Linux, upgrade the tools with your package manager; --upgrade only covers macOS."
 fi
 
 # --- Docker ----------------------------------------------------------------------------------------------------------
 step "Starting Docker Desktop"
 if ! docker info >/dev/null 2>&1; then
-  [ "$(uname -s)" = Darwin ] && open -a Docker
+  if [ "$(uname -s)" = Darwin ]; then
+    open -a Docker || fail "Couldn't open Docker Desktop. Install it (brew install --cask --force docker) and run this again."
+  fi
   echo "Waiting for Docker. The first time, accept the terms in the Docker Desktop window (you can skip signing in)."
   for _ in $(seq 1 60); do
     sleep 5
@@ -103,7 +151,30 @@ elif ! gh auth status -h github.com 2>&1 | grep -q 'read:packages'; then
   gh auth refresh -h github.com --scopes read:packages || fail "GitHub sign-in didn't finish. Run this again to retry."
 fi
 gh auth setup-git -h github.com >/dev/null
-done_ "Signed in to GitHub as $(gh api user --jq .login)"
+login="$(gh api user --jq .login)"
+done_ "Signed in to GitHub as $login"
+
+step "Checking your access to the Bad Jockeys repos and packages"
+no_access=()
+for repo in "${REPOS[@]}"; do
+  gh api "repos/$ORG/$repo" --silent >/dev/null 2>&1 || no_access+=("repo $ORG/$repo")
+done
+# The private BJK.Modules NuGet packages (GitHub Packages); one stands in for all of them.
+gh api "orgs/$ORG/packages/nuget/$PACKAGE" --silent >/dev/null 2>&1 || no_access+=("package $PACKAGE (the BJK.Modules NuGet packages)")
+if [ ${#no_access[@]} -gt 0 ]; then
+  printf '\n\033[1;31mYour GitHub account %s can'"'"'t see:\033[0m\n' "$login"
+  printf '  - %s\n' "${no_access[@]}"
+  cat <<MSG
+
+Ask an owner of the $ORG organisation on GitHub to:
+  1. invite $login to the organisation (it then has to be accepted, from the email or github.com/$ORG), and
+  2. give $login (or a team $login is in) access to all four repos, bjk-modules included, since the packages
+     come with it. If the package still isn't visible: org > Packages > $PACKAGE > Package settings > Manage access.
+Then run this script again.
+MSG
+  exit 1
+fi
+done_ "You can see all four repos and the packages"
 
 # --- Repos -----------------------------------------------------------------------------------------------------------
 step "Getting the code"
@@ -114,12 +185,35 @@ else
   root="$HOME/Git/GitHub/badjockeys"
 fi
 mkdir -p "$root"
+# Pulls the latest master, but only when that can't disturb anyone's work: on master, nothing uncommitted.
+update_repo() { # repo path
+  local repo=$1 path=$2 branch
+  if ! git -C "$path" rev-parse -q --verify HEAD >/dev/null; then echo "$repo: no commits yet"; return; fi
+  branch="$(git -C "$path" branch --show-current)"
+  if [ "$branch" != master ]; then
+    printf '\033[33m%s: on branch %s, so not updated (switch to master to get the latest)\033[0m\n' "$repo" "${branch:-(detached)}"
+  elif [ -n "$(git -C "$path" status --porcelain)" ]; then
+    printf '\033[33m%s: has uncommitted changes, so not updated\033[0m\n' "$repo"
+  elif git -C "$path" pull --ff-only -q; then
+    echo "$repo: up to date ($(git -C "$path" log --oneline -1))"
+  else
+    printf '\033[33m%s: couldn'"'"'t pull the latest master; carrying on with what you have\033[0m\n' "$repo"
+  fi
+}
+
 for repo in "${REPOS[@]}"; do
-  if [ -d "$root/$repo/.git" ]; then echo "$repo: already cloned"; continue; fi
+  if [ -d "$root/$repo/.git" ]; then update_repo "$repo" "$root/$repo"; continue; fi
   gh repo clone "$ORG/$repo" "$root/$repo" || fail "Couldn't clone $ORG/$repo. Check that your GitHub account has access to the $ORG organisation."
   done_ "$repo: cloned"
 done
 core="$root/bjk-core"
+
+# If bjk-core now has a different setup.sh than the one running (it was just updated, or this copy was a
+# download), carry on with that one so the latest steps run. Once only.
+if [ -z "${BJK_SETUP_RESTARTED:-}" ] && [ -f "$core/setup.sh" ] && [ "$(cksum < "$core/setup.sh")" != "$SELF_SUM" ]; then
+  echo "Restarting with the latest setup.sh from bjk-core..."
+  BJK_SETUP_RESTARTED=1 exec bash "$core/setup.sh" "$@"
+fi
 
 # --- Project setup ---------------------------------------------------------------------------------------------------
 step "Setting up the project"
