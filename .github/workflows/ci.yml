@@ -123,3 +123,81 @@ jobs:
           Logging__Console__FormatterOptions__SingleLine: "true"
           Logging__Console__FormatterOptions__ColorBehavior: Disabled
         run: bash pipelines/scripts/smoke-test.sh
+
+  # The web app (src/web): lint, types, unit tests, build, container image, then end-to-end tests in a browser against
+  # e2e/mock-server.mjs, which stands in for the identity server and the API. Each check runs even if an earlier one
+  # failed, so one run shows every problem; failures are copied into annotations (pipelines/scripts/ci-step.sh).
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/web
+    env:
+      CI_STEP: ${{ github.workspace }}/pipelines/scripts/ci-step.sh
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: src/web/package-lock.json
+
+      - name: Install
+        id: install
+        run: bash "$CI_STEP" "npm ci" npm ci --no-audit --no-fund
+
+      - name: Licences
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bash "$CI_STEP" "Licences" npm run licences
+
+      - name: Lint
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bash "$CI_STEP" "Lint" npm run lint
+
+      - name: Formatting
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bash "$CI_STEP" "Formatting" npm run format:check
+
+      - name: Type check
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bash "$CI_STEP" "Type check" npm run typecheck
+
+      - name: Unit tests
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          bash "$CI_STEP" "Unit tests" npx vitest run --reporter=default --reporter=json --outputFile=vitest-results.json
+          node -e 'const r=require("./vitest-results.json"); console.log(`::notice title=Web unit tests::${r.numPassedTests} of ${r.numTotalTests} passed in ${r.numTotalTestSuites} suites`)'
+
+      - name: Build
+        id: build
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bash "$CI_STEP" "Build" npm run build
+
+      - name: Container image
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          bash "$CI_STEP" "Docker build" docker build --tag bjk-core-web:ci .
+          docker run -d --name web -p 3100:3000 \
+            -e APP_URL=http://localhost:3100 -e API_BASE_URL=http://localhost:4010 \
+            -e IDSRV_AUTHORITY=http://localhost:4010 -e IDSRV_CLIENT_SECRET=ci -e AUTH_SECRET=ci-secret-ci-secret-ci-secret-ci-secret \
+            bjk-core-web:ci
+          for _ in $(seq 1 30); do curl -fs http://localhost:3100/healthz && break; sleep 1; done
+          curl -fs http://localhost:3100/healthz || { docker logs web; echo "::error title=Container::The web container didn't answer /healthz"; exit 1; }
+          test "$(docker exec web id -u)" != "0" || { echo "::error title=Container::The web container runs as root"; exit 1; }
+          docker rm -f web
+
+      - name: Install the Playwright browser
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: npx playwright install --with-deps chromium
+
+      - name: End-to-end tests
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        env:
+          CI_STEP_LINES: "250"
+        run: |
+          bash "$CI_STEP" "End-to-end tests" npm run e2e
+          node -e 'const s=require("./test-results/results.json").stats; console.log(`::notice title=Web end-to-end tests::${s.expected} passed, ${s.unexpected} failed, ${s.flaky} flaky, ${s.skipped} skipped`)'
+
