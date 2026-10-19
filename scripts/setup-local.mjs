@@ -8,10 +8,10 @@
 //   1. checks the tools (.NET, Node.js, Docker, ffmpeg) and access to the private package feed (from the GitHub
 //      CLI's sign-in, saved in your user-level NuGet.Config)
 //   2. creates your git-ignored config files from the templates, with your own SQL password and secrets
-//      (bjk-identity-server/.env and user-secrets.json, bjk-core/user-secrets.json, src/web/.env.local);
+//      (bjk-core/.env, bjk-identity-server/user-secrets.json, bjk-core/user-secrets.json, src/web/.env.local);
 //      files that already exist are left alone
 //   3. trusts the .NET HTTPS development certificate and exports it for Node.js
-//   4. starts SQL Server (bjk-identity-server) and S3Mock (bjk-core) in Docker
+//   4. starts SQL Server and S3Mock in Docker, as the group "bad-jockeys" (bjk-core's docker-compose.yml)
 //   5. loads the .NET user secrets for the identity server and the API (the media worker shares the API's)
 //   6. downloads the face and number plate blurring models into bjk-core/.local/models
 //   7. builds the .NET apps and installs the web app's packages
@@ -25,6 +25,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { removeOldGroups, startServices } from "./docker-services.mjs";
 
 const core = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const idsrv = resolve(core, "..", "bjk-identity-server");
@@ -188,30 +189,35 @@ function writeIfMissing(file, content, label) {
 
 function createConfig() {
   step("Creating your local config files");
-  if (!existsSync(join(idsrv, ".env.example"))) {
+  if (!existsSync(join(idsrv, "user-secrets.template.json"))) {
     fail(`bjk-identity-server isn't next to bjk-core (looked in ${idsrv}). Clone it there: see step 2 of docs/local-development.md.`);
   }
 
-  // The SQL password lives in bjk-identity-server/.env; reuse it if that file already exists.
-  const envFile = join(idsrv, ".env");
+  // The local SQL password lives in bjk-core/.env, next to the compose file. It used to be in bjk-identity-server/.env:
+  // carry that one over, so existing user secrets keep matching.
+  const readPassword = (file) => /^BJK_SQL_PASSWORD=(.+)$/m.exec(readFileSync(file, "utf8"))?.[1]?.trim();
+  const envFile = join(core, ".env");
+  const oldEnvFile = join(idsrv, ".env");
   let password;
   if (existsSync(envFile)) {
-    password = /^BJK_SQL_PASSWORD=(.+)$/m.exec(readFileSync(envFile, "utf8"))?.[1]?.trim();
+    password = readPassword(envFile);
     if (!password) fail(`${envFile} has no BJK_SQL_PASSWORD line.`);
-    console.log("bjk-identity-server/.env: already there, using its SQL password");
+    console.log("bjk-core/.env: already there, using its SQL password");
   } else {
-    password = sqlPassword();
-    const example = readFileSync(join(idsrv, ".env.example"), "utf8");
+    const carried = existsSync(oldEnvFile) ? readPassword(oldEnvFile) : undefined;
+    password = carried ?? sqlPassword();
+    const example = readFileSync(join(core, ".env.example"), "utf8");
     const env = /^BJK_SQL_PASSWORD=/m.test(example)
       ? example.replace(/^BJK_SQL_PASSWORD=.*$/m, `BJK_SQL_PASSWORD=${password}`)
       : `${example.trimEnd()}\nBJK_SQL_PASSWORD=${password}\n`;
-    writeIfMissing(envFile, env, "bjk-identity-server/.env");
+    writeIfMissing(envFile, env, carried ? "bjk-core/.env (SQL password carried over from bjk-identity-server/.env)" : "bjk-core/.env");
   }
 
   const fromTemplate = (template, edit) => {
     const text = readFileSync(template, "utf8")
       .replaceAll("<BJK_SQL_PASSWORD from your .env>", password)
-      .replaceAll("<BJK_SQL_PASSWORD from bjk-identity-server/.env>", password);
+      .replaceAll("<BJK_SQL_PASSWORD from bjk-identity-server/.env>", password)
+      .replaceAll("<BJK_SQL_PASSWORD from bjk-core/.env>", password);
     const json = JSON.parse(text);
     edit(json);
     return `${JSON.stringify(json, null, 2)}\n`;
@@ -259,26 +265,16 @@ function trustCertificate() {
   ok(`Exported for Node.js to ${pem}`);
 }
 
-async function startDocker() {
-  step("Starting SQL Server (bjk-identity-server)");
-  mustRun("docker", ["compose", "up", "-d"], { cwd: idsrv });
-  process.stdout.write("Waiting for SQL Server to be healthy");
-  let status = "starting";
-  for (let i = 0; i < 40 && status !== "healthy"; i++) {
-    await new Promise((r) => setTimeout(r, 3000));
-    status = output("docker", ["inspect", "-f", "{{.State.Health.Status}}", "bjk-sql"]) ?? "starting";
-    process.stdout.write(".");
-  }
-  console.log(` ${status}`);
-  if (status !== "healthy") {
+function startDocker() {
+  step("Starting SQL Server and S3Mock (Docker group bad-jockeys)");
+  removeOldGroups();
+  if (!startServices(core)) {
     fail(
-      "SQL Server didn't become healthy. Run 'docker compose logs sql' in bjk-identity-server." +
-        (process.platform === "darwin" ? " On Apple Silicon, turn on Rosetta in Docker Desktop's settings." : ""),
+      "SQL Server or S3Mock didn't start. Run 'docker compose logs' in bjk-core to see why." +
+        (process.platform === "darwin" ? " On Apple Silicon, check Rosetta is on in Docker Desktop's settings." : ""),
     );
   }
-
-  step("Starting S3Mock file storage (bjk-core)");
-  mustRun("docker", ["compose", "up", "-d"], { cwd: core });
+  ok("SQL Server is healthy and S3Mock is running");
 }
 
 function loadSecrets() {
@@ -328,7 +324,7 @@ if (configOnly) {
   ensurePackageCredentials();
   createConfig();
   trustCertificate();
-  await startDocker();
+  startDocker();
   loadSecrets();
   await downloadModels();
   build();

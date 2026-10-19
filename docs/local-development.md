@@ -4,12 +4,12 @@ This guide gets the whole platform running on your machine:
 
 | Piece | Repo | Runs on | Address |
 |---|---|---|---|
-| SQL Server (also holds the message queues) | bjk-identity-server (`docker-compose.yml`) | Docker | `localhost,1433` |
+| SQL Server (also holds the message queues) | bjk-core (`docker-compose.yml`) | Docker, group `bad-jockeys` | `localhost,1433` |
 | Identity server (sign-in + User module) | bjk-identity-server | .NET | https://localhost:5001 |
 | API (Media, Profiles, Posts, Email and SMS modules) | bjk-core, `src/BJK.Core.Api` | .NET | https://localhost:5101 |
 | Media worker (converts uploads with ffmpeg) | bjk-core, `src/BJK.Core.MediaWorker` | .NET + ffmpeg | no address, reads the queue |
 | Web app | bjk-core, `src/web` | Node.js (Next.js) | http://localhost:3000 |
-| File storage | bjk-core (`docker-compose.yml`): S3Mock, standing in for Cloudflare R2 | Docker | http://localhost:9090 |
+| File storage | bjk-core (`docker-compose.yml`): S3Mock, standing in for Cloudflare R2 | Docker, group `bad-jockeys` | http://localhost:9090 |
 
 > **Status (19 Oct 2026):** everything in the table runs: the identity server, the API, the media worker and the web app (`src/web`).
 
@@ -49,9 +49,9 @@ Expect to approve a few things: Windows UAC prompts or your Mac password for ins
 `scripts/setup-local.mjs` is the part that sets up the project once the tools are there. Run it on its own with **Terminal → Run Task… → "Set up (one-off)"** in VS Code, or `node scripts/setup-local.mjs` in bjk-core. It:
 
 - checks the tools, and access to the package feed. It uses the `NuGetPackageSourceCredentials_badjockeys` variable if you've set one ([step 3](#3-give-nuget-access-to-the-bad-jockeys-package-feed)); otherwise it takes your GitHub CLI sign-in and saves it in your user-level `NuGet.Config`, so every terminal and editor can restore the packages;
-- creates your git-ignored config files from the templates, with your own SQL password and secrets (`bjk-identity-server/.env` and `user-secrets.json`, `bjk-core/user-secrets.json`, `src/web/.env.local`); files you already have are left alone;
+- creates your git-ignored config files from the templates, with your own SQL password and secrets (`bjk-core/.env`, `bjk-identity-server/user-secrets.json`, `bjk-core/user-secrets.json`, `src/web/.env.local`); files you already have are left alone;
 - trusts the HTTPS development certificate and exports it for Node.js;
-- starts SQL Server and S3Mock in Docker and waits for SQL Server to be healthy;
+- starts SQL Server and S3Mock in Docker (the `bad-jockeys` group, replacing the old layout's two groups if they're there) and waits for SQL Server to be healthy;
 - loads the .NET user secrets (replacing what was there for the identity server and the API);
 - downloads the face and number plate blurring models into `bjk-core/.local/models` (git-ignored), checking each file's SHA-256;
 - builds the .NET apps and installs the web app's packages.
@@ -136,17 +136,20 @@ The modules (`BJK.Modules.*`) are private NuGet packages on GitHub Packages, so 
 
 3. **Start your editor from that terminal** (for example `code bjk-core/badjockeys.code-workspace` or `open -a Rider`). Otherwise, log out and back in so the editor sees the variable.
 
-## 4. Start SQL Server
+## 4. Start SQL Server and file storage
 
-It runs in Docker from the identity server repo. Its `.env` file (git-ignored) holds your own local password:
+Both run in Docker from bjk-core's `docker-compose.yml`, as one group called **bad-jockeys** (that's the name Docker Desktop shows, with the two containers inside). Its `.env` file (git-ignored, next to the compose file) holds your own local SQL password:
 
 ```bash
-cd ~/Git/GitHub/badjockeys/bjk-identity-server
+cd ~/Git/GitHub/badjockeys/bjk-core
 cp .env.example .env
 # edit .env: BJK_SQL_PASSWORD=<8+ characters with upper case, lower case, a digit and a symbol>
-docker compose up -d
-docker compose ps        # should show "healthy" after about 30 seconds
+docker compose up -d --wait      # returns once SQL Server is healthy (about 30 seconds the first time)
 ```
+
+The setup script, "Run Bad Jockeys" and F5 all do this for you, opening Docker Desktop first if it's closed.
+
+> **Moving from the old layout:** SQL Server used to come from bjk-identity-server's own compose file, in a separate Docker group. The scripts remove the two old groups (`bjk-identity-server` and `bjk-core`) the first time they start `bad-jockeys`, and carry your SQL password over from `bjk-identity-server/.env`. The new group starts with empty databases and storage; the old data stays in Docker volumes until you delete it (the script prints the `docker volume rm` command).
 
 There's no message broker to run: the queues are tables in the `messaging` schema of `badjockeys`, created by the API on its first start (see [messaging.md](messaging.md)):
 
@@ -156,20 +159,15 @@ There's no message broker to run: the queues are tables in the `messaging` schem
 | `[messaging].[bjk-core.media-events]` (topic `bjk.media`) | API and workers → API | Media ready or failed, to publish posts made while it was processing |
 | `[messaging].[bjk-core.user-events]` (topic `bjk.users`) | Identity server → API | A user deactivated, reactivated or was deleted |
 
-| Command (in bjk-identity-server) | Does |
+| Command (in bjk-core) | Does |
 |---|---|
-| `docker compose stop` | Stops it and keeps the data |
-| `docker compose up -d` | Starts them again |
-| `docker compose down -v` | Removes the containers **and the data**, so you start fresh |
+| `docker compose stop` | Stops both and keeps the data |
+| `docker compose up -d --wait` | Starts them again |
+| `docker compose down -v` | Removes the containers **and all local data** (databases, queues, uploaded files), so you start fresh |
 
-## 5. Start local file storage
+## 5. Local file storage
 
-Photos and videos live in Cloudflare R2 in the cloud environments. On your machine you don't need a Cloudflare account: **S3Mock** runs in Docker and speaks the same S3 API, so the API and the worker can't tell the difference.
-
-```bash
-cd ~/Git/GitHub/badjockeys/bjk-core
-docker compose up -d        # S3Mock on http://localhost:9090, with both buckets created
-```
+Photos and videos live in Cloudflare R2 in the cloud environments. On your machine you don't need a Cloudflare account: **S3Mock**, the second container in the `bad-jockeys` group (step 4), speaks the same S3 API, so the API and the worker can't tell the difference. It starts on http://localhost:9090 with both buckets created.
 
 | Bucket | Holds | Access |
 |---|---|---|
@@ -184,7 +182,7 @@ How an upload works on your machine:
 4. The media worker downloads the original, converts it with ffmpeg, strips metadata such as GPS, writes the results to `bjk-dev-public`, and marks the media `Ready`.
 5. The web app shows the processed file from `http://localhost:9090/bjk-dev-public/...`.
 
-S3Mock doesn't check keys, so the `local` keys in the template work as they are. Files survive `docker compose stop` and restarts; `docker compose down -v` deletes them all. If you reset the databases, reset the storage too so the two stay in step.
+S3Mock doesn't check keys, so the `local` keys in the template work as they are. Files survive `docker compose stop` and restarts; `docker compose down -v` deletes them, together with the databases, so the two always stay in step.
 
 ### Using Cloudflare R2 instead (later)
 
@@ -199,7 +197,7 @@ The repos' `appsettings` files hold no environment settings. On your machine, se
 ```bash
 cd ~/Git/GitHub/badjockeys/bjk-identity-server
 cp user-secrets.template.json user-secrets.json        # git-ignored
-# edit user-secrets.json: your SQL password from bjk-identity-server/.env (in both connection strings)
+# edit user-secrets.json: your SQL password from bjk-core/.env (in both connection strings)
 dotnet user-secrets set --project src/BJK.Idsrv.Host < user-secrets.json
 ```
 
@@ -208,8 +206,8 @@ The format is:
 ```json
 {
   "ConnectionStrings": {
-    "IdentityDatabase": "Server=localhost,1433;Database=idsrv;User Id=sa;Password=<BJK_SQL_PASSWORD from your .env>;TrustServerCertificate=True;MultipleActiveResultSets=true",
-    "Messaging": "Server=localhost,1433;Database=badjockeys;User Id=sa;Password=<BJK_SQL_PASSWORD from your .env>;TrustServerCertificate=True"
+    "IdentityDatabase": "Server=localhost,1433;Database=idsrv;User Id=sa;Password=<BJK_SQL_PASSWORD from bjk-core/.env>;TrustServerCertificate=True;MultipleActiveResultSets=true",
+    "Messaging": "Server=localhost,1433;Database=badjockeys;User Id=sa;Password=<BJK_SQL_PASSWORD from bjk-core/.env>;TrustServerCertificate=True"
   },
   "Email": {
     "FromAddress": "no-reply@badjockeys.local",
@@ -242,7 +240,7 @@ The format is:
 ```json
 {
   "ConnectionStrings": {
-    "AppDatabase": "Server=localhost,1433;Database=badjockeys;User Id=sa;Password=<BJK_SQL_PASSWORD from bjk-identity-server/.env>;TrustServerCertificate=True;MultipleActiveResultSets=true"
+    "AppDatabase": "Server=localhost,1433;Database=badjockeys;User Id=sa;Password=<BJK_SQL_PASSWORD from bjk-core/.env>;TrustServerCertificate=True;MultipleActiveResultSets=true"
   },
   "Authentication": {
     "Authority": "https://localhost:5001"
@@ -445,7 +443,7 @@ To look at the data, connect your SQL tool with these settings:
 
 - Server: `localhost,1433`
 - User: `sa`
-- Password: from `bjk-identity-server/.env`
+- Password: from `bjk-core/.env`
 - Tick **Trust server certificate**
 
 ```sql
@@ -465,22 +463,23 @@ The apps apply schema changes when they start. A migration that would drop a tab
 
 Module tables and migrations live in **bjk-modules**. The API picks up a change when you move it to a newer `BJK.Modules.*` package version in `Directory.Packages.props`. Every push to a bjk-modules feature branch publishes a preview version (`0.x.y-ci.<run>`), so you can test a change before it's merged.
 
-To start from empty databases:
+To start from empty databases (this also empties the local file storage):
 
 ```bash
-cd ~/Git/GitHub/badjockeys/bjk-identity-server && docker compose down -v && docker compose up -d
+cd ~/Git/GitHub/badjockeys/bjk-core && docker compose down -v && docker compose up -d --wait
 ```
 
 ## Troubleshooting
 
 - **`NU1301` or `401 Unauthorized` on restore.** The NuGet token isn't set in this terminal, or has expired (step 3). Check with `echo $NuGetPackageSourceCredentials_badjockeys`.
 - **`Connection string '...' is not configured` or `The ... field is required`.** Your user secrets aren't loaded (step 6), or the app isn't running in Development. The `https` launch profile sets Development.
-- **`Login failed for user 'sa'`.** The password in your user secret doesn't match `bjk-identity-server/.env`. If you changed `.env` after the container was first created, SQL Server still has the old password: run `docker compose down -v` (this deletes local data), then `docker compose up -d`.
-- **`A network-related or instance-specific error`.** SQL Server isn't running or isn't healthy yet. Run `docker ps`, then `docker compose logs sql` in bjk-identity-server.
+- **`Login failed for user 'sa'`.** The password in your user secret doesn't match `bjk-core/.env`. If you changed `.env` after the container was first created, SQL Server still has the old password: in bjk-core run `docker compose down -v` (this deletes local data), then `docker compose up -d --wait`.
+- **`A network-related or instance-specific error`.** SQL Server isn't running or isn't healthy yet. Run `docker ps`, then `docker compose logs sql` in bjk-core.
 - **A job or event doesn't arrive.** Look in the queue tables (`SELECT * FROM [messaging].[media.process]`) and their `.failed` tables; [messaging.md](messaging.md) shows how to read why a message was dead-lettered.
 - **An upload stays at `Processing`.** The media worker isn't running, or it can't find ffmpeg: check its console for `ffmpeg` errors, and set `Media:Processing:FfmpegPath` to the full path (`which ffmpeg`).
 - **An upload goes to `Failed`.** The file isn't a video or photo ffmpeg can read, or it's over the size or length limits. The worker logs the reason.
-- **`Connection refused` on port 9090.** S3Mock isn't running: `docker compose up -d` in bjk-core.
+- **`Connection refused` on port 9090.** S3Mock isn't running: `docker compose up -d --wait` in bjk-core.
+- **`port is already allocated` for 1433 or 9090.** Something else holds the port, often a container from the old layout. The scripts remove those; by hand: `docker ps`, then `docker rm -f <the container>`.
 - **The browser upload fails with a CORS error.** The storage doesn't allow `PUT` from `http://localhost:3000` (for R2, see step 5).
 - **`SignatureDoesNotMatch` or `InvalidAccessKeyId` from R2.** The R2 keys are wrong, or the token isn't scoped to the dev buckets.
 - **The API returns `401` with a valid-looking token.** Check that `Authentication:Authority` is `https://localhost:5001`, that the identity server is running, and that you ran `dotnet dev-certs https --trust`.

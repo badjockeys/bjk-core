@@ -22,7 +22,7 @@ One script installs the tools and sets everything up on a new computer: `powersh
 
 `src/BJK.Core.MediaWorker` is the media processing worker. It takes jobs off the `media.process` queue, blurs faces and number plates, converts each upload with ffmpeg (720p H.264 video, or WebP photos up to 2048 pixels, plus a thumbnail, with metadata such as GPS stripped), and publishes the results. Its image includes the blurring models. It needs ffmpeg installed and shares the API's user secrets. Run it with `dotnet run --project src/BJK.Core.MediaWorker --launch-profile worker`.
 
-On your machine, file storage is S3Mock in Docker (`docker compose up -d`), standing in for Cloudflare R2, so no Cloudflare account is needed.
+On your machine, SQL Server and file storage (S3Mock, standing in for Cloudflare R2, so no Cloudflare account is needed) run in Docker from this repo's `docker-compose.yml`, as one group called `bad-jockeys` (`docker compose up -d --wait`).
 
 Jobs and events between the API, the media workers and the identity server go through durable queues stored in SQL Server (the `messaging` schema of `badjockeys`), not a separate broker: see [docs/messaging.md](docs/messaging.md), which also has the media worker's scaling rule.
 
