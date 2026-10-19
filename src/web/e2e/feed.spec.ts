@@ -6,13 +6,26 @@ test.beforeEach(async ({ request }) => {
   await resetMock(request);
 });
 
-test("visitors see the feed, but no sensitive posts and no comments", async ({ page }) => {
+test("visitors see the feed, sensitive posts blurred and no comments", async ({ page }) => {
   await page.goto("/");
 
   await expect(page.getByText("Parked across two disabled bays, again")).toBeVisible();
   await expect(page.getByText("Undertaking a lorry on the M62")).toBeVisible();
-  await expect(page.getByText("Serious crash on the A64")).toHaveCount(0);
   await expect(page.getByText("Caught a bad driver on camera?")).toBeVisible();
+
+  // Sensitive posts are in the feed, but only as a blurred preview with "Sign in to view".
+  const sensitive = page.getByRole("article").filter({ hasText: "Serious crash on the A64" });
+  await expect(sensitive.getByText("Injuries or a serious crash")).toBeVisible();
+  await expect(sensitive.getByRole("link", { name: "Sign in to view" })).toHaveAttribute(
+    "href",
+    `/auth/sign-in?returnTo=${encodeURIComponent(`/p/${SEED.sensitivePost}`)}`,
+  );
+  await expect(sensitive.locator('img[src$="/media/m-5-preview.png"]')).toHaveCount(1);
+  await expect(sensitive.locator('img[src$="/media/m-5.png"]')).toHaveCount(0);
+
+  // Photos in the feed are the 1080 px feed copies.
+  const photos = page.getByRole("article").filter({ hasText: "Parked across two disabled bays" });
+  await expect(photos.locator('img[src$="/media/m-1-feed.png"]')).toHaveCount(1);
 
   await page.getByText("Parked across two disabled bays, again").click();
   await expect(page).toHaveURL(new RegExp(`/p/${SEED.photoPost}$`));
@@ -32,9 +45,30 @@ test("visitors see the feed, but no sensitive posts and no comments", async ({ p
     /\/media\/m-1-thumb\.png$/,
   );
 
-  // A sensitive post's link doesn't work for visitors.
+  // A sensitive post's page shows the blurred preview too.
   await page.goto(`/p/${SEED.sensitivePost}`);
-  await expect(page.getByRole("heading", { name: "Nothing to see here" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Serious crash on the A64" })).toBeVisible();
+  await expect(page.getByText("Sensitive content", { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Sign in to view" })).toBeVisible();
+});
+
+test("members who haven't verified their age are offered the age check for sensitive posts", async ({
+  page,
+  request,
+}) => {
+  await request.post(`${MOCK}/__next-user`, { data: "newbie" });
+  await signIn(page, `/p/${SEED.sensitivePost}`);
+  const verify = page.getByRole("link", { name: "Verify your age to view" });
+  await expect(verify).toHaveAttribute(
+    "href",
+    `/auth/check-age?returnTo=${encodeURIComponent(`/p/${SEED.sensitivePost}`)}`,
+  );
+
+  // The (mock) age check passes and the identity server signs the member in again: the real photo now shows.
+  await verify.click();
+  await page.waitForURL((url) => url.pathname === `/p/${SEED.sensitivePost}`);
+  await expect(page.getByRole("link", { name: "Verify your age to view" })).toHaveCount(0);
+  await expect(page.locator('img[src$="/media/m-5-feed.png"]').first()).toBeAttached();
 });
 
 test("category tabs filter the feed, with an empty state", async ({ page }) => {
@@ -72,6 +106,7 @@ test("signing in goes to the identity server and comes back to the page", async 
   ).toBeVisible();
   expect(await page.evaluate(() => document.cookie)).not.toContain("bjk_session");
   await expect(page.getByText("Serious crash on the A64")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Sign in to view" })).toHaveCount(0);
 
   // Your own profile shows posts that are still processing, which only you can see.
   await page.goto("/@roadhog");

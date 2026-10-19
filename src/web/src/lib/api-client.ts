@@ -4,10 +4,13 @@
 
 import type {
   AppealDto,
+  AreaStatsDto,
   BlockDto,
   CommentDto,
   CreatePostRequest,
   HandleAvailability,
+  HeatmapDto,
+  HeatmapQuery,
   IncidentCategory,
   MediaDto,
   PagedResult,
@@ -16,12 +19,18 @@ import type {
   ProfileDto,
   PublicReportRequest,
   ReactionType,
+  ReelPlayResult,
+  ReelsPage,
   ReportReason,
   ReportReceipt,
   RequestUploadResult,
 } from "./types";
 
 export const AGE_VERIFICATION_REQUIRED = "age_verification_required";
+export const DAILY_LIMIT = "daily_limit";
+
+/** The header the API counts logged-out reel plays by (the value comes from the signed bjk_viewer cookie). */
+export const VIEWER_ID_HEADER = "X-Viewer-Id";
 
 /** The API answered with an error. `problem` is its RFC 7807 body when it sent one. */
 export class ApiError extends Error {
@@ -40,6 +49,11 @@ export class ApiError extends Error {
 
   get isAgeCheckNeeded(): boolean {
     return this.status === 403 && this.code === AGE_VERIFICATION_REQUIRED;
+  }
+
+  /** Today's reels are used up (403 daily_limit). */
+  get isDailyLimit(): boolean {
+    return this.status === 403 && this.code === DAILY_LIMIT;
   }
 
   /** Validation messages by field, camel-cased ("Title" becomes "title"). */
@@ -272,6 +286,31 @@ export function endpoints(api: ApiClient) {
         api.request<MediaDto>("GET", `/api/media/${id(mediaId)}`, { token }),
       remove: (token: string, mediaId: string) =>
         api.request<void>("DELETE", `/api/media/${id(mediaId)}`, { token }),
+    },
+    reels: {
+      /** A page of reels. Logged-out viewers are counted by their viewer id. */
+      list: (
+        token: string | null,
+        viewerId: string | null,
+        q: { cursor?: string | null; category?: IncidentCategory; pageSize?: number } = {},
+      ) =>
+        api.request<ReelsPage>("GET", "/api/reels", {
+          token,
+          headers: viewerId ? { [VIEWER_ID_HEADER]: viewerId } : undefined,
+          query: { cursor: q.cursor, category: q.category, pageSize: q.pageSize },
+        }),
+      /** Report that a reel has been watched for 3 seconds. Idempotent per viewer, reel and day. */
+      play: (token: string | null, viewerId: string | null, postId: string) =>
+        api.request<ReelPlayResult>("POST", `/api/reels/${id(postId)}/play`, {
+          token,
+          headers: viewerId ? { [VIEWER_ID_HEADER]: viewerId } : undefined,
+        }),
+    },
+    heatmap: {
+      get: (token: string, q: HeatmapQuery) =>
+        api.request<HeatmapDto>("GET", "/api/heatmap", { token, query: { ...q } }),
+      area: (token: string, q: HeatmapQuery) =>
+        api.request<AreaStatsDto>("GET", "/api/heatmap/area", { token, query: { ...q, zoom: undefined } }),
     },
     me: {
       /** Everything core holds about the user (profile, posts, comments, reactions, reports, media). */

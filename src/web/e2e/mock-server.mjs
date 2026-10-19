@@ -11,6 +11,9 @@ const CLIENT_ID = "bjk-web";
 const CLIENT_SECRET = process.env.MOCK_CLIENT_SECRET ?? "e2e-secret";
 const PROCESSING_MS = Number(process.env.MOCK_PROCESSING_MS ?? 2500);
 const WEB_ORIGIN = process.env.MOCK_WEB_ORIGIN ?? "http://localhost:3000";
+// Daily reel plays (the API's Reels:DailyPlays), small by default so the tests reach the limit quickly.
+const ANON_REELS = Number(process.env.MOCK_ANON_REELS ?? 2);
+const FREE_REELS = Number(process.env.MOCK_FREE_REELS ?? 25);
 
 // --- Signing keys ---
 const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
@@ -38,10 +41,26 @@ const PNG = Buffer.from(
   "base64",
 );
 
+// A 5-second, 64×36 WebM (VP8, no sound) for every video: Playwright's Chromium can't play H.264.
+const WEBM = Buffer.from(
+  "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",
+  "base64",
+);
+
 // --- Data ---
 const USERS = {
-  roadhog: { id: "00000000-0000-4000-8000-0000000000a1", email: "rider@example.com", ageVerified: true },
-  dave: { id: "00000000-0000-4000-8000-0000000000b2", email: "dave@example.com", ageVerified: true },
+  roadhog: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    email: "rider@example.com",
+    ageVerified: true,
+    plan: "free",
+  },
+  dave: {
+    id: "00000000-0000-4000-8000-0000000000b2",
+    email: "dave@example.com",
+    ageVerified: true,
+    plan: "premium",
+  },
   newbie: { id: "00000000-0000-4000-8000-0000000000c3", email: "new@example.com", ageVerified: false },
 };
 export const SEED = {
@@ -49,6 +68,8 @@ export const SEED = {
   videoPost: "8f2e1c3a-0000-4000-8000-000000000002",
   sensitivePost: "8f2e1c3a-0000-4000-8000-000000000003",
   processingPost: "8f2e1c3a-0000-4000-8000-000000000004",
+  secondVideo: "8f2e1c3a-0000-4000-8000-000000000005",
+  thirdVideo: "8f2e1c3a-0000-4000-8000-000000000006",
 };
 
 let db;
@@ -66,7 +87,7 @@ function seed() {
     mediaType,
     status: "Ready",
     originalFileName: `${id}.${mediaType === "Video" ? "mp4" : "jpg"}`,
-    playbackUrl: `${ORIGIN}/media/${id}.${mediaType === "Video" ? "mp4" : "png"}`,
+    playbackUrl: `${ORIGIN}/media/${id}.${mediaType === "Video" ? "webm" : "png"}`,
     thumbnailUrl: `${ORIGIN}/media/${id}-thumb.png`,
     durationSeconds: mediaType === "Video" ? 24 : null,
     width: 1280,
@@ -109,6 +130,8 @@ function seed() {
         media("m-3", "Image", dave),
         media("m-4", "Video", dave),
         media("m-5", "Image", dave),
+        media("m-7", "Video", dave),
+        media("m-8", "Video", dave),
       ].map((m) => [m.id, m]),
     ),
     posts: [
@@ -128,6 +151,12 @@ function seed() {
         isSensitive: true,
       }),
       post(SEED.videoPost, dave, "Undertaking a lorry on the M62", "Undertaking", ["m-4"], ago(300)),
+      post(SEED.secondVideo, dave, "Tailgater on the A64", "Tailgating", ["m-7"], ago(400), {
+        placeName: "A64, York",
+      }),
+      post(SEED.thirdVideo, dave, "Phone at the wheel in Leeds", "MobilePhoneUse", ["m-8"], ago(500), {
+        placeName: "Kirkstall Road, Leeds",
+      }),
       post(
         SEED.photoPost,
         dave,
@@ -157,6 +186,7 @@ function seed() {
     publicReports: [],
     blocks: new Map(),
     appeals: [],
+    reelPlays: new Map(),
   };
   db.posts.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   addComment(
@@ -227,8 +257,12 @@ function counts(map) {
   }
   return result;
 }
+// Whether the request's caller passed the age check (set per request in api()).
+let callerAgeVerified = false;
+
 function postDto(p, viewer) {
   const reactions = db.reactions.get(p.id);
+  const blurred = p.isSensitive && p.authorId !== viewer && !(viewer && callerAgeVerified);
   return {
     id: p.id,
     author: author(p.authorId),
@@ -245,11 +279,15 @@ function postDto(p, viewer) {
       .map((m) => ({
         mediaId: m.id,
         mediaType: m.mediaType,
-        playbackUrl: m.playbackUrl,
-        thumbnailUrl: m.thumbnailUrl,
+        playbackUrl: blurred ? null : m.playbackUrl,
+        thumbnailUrl: blurred ? null : m.thumbnailUrl,
         durationSeconds: m.durationSeconds,
         width: m.width,
         height: m.height,
+        previewUrl: p.isSensitive ? `${ORIGIN}/media/${m.id}-preview.png` : null,
+        isBlurred: blurred,
+        linksExpireAt: p.isSensitive && !blurred ? new Date(Date.now() + 600_000).toISOString() : null,
+        feedUrl: m.mediaType === "Image" && !blurred ? `${ORIGIN}/media/${m.id}-feed.png` : null,
       })),
     reactions: counts(reactions),
     myReaction: (viewer && reactions?.get(viewer)) ?? null,
@@ -261,6 +299,8 @@ function postDto(p, viewer) {
     mediaState: p.mediaState,
     mediaFailureReason: null,
     isProcessing: p.mediaState === "Pending",
+    requiresAgeVerification: blurred,
+    sensitiveSource: p.isSensitive ? "Author" : "None",
   };
 }
 function commentDto(c, viewer, withReplies) {
@@ -286,7 +326,6 @@ const isPublic = (p) => p.status === "Published" && p.mediaState === "Ready";
 function canSee(p, viewer) {
   if (p.authorId === viewer) return true;
   if (!isPublic(p)) return false;
-  if (!viewer && p.isSensitive) return false;
   if (viewer && db.blocks.get(viewer)?.has(p.authorId)) return false;
   return true;
 }
@@ -339,7 +378,12 @@ function viewerOf(req) {
   if (!header.startsWith("Bearer ")) return { id: null };
   const claims = claimsOf(header.slice(7));
   if (!claims || claims.exp * 1000 < Date.now()) return { id: null, expired: true };
-  return { id: claims.sub, ageVerified: claims.age_verified === "true", email: claims.email };
+  return {
+    id: claims.sub,
+    ageVerified: claims.age_verified === "true",
+    email: claims.email,
+    plan: claims.plan,
+  };
 }
 
 // --- Identity server ---
@@ -369,6 +413,7 @@ function issueTokens(userKey, nonce) {
     jti: randomUUID(),
   };
   if (user.ageVerified) accessClaims.age_verified = "true";
+  if (user.plan && user.plan !== "free") accessClaims.plan = user.plan;
   const refresh = randomBytes(24).toString("hex");
   refreshTokens.set(refresh, userKey);
   const idClaims = {
@@ -526,6 +571,7 @@ async function api(req, res, url) {
   const method = req.method;
   const viewer = viewerOf(req);
   const me = viewer.id;
+  callerAgeVerified = Boolean(viewer.ageVerified);
   const json = async () => {
     const raw = (await readBody(req)).toString();
     return raw ? JSON.parse(raw) : {};
@@ -545,6 +591,120 @@ async function api(req, res, url) {
     return true;
   };
   let m;
+
+  // Reels: video posts, with daily plays by plan (the real API counts per UK day).
+  const reelAllowance = () => {
+    const key = me ?? `viewer:${req.headers["x-viewer-id"] ?? "unknown"}`;
+    const limit = !me
+      ? ANON_REELS
+      : viewer.plan === "premium" || viewer.plan === "premium_plus"
+        ? null
+        : FREE_REELS;
+    const played = db.reelPlays.get(key) ?? new Set();
+    db.reelPlays.set(key, played);
+    const remaining = limit === null ? null : Math.max(0, limit - played.size);
+    const resetsAt = new Date(Date.now() + 3_600_000).toISOString();
+    return { key, limit, played, remaining, resetsAt };
+  };
+  const dailyLimit = (a) =>
+    problem(res, 403, `That's today's ${a.limit} free reels.`, {
+      code: "daily_limit",
+      resetsAt: a.resetsAt,
+      limit: a.limit,
+    });
+  const isReel = (p) =>
+    p.mediaIds.some((id) => db.media.get(id)?.mediaType === "Video") &&
+    canSee(p, me) &&
+    (!p.isSensitive || viewer.ageVerified || p.authorId === me);
+  if (path === "/api/reels" && method === "GET") {
+    const a = reelAllowance();
+    if (a.remaining === 0) return dailyLimit(a);
+    const category = url.searchParams.get("category");
+    const all = db.posts.filter((p) => isReel(p) && (!category || p.category === category));
+    const start = Number(url.searchParams.get("cursor") ?? 0);
+    const size = Math.min(Number(url.searchParams.get("pageSize") ?? 10), a.remaining ?? 10);
+    const items = all.slice(start, start + size);
+    return send(res, 200, {
+      items: items.map((p) => postDto(p, me)),
+      nextCursor: start + size < all.length ? String(start + size) : null,
+      playsRemainingToday: a.remaining,
+      dailyPlayLimit: a.limit,
+      playsToday: a.played.size,
+      resetsAt: a.resetsAt,
+    });
+  }
+  if ((m = path.match(/^\/api\/reels\/([0-9a-f-]{36})\/play$/)) && method === "POST") {
+    const p = db.posts.find((x) => x.id === m[1]);
+    if (!p || !isReel(p)) return problem(res, 404, `Reel ${m[1]} was not found.`);
+    const a = reelAllowance();
+    const already = a.played.has(p.id);
+    if (!already && a.remaining === 0) return dailyLimit(a);
+    a.played.add(p.id);
+    const remaining = a.limit === null ? null : Math.max(0, a.limit - a.played.size);
+    return send(res, 200, {
+      counted: !already,
+      playsRemainingToday: remaining,
+      dailyPlayLimit: a.limit,
+      playsToday: a.played.size,
+      resetsAt: a.resetsAt,
+    });
+  }
+
+  // Heat map: a few fixed cells around Leeds and York. Free: last 7 days, filters ignored.
+  if ((path === "/api/heatmap" || path === "/api/heatmap/area") && method === "GET") {
+    if (!requireUser()) return;
+    const plan =
+      viewer.plan === "premium_plus" ? "PremiumPlus" : viewer.plan === "premium" ? "Premium" : "Free";
+    const today = new Date().toISOString().slice(0, 10);
+    const daysAgo = (n) => new Date(Date.now() - n * 86_400_000).toISOString().slice(0, 10);
+    const free = plan === "Free";
+    const access = {
+      plan,
+      historyDays: free ? 7 : plan === "Premium" ? 365 : 1826,
+      filtersAllowed: !free,
+      exportAllowed: plan === "PremiumPlus",
+      from: free ? daysAgo(6) : (url.searchParams.get("from") ?? daysAgo(364)),
+      to: today,
+      historyCapped: false,
+      filtersIgnored: free && Boolean(url.searchParams.get("categories") || url.searchParams.get("hours")),
+    };
+    if (path === "/api/heatmap") {
+      const cell = (lat, lng, count) => ({
+        latitude: lat,
+        longitude: lng,
+        minLatitude: lat - 0.045,
+        minLongitude: lng - 0.072,
+        maxLatitude: lat + 0.045,
+        maxLongitude: lng + 0.072,
+        count,
+      });
+      const cells = [cell(53.82, -1.58, 14), cell(53.8, -1.5, 5), cell(53.96, -1.08, 3)];
+      return send(res, 200, {
+        cells,
+        cellLatitudeSize: 0.09,
+        cellLongitudeSize: 0.144,
+        minCellCount: 3,
+        maxCount: 14,
+        truncated: false,
+        access,
+      });
+    }
+    return send(res, 200, {
+      suppressed: false,
+      total: 14,
+      changePercent: 12,
+      busiestHour: 8,
+      topCategories: [
+        { category: "BadParking", count: 5, percent: 36 },
+        { category: "Tailgating", count: 4, percent: 29 },
+      ],
+      topPlaces: [{ name: "Kirkstall Road, Leeds", count: 6 }],
+      placeName: "Kirkstall Road, Leeds",
+      previousFrom: daysAgo(13),
+      previousTo: daysAgo(7),
+      access,
+    });
+  }
 
   // Posts
   if (path === "/api/posts" && method === "GET") {
@@ -922,7 +1082,7 @@ function profileDto(p) {
 function finishProcessing(media) {
   if (media.status !== "Processing") return;
   media.status = "Ready";
-  const ext = media.mediaType === "Video" ? "mp4" : "png";
+  const ext = media.mediaType === "Video" ? "webm" : "png";
   media.playbackUrl = `${ORIGIN}/media/${media.id}.${ext}`;
   media.thumbnailUrl = `${ORIGIN}/media/${media.id}-thumb.png`;
   media.width = 1280;
@@ -954,6 +1114,18 @@ const server = createServer(async (req, res) => {
       media.stored = true;
       media.sizeBytes = body.length;
       return send(res, 200, "", cors);
+    }
+    if (url.pathname.startsWith("/media/") && url.pathname.endsWith(".webm")) {
+      res.writeHead(200, {
+        "Content-Type": "video/webm",
+        "Content-Length": WEBM.length,
+        "Cache-Control": "max-age=60",
+      });
+      return res.end(WEBM);
+    }
+    if (url.pathname.startsWith("/tiles/")) {
+      res.writeHead(200, { "Content-Type": "image/png", "Cache-Control": "max-age=3600" });
+      return res.end(PNG);
     }
     if (url.pathname.startsWith("/media/")) {
       if (!url.pathname.endsWith(".png")) return send(res, 404, "Not found");

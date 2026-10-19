@@ -82,6 +82,34 @@ export function AccountIcon({ filled, ...p }: IconProps & { filled?: boolean }) 
   );
 }
 
+/** Reels: a phone-shaped frame with a play triangle (wireframes 27–29). Bolder when it's the current page. */
+export function ReelsIcon({ filled, ...p }: IconProps & { filled?: boolean }) {
+  const w = filled ? 2.4 : 1.8;
+  return (
+    <Svg {...p}>
+      <rect x="4" y="2.5" width="16" height="19" rx="3.5" fill="none" stroke={INK} strokeWidth={w} />
+      <path d="M10 9v6l5-3z" fill={INK} />
+    </Svg>
+  );
+}
+
+/** The incident map: a folded map (wireframe 28). Bolder when it's the current page. */
+export function MapIcon({ filled, ...p }: IconProps & { filled?: boolean }) {
+  const w = filled ? 2.4 : 1.8;
+  return (
+    <Svg {...p}>
+      <path
+        d="M9 4L3 6.2v14L9 18l6 2.2 6-2.2V4l-6 2.2L9 4z"
+        fill="none"
+        stroke={INK}
+        strokeWidth={w}
+        strokeLinejoin="round"
+      />
+      <path d="M9 4v14M15 6.2v14" stroke={INK} strokeWidth={w - 0.2} />
+    </Svg>
+  );
+}
+
 export function MoreIcon(p: IconProps) {
   return (
     <Svg size={18} {...p}>

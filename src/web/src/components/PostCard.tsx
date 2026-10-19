@@ -87,7 +87,7 @@ export function PostCard({ post, viewer }: { post: PostDto; viewer: Viewer }) {
           </Link>
           {post.isSensitive ? <span>Sensitive</span> : null}
         </div>
-        <PostMedia post={post} />
+        <PostMedia post={post} signedIn={viewer.signedIn} />
         <div className="tw-actions">
           <Link href={`${href}#comments`} className="tw-act" aria-label={`${post.commentCount} comments`}>
             <CommentIcon />

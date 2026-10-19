@@ -292,8 +292,8 @@ UPLOAD_ORIGINS=http://localhost:9090
 | `IDSRV_AUTHORITY`, `IDSRV_CLIENT_ID`, `IDSRV_CLIENT_SECRET` | The identity server and the `bjk-web` client. The secret is `Clients:Web:Secret` from the identity server's user secrets |
 | `AUTH_SECRET` | Encrypts the session cookie holding the user's tokens |
 | `TURNSTILE_SITE_KEY` | Cloudflare Turnstile on the public report form. `1x00000000000000000000AA` is the public test **site** key, which always passes; it pairs with the test **secret** key in the API's `Captcha:TurnstileSecretKey` |
-| `MEDIA_ORIGINS`, `UPLOAD_ORIGINS` | Where photos and videos are shown from and uploaded to, for the Content-Security-Policy (S3Mock locally) |
-| `MAP_TILE_URL`, `MAP_ATTRIBUTION` | Optional. Map tiles for the incident pin; OpenStreetMap by default |
+| `MEDIA_ORIGINS`, `UPLOAD_ORIGINS` | Where photos and videos are shown from and uploaded to, for the Content-Security-Policy (S3Mock locally). `UPLOAD_ORIGINS` is also allowed for images and video, because sensitive media for age-verified members are signed links to the storage endpoint |
+| `MAP_TILE_URL`, `MAP_ATTRIBUTION` | Optional. Map tiles for the incident pin and the incident map (`/map`); OpenStreetMap's public tiles by default. Heavy production use needs a tile provider (OpenStreetMap's tile usage policy doesn't allow it): pick one and set both values |
 
 None of these reach the browser, so the same container image works in every environment.
 

@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
-import { loadPosts, type FeedSource } from "@/actions/posts";
+import { getPost, loadPosts, type FeedSource } from "@/actions/posts";
+import { earliestExpiry, refreshDelay } from "@/lib/links";
 import type { PostDto } from "@/lib/types";
 import type { Viewer } from "@/lib/viewer";
 
@@ -62,6 +63,35 @@ export function FeedList({
     setPage(result.data.page);
     setMore(result.data.page * result.data.pageSize < result.data.totalCount && result.data.items.length > 0);
   }, [page, source]);
+
+  // Signed links to sensitive media (age-verified members) expire after about 10 minutes: fetch those posts again
+  // just before. The server-rendered first page is refreshed by LinkExpiryRefresh.
+  const expiresAt = earliestExpiry(posts);
+  const latest = useRef(posts);
+  useEffect(() => {
+    latest.current = posts;
+  }, [posts]);
+  useEffect(() => {
+    const delay = refreshDelay(expiresAt);
+    if (delay === null) {
+      return;
+    }
+    const timer = setTimeout(
+      async () => {
+        const signed = latest.current.filter((p) => p.media.some((m) => m.linksExpireAt));
+        const fresh = await Promise.all(signed.map((p) => getPost(p.id)));
+        const byId = new Map<string, PostDto>();
+        for (const result of fresh) {
+          if (result.ok) {
+            byId.set(result.data.id, result.data);
+          }
+        }
+        setPosts((current) => current.map((p) => byId.get(p.id) ?? p));
+      },
+      Math.max(delay, 1_000),
+    );
+    return () => clearTimeout(timer);
+  }, [expiresAt]);
 
   useEffect(() => {
     const target = sentinel.current;

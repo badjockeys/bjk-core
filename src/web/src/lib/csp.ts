@@ -5,7 +5,9 @@ const TURNSTILE = "https://challenges.cloudflare.com";
 /**
  * The Content-Security-Policy for a page. Scripts need this request's nonce (Next.js adds it to its own scripts),
  * and 'strict-dynamic' lets those scripts load the chunks they need, including Turnstile's. Photos, videos and map
- * tiles come only from the configured origins, and uploads only go to the storage origin.
+ * tiles come only from the configured origins, and uploads only go to the storage origin. Sensitive media for
+ * age-verified members are signed links to that same storage origin (a private bucket), so it's allowed for images
+ * and video too.
  */
 export function contentSecurityPolicy(config: WebConfig, nonce: string, development: boolean): string {
   const tiles = safeOrigin(config.mapTileUrl.replace(/\{[a-z]\}/g, "a"));
@@ -20,8 +22,15 @@ export function contentSecurityPolicy(config: WebConfig, nonce: string, developm
     ],
     // Inline style attributes (React's style prop, the map) need 'unsafe-inline'; styles can't run code.
     "style-src": ["'self'", "'unsafe-inline'"],
-    "img-src": ["'self'", "data:", "blob:", ...config.mediaOrigins, ...(tiles ? [tiles] : [])],
-    "media-src": ["'self'", "blob:", ...config.mediaOrigins],
+    "img-src": [
+      "'self'",
+      "data:",
+      "blob:",
+      ...config.mediaOrigins,
+      ...config.uploadOrigins,
+      ...(tiles ? [tiles] : []),
+    ],
+    "media-src": ["'self'", "blob:", ...config.mediaOrigins, ...config.uploadOrigins],
     "font-src": ["'self'"],
     "connect-src": ["'self'", ...config.uploadOrigins, TURNSTILE, ...(development ? ["ws:"] : [])],
     "frame-src": [TURNSTILE],

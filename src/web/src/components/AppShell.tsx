@@ -5,15 +5,25 @@ import { checkAgePath, joinPath, profilePath, signInPath } from "@/lib/paths";
 import type { Viewer } from "@/lib/viewer";
 
 import { Avatar } from "./Avatar";
-import { AccountIcon, HomeIcon, LogoMark, MoreIcon, PlusIcon, ProfileIcon } from "./icons";
+import {
+  AccountIcon,
+  HomeIcon,
+  LogoMark,
+  MapIcon,
+  MoreIcon,
+  PlusIcon,
+  ProfileIcon,
+  ReelsIcon,
+} from "./icons";
 import { SignOutMenu } from "./SignOutMenu";
 
-export type Section = "home" | "profile" | "account" | null;
+export type Section = "home" | "reels" | "map" | "profile" | "account" | null;
 
 /**
- * The page frame. Desktop (1024 px and up): X-style navigation on the left, the page in the middle and a panel on
- * the right. Phones: the page full width, with the bottom navigation and the + button where the wireframes have
- * them, or the sign-up bar for visitors.
+ * The page frame. Desktop (1024 px and up): X-style navigation on the left (Home, Reels, Map, then the member's
+ * links), the page in the middle and a panel on the right. Phones: the page full width, with the bottom navigation
+ * (Home, Reels, Map, profile, account) and the + button where the wireframes have them, or the sign-up bar for
+ * visitors. `dark` is the reels page: a black page and bottom bar.
  */
 export function AppShell({
   viewer,
@@ -23,6 +33,8 @@ export function AppShell({
   returnTo,
   bottomNav = false,
   fab = false,
+  dark = false,
+  wide = false,
 }: {
   viewer: Viewer;
   section: Section;
@@ -32,6 +44,9 @@ export function AppShell({
   returnTo: string;
   bottomNav?: boolean;
   fab?: boolean;
+  dark?: boolean;
+  /** A wide middle column and no right-hand panel on desktop (the incident map). */
+  wide?: boolean;
 }) {
   const myProfile = viewer.handle ? profilePath(viewer.handle) : "/profile/new";
   const showSignup = !viewer.signedIn;
@@ -39,6 +54,8 @@ export function AppShell({
     "shell",
     bottomNav && viewer.signedIn ? "has-bnav" : "",
     showSignup ? "has-signup" : "",
+    dark ? "shell-dark" : "",
+    wide ? "shell-wide" : "",
   ].filter(Boolean);
 
   return (
@@ -50,6 +67,16 @@ export function AppShell({
           </Link>
           <NavItem href="/" on={section === "home"} icon={<HomeIcon size={26} filled={section === "home"} />}>
             Home
+          </NavItem>
+          <NavItem
+            href="/reels"
+            on={section === "reels"}
+            icon={<ReelsIcon size={26} filled={section === "reels"} />}
+          >
+            Reels
+          </NavItem>
+          <NavItem href="/map" on={section === "map"} icon={<MapIcon size={26} filled={section === "map"} />}>
+            Map
           </NavItem>
           {viewer.signedIn ? (
             <>
@@ -85,7 +112,7 @@ export function AppShell({
         </nav>
 
         <main className="d-main" id="main">
-          {viewer.signedIn && !viewer.ageVerified ? <AgeCheckBanner returnTo={returnTo} /> : null}
+          {viewer.signedIn && !viewer.ageVerified && !dark ? <AgeCheckBanner returnTo={returnTo} /> : null}
           {children}
         </main>
 
@@ -102,9 +129,15 @@ export function AppShell({
       ) : null}
 
       {viewer.signedIn && bottomNav ? (
-        <nav className="bnav m-only" aria-label="Main">
+        <nav className={`bnav m-only${dark ? " bnav-dark" : ""}`} aria-label="Main">
           <Link href="/" aria-label="Home" aria-current={section === "home" ? "page" : undefined}>
             <HomeIcon size={26} filled={section === "home"} />
+          </Link>
+          <Link href="/reels" aria-label="Reels" aria-current={section === "reels" ? "page" : undefined}>
+            <ReelsIcon size={26} filled={section === "reels"} />
+          </Link>
+          <Link href="/map" aria-label="Incident map" aria-current={section === "map" ? "page" : undefined}>
+            <MapIcon size={26} filled={section === "map"} />
           </Link>
           <Link
             href={myProfile}

@@ -51,6 +51,7 @@ export default defineConfig({
         TURNSTILE_SITE_KEY: "1x00000000000000000000AA",
         MEDIA_ORIGINS: MOCK,
         UPLOAD_ORIGINS: MOCK,
+        MAP_TILE_URL: `${MOCK}/tiles/{z}/{x}/{y}.png`,
       },
     },
   ],
