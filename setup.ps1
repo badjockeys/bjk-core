@@ -28,6 +28,13 @@ function Step([string]$Text) { Write-Host "`n== $Text" -ForegroundColor Cyan }
 function Done([string]$Text) { Write-Host $Text -ForegroundColor Green }
 function Fail([string]$Text) { Write-Host "`n$Text" -ForegroundColor Red; exit 1 }
 function Has([string]$Command) { [bool](Get-Command $Command -ErrorAction SilentlyContinue) }
+# VS Code itself, by its install location: a "code" command can belong to another editor (Cursor installs one).
+function Find-VSCode {
+    foreach ($exe in @("$env:LOCALAPPDATA\Programs\Microsoft VS Code\Code.exe", "$env:ProgramFiles\Microsoft VS Code\Code.exe")) {
+        if (Test-Path $exe) { return $exe }
+    }
+    return $null
+}
 function Refresh-Path {
     $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
     foreach ($extra in @("$env:ProgramFiles\Docker\Docker\resources\bin", "$env:ProgramFiles\GitHub CLI", "$env:ProgramFiles\dotnet")) {
@@ -47,7 +54,7 @@ $tools = @(
     @{ Name = 'Node.js 24+'; Id = 'OpenJS.NodeJS.LTS'; Check = { (Has 'node') -and ([int]((node --version).TrimStart('v').Split('.')[0]) -ge 24) } },
     @{ Name = 'Docker Desktop'; Id = 'Docker.DockerDesktop'; Check = { (Has 'docker') -or (Test-Path "$env:ProgramFiles\Docker\Docker\Docker Desktop.exe") } },
     @{ Name = 'ffmpeg'; Id = 'Gyan.FFmpeg'; Check = { Has 'ffmpeg' } },
-    @{ Name = 'VS Code'; Id = 'Microsoft.VisualStudioCode'; Check = { Has 'code' } }
+    @{ Name = 'VS Code'; Id = 'Microsoft.VisualStudioCode'; Check = { [bool](Find-VSCode) } }
 )
 foreach ($tool in $tools) {
     if (& $tool.Check) { Write-Host "$($tool.Name): installed"; continue }
@@ -198,6 +205,9 @@ Pop-Location
 if ($code -ne 0) { exit $code }
 
 Step 'Opening VS Code'
-code (Join-Path $core 'badjockeys.code-workspace')
+$workspace = Join-Path $core 'badjockeys.code-workspace'
+$vscode = Find-VSCode
+if ($vscode) { Start-Process -FilePath $vscode -ArgumentList "`"$workspace`"" }
+else { Write-Host "Open $workspace in VS Code (File > Open Workspace from File...)." }
 Write-Host "`nAll done. In VS Code: Terminal > Run Task... > ""Run Bad Jockeys"", then open http://localhost:3000" -ForegroundColor Green
 Write-Host "The code is in $root"
