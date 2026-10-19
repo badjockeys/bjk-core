@@ -3,11 +3,19 @@ import "server-only";
 import { ApiError } from "@/lib/api";
 import type { ActionResult } from "@/lib/action-result";
 import { getAccessToken } from "@/lib/auth";
+import { logRefusedToken } from "@/lib/refused-token";
 
 export const SIGN_IN_FIRST: ActionResult<never> = {
   ok: false,
   error: "Please sign in first.",
   blocker: "signin",
+};
+
+/** Shown when the API refuses a token the user does have: sending them to sign in again would just loop. */
+export const TOKEN_REFUSED: ActionResult<never> = {
+  ok: false,
+  error:
+    "The server didn't accept your sign-in. Sign out and back in; if it keeps happening, the API's log says why.",
 };
 
 /** Run an API call as the signed-in user, turning API errors into messages the page can show. */
@@ -16,7 +24,17 @@ export async function asUser<T>(call: (token: string) => Promise<T>): Promise<Ac
   if (!token) {
     return SIGN_IN_FIRST;
   }
-  return run(() => call(token));
+  try {
+    return { ok: true, data: await call(token) };
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) {
+      // We have a current token and the API still says 401, so signing in again won't help (the identity server
+      // would hand back the same kind of token and send them straight back here, which looks like a refresh).
+      logRefusedToken(error);
+      return TOKEN_REFUSED;
+    }
+    return failure(error);
+  }
 }
 
 export async function run<T>(call: () => Promise<T>): Promise<ActionResult<T>> {

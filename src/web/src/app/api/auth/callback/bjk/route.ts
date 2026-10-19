@@ -4,6 +4,7 @@ import { api, ApiError } from "@/lib/api";
 import { getConfig, isSecure } from "@/lib/config";
 import { finishSignIn } from "@/lib/oidc";
 import { safeReturnTo } from "@/lib/paths";
+import { logRefusedToken } from "@/lib/refused-token";
 import { transactionCookieName, unsealTransaction, writeSession } from "@/lib/session";
 
 /** The identity server sends the browser back here with a code, which this server swaps for tokens. */
@@ -47,6 +48,14 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) {
       destination = `/profile/new?returnTo=${encodeURIComponent(destination)}`;
+    } else if (error instanceof ApiError && error.status === 401) {
+      // A token straight from the identity server, refused: the API and the identity server don't agree.
+      logRefusedToken(error);
+    } else {
+      console.error(
+        "Couldn't check for a profile after sign-in",
+        error instanceof Error ? error.message : error,
+      );
     }
   }
 

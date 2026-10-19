@@ -38,6 +38,8 @@ export class ApiError extends Error {
     readonly status: number,
     readonly problem: ProblemDetails | undefined,
     readonly path: string,
+    /** The API's WWW-Authenticate header on a 401: says why a token was refused (expired, wrong issuer, etc.). */
+    readonly authenticate?: string,
   ) {
     super(problem?.detail || problem?.title || `The API returned ${status} for ${path}.`);
     this.name = "ApiError";
@@ -144,7 +146,12 @@ export function createApiClient(baseUrl: string, fetchImpl: typeof fetch = fetch
         } catch {
           problem = undefined;
         }
-        throw new ApiError(response.status, problem, path);
+        throw new ApiError(
+          response.status,
+          problem,
+          path,
+          response.headers.get("www-authenticate") ?? undefined,
+        );
       }
       if (response.status === 204) {
         return undefined as T;
