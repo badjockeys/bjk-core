@@ -20,25 +20,43 @@ One SQL Server holds both databases:
 | `idsrv` | Identity server | `auth` (accounts), `idsrv` (tokens, keys), `users` (profiles) |
 | `badjockeys` | API, media worker | `media`, `profiles`, `posts` (one schema per module), `messaging` (the queues) |
 
-## Quick start
+## Quick start: one command
 
-The steps below are written out in full, but a script does almost all of them for you, on macOS, Windows or Linux:
+On a new computer, one script installs everything and sets it all up. It only needs the script itself: download it from GitHub (signed in, open the file in bjk-core and use **Download raw file**), or use it from a bjk-core you've already cloned.
 
-1. Install the prerequisites ([step 1](#1-install-the-prerequisites)), clone the repos side by side ([step 2](#2-get-the-code)) and set your GitHub packages token ([step 3](#3-give-nuget-access-to-the-bad-jockeys-package-feed)).
-2. Open **`bjk-core/badjockeys.code-workspace`** in VS Code (File → Open Workspace from File…). It opens all four repos together, with the run tasks.
-3. **Terminal → Run Task… → "Set up (one-off)"**. Without VS Code, run `node scripts/setup-local.mjs` in bjk-core. It:
-   - checks your tools and token;
-   - creates your git-ignored config files from the templates, with your own SQL password and secrets (`bjk-identity-server/.env` and `user-secrets.json`, `bjk-core/user-secrets.json`, `src/web/.env.local`); files you already have are left alone;
-   - trusts the HTTPS development certificate and exports it for Node.js;
-   - starts SQL Server and S3Mock in Docker and waits for SQL Server to be healthy;
-   - loads the .NET user secrets (replacing what was there for the identity server and the API);
-   - downloads the face and number plate blurring models into `bjk-core/.local/models` (git-ignored), checking each file's SHA-256;
-   - builds the .NET apps and installs the web app's packages.
+| Computer | Run |
+|---|---|
+| Windows 10 or 11 | `powershell -ExecutionPolicy Bypass -File setup.ps1` |
+| Mac | `bash setup.sh` |
 
-   It's safe to run again. `node scripts/setup-local.mjs --config-only` just creates the config files.
-4. **Terminal → Run Task… → "Run Bad Jockeys"** starts the identity server, the API, the media worker and the web app, each in its own terminal. Open http://localhost:3000. The first time, the media worker can start before the API has created the database; if it errors, run the "Media worker" task again.
+It's safe to run again, and skips whatever is already done. It:
 
-Other tasks: "Start Docker services" and "Stop Docker services". Steps 4 to 8 below explain what the script does, if you'd rather do it by hand or something goes wrong.
+1. installs whatever tools are missing (Git, GitHub CLI, .NET 10 SDK, Node.js 24, Docker Desktop, ffmpeg, VS Code) with winget on Windows or Homebrew on a Mac, plus WSL 2 on Windows and Rosetta on Apple Silicon;
+2. starts Docker Desktop;
+3. signs you in to GitHub in your browser. That sign-in also gives access to the private `BJK.Modules` packages, so there's no token to create;
+4. clones the four repos side by side (next to this bjk-core, or into `~/Git/GitHub/badjockeys` on a Mac and `%USERPROFILE%\Git\badjockeys` on Windows);
+5. runs the project setup, `scripts/setup-local.mjs` (below);
+6. opens `bjk-core/badjockeys.code-workspace` in VS Code.
+
+Then in VS Code: **Terminal → Run Task… → "Run Bad Jockeys"**, and open http://localhost:3000.
+
+Expect to approve a few things: Windows UAC prompts or your Mac password for installs, Docker Desktop's terms the first time it opens, the GitHub sign-in in your browser, and trusting the HTTPS certificate. If Windows has to turn on WSL 2, it asks you to restart; run the script again afterwards. On Linux, install the tools with your package manager ([step 1](#1-install-the-prerequisites)), then run `bash setup.sh`.
+
+### The project setup on its own
+
+`scripts/setup-local.mjs` is the part that sets up the project once the tools are there. Run it on its own with **Terminal → Run Task… → "Set up (one-off)"** in VS Code, or `node scripts/setup-local.mjs` in bjk-core. It:
+
+- checks the tools, and access to the package feed. It uses the `NuGetPackageSourceCredentials_badjockeys` variable if you've set one ([step 3](#3-give-nuget-access-to-the-bad-jockeys-package-feed)); otherwise it takes your GitHub CLI sign-in and saves it in your user-level `NuGet.Config`, so every terminal and editor can restore the packages;
+- creates your git-ignored config files from the templates, with your own SQL password and secrets (`bjk-identity-server/.env` and `user-secrets.json`, `bjk-core/user-secrets.json`, `src/web/.env.local`); files you already have are left alone;
+- trusts the HTTPS development certificate and exports it for Node.js;
+- starts SQL Server and S3Mock in Docker and waits for SQL Server to be healthy;
+- loads the .NET user secrets (replacing what was there for the identity server and the API);
+- downloads the face and number plate blurring models into `bjk-core/.local/models` (git-ignored), checking each file's SHA-256;
+- builds the .NET apps and installs the web app's packages.
+
+`node scripts/setup-local.mjs --config-only` just creates the config files.
+
+"Run Bad Jockeys" starts the identity server, the API, the media worker and the web app, each in its own terminal. The first time, the media worker can start before the API has created the database; if it errors, run the "Media worker" task again. Other tasks: "Start Docker services" and "Stop Docker services". Steps 1 to 8 below explain everything the scripts do, if you'd rather do it by hand or something goes wrong.
 
 Neither app needs you to create its database. Each one creates its database and applies schema changes when it starts, and refuses any change that would delete data (see [Database changes](#database-changes)).
 
@@ -93,6 +111,8 @@ The default branch is `master`. All work happens on `feature/*` branches and is 
 ## 3. Give NuGet access to the Bad Jockeys package feed
 
 The modules (`BJK.Modules.*`) are private NuGet packages on GitHub Packages, so restoring them needs a GitHub token.
+
+> `setup.ps1`, `setup.sh` and `scripts/setup-local.mjs` do this for you from your GitHub CLI sign-in (`gh auth login --scopes read:packages`). Use the steps below only if you'd rather manage your own token.
 
 1. **Create the token.** On GitHub, go to **Settings → Developer settings → Personal access tokens → Tokens (classic) → Generate new token (classic)**. Tick only **`read:packages`**, then copy the token.
 

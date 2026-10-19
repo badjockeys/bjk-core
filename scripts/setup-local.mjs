@@ -5,7 +5,8 @@
 //   node scripts/setup-local.mjs --config-only   just create your local config files
 //
 // It follows docs/local-development.md:
-//   1. checks the tools (.NET, Node.js, Docker, ffmpeg) and the GitHub packages token
+//   1. checks the tools (.NET, Node.js, Docker, ffmpeg) and access to the private package feed (from the GitHub
+//      CLI's sign-in, saved in your user-level NuGet.Config)
 //   2. creates your git-ignored config files from the templates, with your own SQL password and secrets
 //      (bjk-identity-server/.env and user-secrets.json, bjk-core/user-secrets.json, src/web/.env.local);
 //      files that already exist are left alone
@@ -15,7 +16,8 @@
 //   6. downloads the face and number plate blurring models into bjk-core/.local/models
 //   7. builds the .NET apps and installs the web app's packages
 //
-// Needs bjk-identity-server cloned next to bjk-core. Uses only Node.js built-ins.
+// Needs the tools installed and bjk-identity-server cloned next to bjk-core: setup.ps1 (Windows) and setup.sh
+// (macOS) in the repo root do both, then run this. Uses only Node.js built-ins.
 
 import { spawnSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
@@ -107,13 +109,69 @@ function checkTools() {
   if (!ffmpeg) missing.push(isWindows ? "ffmpeg (winget install Gyan.FFmpeg)" : "ffmpeg (brew install ffmpeg)");
   if (missing.length) fail(`Missing: ${missing.join("; ")}. See step 1 of docs/local-development.md.`);
   if (!output("docker", ["info"])) fail("Docker Desktop isn't running. Start it, then run this again.");
-  if (!process.env.NuGetPackageSourceCredentials_badjockeys) {
+  ok(`.NET ${dotnet}, Node.js ${node}, ${ffmpeg.split("\n")[0].split(" ").slice(0, 3).join(" ")}, Docker running`);
+}
+
+/** The user-level NuGet.Config, which every project on this computer reads alongside its own nuget.config. */
+function userNuGetConfig() {
+  return isWindows
+    ? join(process.env.APPDATA ?? join(homedir(), "AppData", "Roaming"), "NuGet", "NuGet.Config")
+    : join(homedir(), ".nuget", "NuGet", "NuGet.Config");
+}
+
+/**
+ * The BJK.Modules packages are on GitHub Packages, which needs a GitHub token with read:packages. Uses, in order:
+ * the NuGetPackageSourceCredentials_badjockeys environment variable; credentials already in the user-level
+ * NuGet.Config; or the GitHub CLI's sign-in (gh auth login --scopes read:packages), saved into that NuGet.Config so
+ * every terminal and editor picks it up, with no environment variable to set.
+ */
+function ensurePackageCredentials() {
+  step("Checking access to the Bad Jockeys package feed");
+  if (process.env.NuGetPackageSourceCredentials_badjockeys) {
+    ok("Using NuGetPackageSourceCredentials_badjockeys");
+    return;
+  }
+  const file = userNuGetConfig();
+  const existing = existsSync(file) ? readFileSync(file, "utf8") : null;
+  const hasOurs = existing && /<packageSourceCredentials>[\s\S]*<badjockeys>[\s\S]*<\/packageSourceCredentials>/.test(existing);
+
+  const login = output("gh", ["api", "user", "--jq", ".login"]);
+  const token = login && output("gh", ["auth", "token", "-h", "github.com"]);
+  const canReadPackages = token && output("gh", ["api", "user/packages?package_type=nuget&per_page=1"]) !== null;
+  if (!canReadPackages) {
+    if (hasOurs) {
+      ok(`Using the credentials in ${file}`);
+      return;
+    }
     fail(
-      "NuGetPackageSourceCredentials_badjockeys isn't set, so the private BJK.Modules packages can't be restored.\n" +
-        "See step 3 of docs/local-development.md (a GitHub token with read:packages), then open a new terminal.",
+      "No GitHub access for the private BJK.Modules packages. Either run the full setup (setup.ps1 on Windows,\n" +
+        "setup.sh on a Mac), or sign in with the GitHub CLI and run this again:\n" +
+        "  gh auth login --web --scopes read:packages      (or, if you're already signed in: gh auth refresh -s read:packages)",
     );
   }
-  ok(`.NET ${dotnet}, Node.js ${node}, ${ffmpeg.split("\n")[0].split(" ").slice(0, 3).join(" ")}, Docker running`);
+
+  const block =
+    `    <badjockeys>\n` +
+    `      <add key="Username" value="${login}" />\n` +
+    `      <add key="ClearTextPassword" value="${token}" />\n` +
+    `    </badjockeys>\n`;
+  let xml;
+  if (!existing) {
+    // A new user-level config needs nuget.org too, or other projects on this computer would lose it.
+    xml =
+      `<?xml version="1.0" encoding="utf-8"?>\n<configuration>\n  <packageSources>\n` +
+      `    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" protocolVersion="3" />\n` +
+      `  </packageSources>\n  <packageSourceCredentials>\n${block}  </packageSourceCredentials>\n</configuration>\n`;
+  } else if (hasOurs) {
+    xml = existing.replace(/[ \t]*<badjockeys>[\s\S]*?<\/badjockeys>\r?\n?/, block);
+  } else if (existing.includes("<packageSourceCredentials>")) {
+    xml = existing.replace("<packageSourceCredentials>", `<packageSourceCredentials>\n${block.trimEnd()}`);
+  } else {
+    xml = existing.replace("</configuration>", `  <packageSourceCredentials>\n${block}  </packageSourceCredentials>\n</configuration>`);
+  }
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, xml);
+  ok(`Signed in to GitHub as ${login}; package feed access saved in ${file}`);
 }
 
 function writeIfMissing(file, content, label) {
@@ -253,7 +311,7 @@ async function downloadModels() {
 
 function build() {
   step("Restoring and building the .NET apps");
-  const hint = "If it's NU1301 or 401, check your GitHub packages token (step 3 of docs/local-development.md).";
+  const hint = "If it's NU1301 or 401, your GitHub sign-in can't read the packages: run gh auth refresh -s read:packages, then this again.";
   mustRun("dotnet", ["build", join(idsrv, "BJK.Idsrv.slnx"), "-v", "quiet", "-nologo"], {}, hint);
   mustRun("dotnet", ["build", join(core, "BJK.Core.slnx"), "-v", "quiet", "-nologo"], {}, hint);
 
@@ -265,6 +323,7 @@ if (configOnly) {
   createConfig();
 } else {
   checkTools();
+  ensurePackageCredentials();
   createConfig();
   trustCertificate();
   await startDocker();

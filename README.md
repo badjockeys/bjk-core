@@ -8,12 +8,13 @@ The Bad Jockeys web app (Next.js) and API host (ASP.NET Core), built as two cont
 | `src/web` | The Next.js web app |
 | `infra/terraform/azure` | Infrastructure as code |
 | `pipelines` | Build and deploy scripts used by `.github/workflows` |
-| `scripts` | `setup-local.mjs`: one-off local setup on macOS, Windows or Linux |
+| `setup.ps1`, `setup.sh` | Complete local setup on Windows or a Mac: tools, GitHub sign-in, repos, then `scripts/setup-local.mjs` |
+| `scripts` | `setup-local.mjs`: the project part of the local setup (config, Docker, secrets, models, build) |
 | `docs` | Guides. Start with [docs/local-development.md](docs/local-development.md). |
 
 ## Running it locally
 
-Open `badjockeys.code-workspace` in VS Code (it opens all four repos side by side), then run the task **"Set up (one-off)"** followed by **"Run Bad Jockeys"**. Without VS Code: `node scripts/setup-local.mjs`. The [local development guide](docs/local-development.md) has the prerequisites and the details.
+One script installs the tools and sets everything up on a new computer: `powershell -ExecutionPolicy Bypass -File setup.ps1` on Windows, `bash setup.sh` on a Mac. Then, in the VS Code workspace it opens (`badjockeys.code-workspace`), run the task **"Run Bad Jockeys"**. The [local development guide](docs/local-development.md) has the details.
 
 ## The API
 
