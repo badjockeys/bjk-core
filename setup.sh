@@ -14,6 +14,7 @@ set -uo pipefail
 
 ORG=badjockeys
 REPOS=(bjk-core bjk-identity-server bjk-modules bjk-mobile)
+PACKAGE=BJK.Modules.Media
 
 step() { printf '\n\033[1;36m== %s\033[0m\n' "$1"; }
 done_() { printf '\033[32m%s\033[0m\n' "$1"; }
@@ -49,7 +50,9 @@ if [ "$(uname -s)" = Darwin ]; then
   }
   has_gh() { has gh; }
   has_ffmpeg() { has ffmpeg; }
-  has_docker() { has docker || [ -d /Applications/Docker.app ]; }
+  # The Docker Desktop app itself; a docker command on its own (Homebrew's docker formula, minikube) isn't
+  # enough, unless some other Docker engine is already running and answering.
+  has_docker() { [ -d /Applications/Docker.app ] || docker info >/dev/null 2>&1; }
   has_code() { has code || [ -d "/Applications/Visual Studio Code.app" ]; }
 
   install "GitHub CLI" has_gh gh
@@ -75,7 +78,8 @@ if [ "$(uname -s)" = Darwin ]; then
     echo "Node.js 24+: installed"
   fi
   install "ffmpeg" has_ffmpeg ffmpeg
-  install "Docker Desktop" has_docker --cask docker
+  # --force: Homebrew's docker formula (CLI only) owns /opt/homebrew/bin/docker, which would block the app's links.
+  install "Docker Desktop" has_docker --cask --force docker
   install "VS Code" has_code --cask visual-studio-code
 
   if [ "$(uname -m)" = arm64 ] && ! /usr/bin/pgrep -q oahd; then
@@ -94,7 +98,9 @@ fi
 # --- Docker ----------------------------------------------------------------------------------------------------------
 step "Starting Docker Desktop"
 if ! docker info >/dev/null 2>&1; then
-  [ "$(uname -s)" = Darwin ] && open -a Docker
+  if [ "$(uname -s)" = Darwin ]; then
+    open -a Docker || fail "Couldn't open Docker Desktop. Install it (brew install --cask --force docker) and run this again."
+  fi
   echo "Waiting for Docker. The first time, accept the terms in the Docker Desktop window (you can skip signing in)."
   for _ in $(seq 1 60); do
     sleep 5
@@ -116,7 +122,30 @@ elif ! gh auth status -h github.com 2>&1 | grep -q 'read:packages'; then
   gh auth refresh -h github.com --scopes read:packages || fail "GitHub sign-in didn't finish. Run this again to retry."
 fi
 gh auth setup-git -h github.com >/dev/null
-done_ "Signed in to GitHub as $(gh api user --jq .login)"
+login="$(gh api user --jq .login)"
+done_ "Signed in to GitHub as $login"
+
+step "Checking your access to the Bad Jockeys repos and packages"
+no_access=()
+for repo in "${REPOS[@]}"; do
+  gh api "repos/$ORG/$repo" --silent >/dev/null 2>&1 || no_access+=("repo $ORG/$repo")
+done
+# The private BJK.Modules NuGet packages (GitHub Packages); one stands in for all of them.
+gh api "orgs/$ORG/packages/nuget/$PACKAGE" --silent >/dev/null 2>&1 || no_access+=("package $PACKAGE (the BJK.Modules NuGet packages)")
+if [ ${#no_access[@]} -gt 0 ]; then
+  printf '\n\033[1;31mYour GitHub account %s can'"'"'t see:\033[0m\n' "$login"
+  printf '  - %s\n' "${no_access[@]}"
+  cat <<MSG
+
+Ask an owner of the $ORG organisation on GitHub to:
+  1. invite $login to the organisation (it then has to be accepted, from the email or github.com/$ORG), and
+  2. give $login (or a team $login is in) access to all four repos, bjk-modules included, since the packages
+     come with it. If the package still isn't visible: org > Packages > $PACKAGE > Package settings > Manage access.
+Then run this script again.
+MSG
+  exit 1
+fi
+done_ "You can see all four repos and the packages"
 
 # --- Repos -----------------------------------------------------------------------------------------------------------
 step "Getting the code"

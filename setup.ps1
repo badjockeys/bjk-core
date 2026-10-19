@@ -15,6 +15,7 @@
 $ErrorActionPreference = 'Continue'   # native commands report through $LASTEXITCODE; Stop breaks on their stderr in PowerShell 5.1
 $Org = 'badjockeys'
 $Repos = @('bjk-core', 'bjk-identity-server', 'bjk-modules', 'bjk-mobile')
+$Package = 'BJK.Modules.Media'   # stands in for the private BJK.Modules NuGet packages
 
 function Step([string]$Text) { Write-Host "`n== $Text" -ForegroundColor Cyan }
 function Done([string]$Text) { Write-Host $Text -ForegroundColor Green }
@@ -98,7 +99,32 @@ if ($LASTEXITCODE -ne 0) {
     }
 }
 gh auth setup-git -h github.com | Out-Null
-Done "Signed in to GitHub as $(gh api user --jq .login)"
+$login = gh api user --jq .login
+Done "Signed in to GitHub as $login"
+
+Step 'Checking your access to the Bad Jockeys repos and packages'
+$noAccess = @()
+foreach ($repo in $Repos) {
+    gh api "repos/$Org/$repo" --silent *> $null
+    if ($LASTEXITCODE -ne 0) { $noAccess += "repo $Org/$repo" }
+}
+# The private BJK.Modules NuGet packages (GitHub Packages); one stands in for all of them.
+gh api "orgs/$Org/packages/nuget/$Package" --silent *> $null
+if ($LASTEXITCODE -ne 0) { $noAccess += "package $Package (the BJK.Modules NuGet packages)" }
+if ($noAccess.Count -gt 0) {
+    Write-Host "`nYour GitHub account $login can't see:" -ForegroundColor Red
+    foreach ($item in $noAccess) { Write-Host "  - $item" }
+    Write-Host @"
+
+Ask an owner of the $Org organisation on GitHub to:
+  1. invite $login to the organisation (it then has to be accepted, from the email or github.com/$Org), and
+  2. give $login (or a team $login is in) access to all four repos, bjk-modules included, since the packages
+     come with it. If the package still isn't visible: org > Packages > $Package > Package settings > Manage access.
+Then run this script again.
+"@
+    exit 1
+}
+Done 'You can see all four repos and the packages'
 
 # --- Repos -----------------------------------------------------------------------------------------------------------
 Step 'Getting the code'
