@@ -260,8 +260,30 @@ request POST "/api/media/$MEDIA_ID/complete" "" "$TOKEN_A"
 expect 202 "complete the video upload"
 VIDEO_ID=$MEDIA_ID
 
-wait_for "sql \"SELECT Status FROM media.Media WHERE Id = '$PHOTO_ID'\"" Ready "the worker processes the photo"
-wait_for "sql \"SELECT Status FROM media.Media WHERE Id = '$VIDEO_ID'\"" Ready "the worker processes the video"
+# processed ID LABEL  - waits for the worker to finish (Ready, or NeedsReview when blurring wasn't sure), then has a
+# moderator approve anything held for review, so it's Ready either way
+MEDIA_MOD_TOKEN=$(token "$(body --arg s "$MODERATOR" '{sub: $s, scope: ["bjk.media", "bjk.media.manage"], role: ["Moderator"], amr: ["pwd", "mfa"]}')")
+processed() {
+  local id=$1 label=$2 status=""
+  for _ in $(seq 1 60); do
+    status=$(sql "SELECT Status FROM media.Media WHERE Id = '$id'" | head -1)
+    [ "$status" = Ready ] || [ "$status" = NeedsReview ] && break
+    sleep 2
+  done
+  case "$status" in
+    Ready) pass "$label (Ready)" ;;
+    NeedsReview)
+      request GET "/api/admin/media/$id/review" "" "$MEDIA_MOD_TOKEN"
+      echo "::notice title=Held for review::$label: $(jq -c '{reviewReasons, facesBlurred, platesBlurred}' response.json 2>/dev/null || head -c 300 response.json)"
+      pass "$label (NeedsReview: automatic blurring wasn't sure)"
+      request POST "/api/admin/media/$id/approve" "" "$MEDIA_MOD_TOKEN"
+      expect 200 "a moderator approves it"
+      wait_for "sql \"SELECT Status FROM media.Media WHERE Id = '$id'\"" Ready "and it's Ready" ;;
+    *) fail "$label: expected Ready or NeedsReview, last saw '$status'." ;;
+  esac
+}
+processed "$PHOTO_ID" "the worker processes the photo"
+processed "$VIDEO_ID" "the worker processes the video"
 
 for id in "$PHOTO_ID" "$VIDEO_ID"; do
   for column in PlaybackKey ThumbnailKey; do
