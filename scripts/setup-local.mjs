@@ -55,14 +55,19 @@ function fail(text) {
   process.exit(1);
 }
 
+/**
+ * npm is a .cmd file on Windows, which only runs through a shell. Everything else (dotnet, docker, ffmpeg) is an
+ * .exe and runs without one, so paths with spaces in them (C:\Users\Sam Jones\...) reach it intact.
+ */
+const needsShell = (command) => isWindows && command === "npm";
+
 /** Runs a command, showing its output. Returns true if it exited with 0. */
 function run(command, args, { cwd = core, input, quiet = false } = {}) {
   const result = spawnSync(command, args, {
     cwd,
     input,
     stdio: [input === undefined ? "inherit" : "pipe", quiet ? "pipe" : "inherit", quiet ? "pipe" : "inherit"],
-    // npm and friends are .cmd files on Windows, which need a shell.
-    shell: isWindows,
+    shell: needsShell(command),
     encoding: "utf8",
   });
   return result.status === 0;
@@ -70,7 +75,7 @@ function run(command, args, { cwd = core, input, quiet = false } = {}) {
 
 /** Runs a command and returns its trimmed output, or null if it failed or isn't installed. */
 function output(command, args) {
-  const result = spawnSync(command, args, { encoding: "utf8", shell: isWindows });
+  const result = spawnSync(command, args, { encoding: "utf8", shell: needsShell(command) });
   return result.status === 0 ? result.stdout.trim() : null;
 }
 
