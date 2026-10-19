@@ -165,10 +165,42 @@
         "label": "Prepare media worker",
         "dependsOn": [
           "Docker for media worker",
-          "Build media worker"
+          "Build media worker",
+          "Wait for API (media worker)"
         ],
         "dependsOrder": "sequence",
         "problemMatcher": [],
+        "hide": true
+      },
+      {
+        "label": "Wait for identity server and API",
+        "type": "process",
+        "command": "node",
+        "args": [
+          "${workspaceFolder:bjk-core}/scripts/wait-for-apps.mjs",
+          "identity",
+          "api"
+        ],
+        "problemMatcher": [],
+        "presentation": {
+          "reveal": "silent",
+          "panel": "dedicated"
+        },
+        "hide": true
+      },
+      {
+        "label": "Wait for API (media worker)",
+        "type": "process",
+        "command": "node",
+        "args": [
+          "${workspaceFolder:bjk-core}/scripts/wait-for-apps.mjs",
+          "api"
+        ],
+        "problemMatcher": [],
+        "presentation": {
+          "reveal": "silent",
+          "panel": "dedicated"
+        },
         "hide": true
       }
     ]
@@ -225,7 +257,8 @@
           "pattern": "Local:\\s+(https?://\\S+)",
           "uriFormat": "%s",
           "action": "openExternally"
-        }
+        },
+        "preLaunchTask": "Wait for identity server and API"
       }
     ],
     "compounds": [
