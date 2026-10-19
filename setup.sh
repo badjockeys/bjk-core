@@ -69,7 +69,8 @@ if [ "$(uname -s)" = Darwin ]; then
   # The Docker Desktop app itself; a docker command on its own (Homebrew's docker formula, minikube) isn't
   # enough, unless some other Docker engine is already running and answering.
   has_docker() { [ -d /Applications/Docker.app ] || docker info >/dev/null 2>&1; }
-  has_code() { has code || [ -d "/Applications/Visual Studio Code.app" ]; }
+  # The app itself: a "code" command can belong to another editor (Cursor installs one), so it doesn't count.
+  has_code() { [ -d "/Applications/Visual Studio Code.app" ] || [ -d "$HOME/Applications/Visual Studio Code.app" ]; }
 
   install "GitHub CLI" has_gh gh
   install ".NET 10 SDK" dotnet_ok --cask dotnet-sdk
@@ -220,7 +221,14 @@ step "Setting up the project"
 (cd "$core" && node scripts/setup-local.mjs) || exit $?
 
 step "Opening VS Code"
-code_cli="$(command -v code || echo "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code")"
-[ -x "$code_cli" ] && "$code_cli" "$core/badjockeys.code-workspace" || echo "Open $core/badjockeys.code-workspace in VS Code."
+# Open VS Code by name rather than through the "code" command, which another editor (Cursor) may have taken over.
+if [ "$(uname -s)" = Darwin ]; then
+  open -a "Visual Studio Code" "$core/badjockeys.code-workspace" 2>/dev/null \
+    || echo "Open $core/badjockeys.code-workspace in VS Code (File > Open Workspace from File...)."
+elif has code; then
+  code "$core/badjockeys.code-workspace"
+else
+  echo "Open $core/badjockeys.code-workspace in VS Code (File > Open Workspace from File...)."
+fi
 printf '\n\033[1;32mAll done.\033[0m In VS Code: Terminal > Run Task... > "Run Bad Jockeys", then open http://localhost:3000\n'
 echo "The code is in $root"
