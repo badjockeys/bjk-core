@@ -172,7 +172,7 @@
     ],
     "compounds": [
       {
-        "name": "Bad Jockeys (all)",
+        "name": "Bad Jockeys",
         "configurations": [
           "Identity server",
           "API",
