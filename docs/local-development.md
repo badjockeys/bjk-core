@@ -11,7 +11,7 @@ This guide gets the whole platform running on your machine:
 | Web app | bjk-core, `src/web` | Node.js (Next.js) | http://localhost:3000 |
 | File storage | bjk-core (`docker-compose.yml`): S3Mock, standing in for Cloudflare R2 | Docker | http://localhost:9090 |
 
-> **Status (18 Oct 2026):** the identity server, the API and the media worker run today. The web app (`src/web`) is being built next, so step 8 describes how it will run.
+> **Status (19 Oct 2026):** everything in the table runs: the identity server, the API, the media worker and the web app (`src/web`).
 
 One SQL Server holds both databases:
 
@@ -270,17 +270,32 @@ dotnet user-secrets set "Media:Storage:AccessKeyId" "<new key>" --project src/BJ
 
 ### Web app
 
-Next.js doesn't use .NET user secrets. It reads a git-ignored `src/web/.env.local` instead, and its template is `src/web/.env.local.example`. The exact keys will be confirmed when the web app is built; expect something like:
+Next.js doesn't use .NET user secrets. It reads a git-ignored `src/web/.env.local` instead; the template, with every
+setting explained, is `src/web/.env.local.example`:
 
 ```bash
-API_BASE_URL=https://localhost:5101
+APP_URL=http://localhost:3000
+API_BASE_URL=http://localhost:5100
 IDSRV_AUTHORITY=https://localhost:5001
 IDSRV_CLIENT_ID=bjk-web
+IDSRV_CLIENT_SECRET=local-web-secret
 AUTH_SECRET=<any long random string: openssl rand -base64 32>
-NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA
+TURNSTILE_SITE_KEY=1x00000000000000000000AA
+MEDIA_ORIGINS=http://localhost:9090
+UPLOAD_ORIGINS=http://localhost:9090
 ```
 
-`1x00000000000000000000AA` is Cloudflare's public test **site** key, which always passes. It pairs with the test **secret** key in the identity server.
+| Setting | What it is |
+|---|---|
+| `APP_URL` | The web app's address. It must match the identity server's `Clients:Web:RedirectUris` (`http://localhost:3000/api/auth/callback/bjk`) |
+| `API_BASE_URL` | The API. Use its `http` address locally (`dotnet run ... --launch-profile http`, or the `https` profile also listens on 5100) |
+| `IDSRV_AUTHORITY`, `IDSRV_CLIENT_ID`, `IDSRV_CLIENT_SECRET` | The identity server and the `bjk-web` client. The secret is `Clients:Web:Secret` from the identity server's user secrets |
+| `AUTH_SECRET` | Encrypts the session cookie holding the user's tokens |
+| `TURNSTILE_SITE_KEY` | Cloudflare Turnstile on the public report form. `1x00000000000000000000AA` is the public test **site** key, which always passes; it pairs with the test **secret** key in the API's `Captcha:TurnstileSecretKey` |
+| `MEDIA_ORIGINS`, `UPLOAD_ORIGINS` | Where photos and videos are shown from and uploaded to, for the Content-Security-Policy (S3Mock locally) |
+| `MAP_TILE_URL`, `MAP_ATTRIBUTION` | Optional. Map tiles for the incident pin; OpenStreetMap by default |
+
+None of these reach the browser, so the same container image works in every environment.
 
 ### Adding a setting
 
@@ -313,18 +328,54 @@ To check they're running:
 
 ## 8. Run the web app
 
+You need Node.js 24 (step 1). The first time:
+
 ```bash
 cd ~/Git/GitHub/badjockeys/bjk-core/src/web
-cp .env.local.example .env.local      # first time only
-npm install                           # first time, and after package.json changes
-npm run dev
+cp .env.local.example .env.local      # then set AUTH_SECRET (openssl rand -base64 32)
+npm install                           # again after package.json changes
+
+# Node.js doesn't read the macOS keychain, so give it the .NET development certificate for https://localhost:5001
+dotnet dev-certs https --export-path ~/.aspnet/dev-cert.pem --format PEM --no-password
 ```
 
-Then open http://localhost:3000.
+Then, with the identity server, the API and the media worker running (step 7):
+
+```bash
+NODE_EXTRA_CA_CERTS=~/.aspnet/dev-cert.pem npm run dev
+```
+
+Open http://localhost:3000. **Join** goes to the identity server's sign-up page, then its age check, then back to
+the web app to create your profile. Posting, commenting and reacting need a passed age check and a confirmed email
+address; for local testing, the API's `Safety:RequireAgeVerification` can be `false` (see its user-secrets template),
+and the confirmation link is in the identity server's console.
+
+| Command (in `src/web`) | Does |
+|---|---|
+| `npm run dev` | Runs the app with hot reload on http://localhost:3000 |
+| `npm run lint`, `npm run format:check`, `npm run typecheck` | ESLint, Prettier and TypeScript, as in CI |
+| `npm test` | Unit and component tests (Vitest and Testing Library) |
+| `npm run build && npm run e2e` | End-to-end tests in a browser (Playwright). They start `e2e/mock-server.mjs`, a stand-in for the identity server, the API and storage, so nothing else needs to be running. First run `npx playwright install chromium` |
+| `docker build -t bjk-core-web .` | The container image (Node.js 24, standalone output, runs as a non-root user) |
+
+### How the web app fits together
+
+- **Sign-in** is OpenID Connect with PKCE against the identity server, as the confidential client `bjk-web`. The
+  web server swaps the code for tokens and keeps them in an encrypted, httpOnly session cookie, so scripts in the
+  browser never see them. It refreshes the access token a minute before it expires (refresh tokens are one-time).
+  Sign-in, sign-up, the age check, two-step, password and deactivation pages all belong to the identity server.
+- **Pages** are rendered on the web server, which calls the API with the user's token. Post pages carry Open Graph
+  and X card tags (title, area name, category and the blurred thumbnail), so shared links get a preview.
+- **Uploads** go straight from the browser to storage: the web server asks the API for a signed link
+  (`POST /api/media/uploads`), the browser `PUT`s the file to S3Mock (or R2) with a progress bar, then the web server
+  tells the API it's there. Photos are shrunk in the browser first; videos are trimmed to at most 30 seconds and
+  shrunk to 720p with [Mediabunny](https://mediabunny.dev) (WebCodecs), or uploaded as they are if the browser can't.
+- **Security:** a Content-Security-Policy with a fresh nonce on every page, no framing, a strict referrer policy,
+  and every change goes through a server action or a form post that checks it came from our own pages.
 
 ## Trying it end to end
 
-Until the web app's sign-in page exists, you can test with the `.http` files and the identity server's local test clients:
+The quickest way is the web app (step 8). To try the API directly, use the `.http` files and the identity server's local test clients:
 
 1. **Create a user and sign in.** Use `bjk-identity-server/src/BJK.Idsrv.Host/BJK.Idsrv.Host.http`, sending the requests from top to bottom. The sign-in returns an access token.
 2. **Try the API.** Use `bjk-core/src/BJK.Core.Api/BJK.Core.Api.http` with that token. For example, uploading:
@@ -383,4 +434,6 @@ cd ~/Git/GitHub/badjockeys/bjk-identity-server && docker compose down -v && dock
 - **`SignatureDoesNotMatch` or `InvalidAccessKeyId` from R2.** The R2 keys are wrong, or the token isn't scoped to the dev buckets.
 - **The API returns `401` with a valid-looking token.** Check that `Authentication:Authority` is `https://localhost:5001`, that the identity server is running, and that you ran `dotnet dev-certs https --trust`.
 - **The SQL container keeps restarting on an Apple Silicon Mac.** Turn on Rosetta in Docker Desktop (step 1).
+- **The web app says `unable to verify the first certificate` or `self-signed certificate` when signing in.** Node.js doesn't trust the .NET development certificate: export it and start the web app with `NODE_EXTRA_CA_CERTS` (step 8).
+- **Signing in comes back with "Signing in didn't work".** Check the web app's console. Usually `IDSRV_CLIENT_SECRET` doesn't match the identity server's `Clients:Web:Secret`, or `APP_URL` doesn't match `Clients:Web:RedirectUris`.
 - **A port is already in use (1433, 9090, 5001, 5101 or 3000).** Stop whatever is using it (`lsof -i :<port>`), or change the left-hand port in the compose file and the matching setting.

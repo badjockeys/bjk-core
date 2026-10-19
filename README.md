@@ -20,5 +20,19 @@ On your machine, file storage is S3Mock in Docker (`docker compose up -d`), stan
 
 Jobs and events between the API, the media workers and the identity server go through durable queues stored in SQL Server (the `messaging` schema of `badjockeys`), not a separate broker: see [docs/messaging.md](docs/messaging.md), which also has the media worker's scaling rule.
 
-CI builds the container images and runs `pipelines/scripts/smoke-test.sh` on every pull request. The test runs against SQL Server and S3Mock (in place of Cloudflare R2), with `pipelines/scripts/fake-issuer.py` signing tokens in place of the identity server.
+## The web app
+
+`src/web` is the Next.js web app (App Router, React Server Components, TypeScript). It renders pages on its own
+server, so shared links get previews and search engines can read posts, and it talks to the API from that server: the
+browser never sees access tokens. Sign-in, sign-up, the age check and account security are the identity server's own
+pages; the web app redirects there (OpenID Connect with PKCE, client `bjk-web`) and keeps the tokens in an encrypted,
+httpOnly session cookie. Photos and videos upload straight from the browser to storage with signed links, and videos
+are trimmed to 30 seconds and shrunk to 720p in the browser first.
+
+Run it with `npm run dev` in `src/web` after copying `.env.local.example` to `.env.local` (see the guide, step 8).
+`npm run lint`, `npm run typecheck`, `npm test` (Vitest) and `npm run e2e` (Playwright, against a mock identity
+server and API in `e2e/mock-server.mjs`) are the checks CI runs. `src/web/Dockerfile` builds the container
+(`docker build -t bjk-core-web src/web`).
+
+CI builds the API, worker and web container images, runs `pipelines/scripts/smoke-test.sh` and runs the web app's checks and end-to-end tests on every pull request. The smoke test runs against SQL Server and S3Mock (in place of Cloudflare R2), with `pipelines/scripts/fake-issuer.py` signing tokens in place of the identity server.
 
