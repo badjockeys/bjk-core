@@ -6,6 +6,7 @@ import { cache } from "react";
 import { api, ApiError } from "./api";
 import { getConfig, isSecure } from "./config";
 import { refreshOnce } from "./refresh";
+import { logRefusedToken } from "./refused-token";
 import { clearSession, isExpired, readSession, writeSession, type Session } from "./session";
 import type { ProfileDto } from "./types";
 import { ANONYMOUS, type Viewer } from "./viewer";
@@ -52,7 +53,12 @@ export const getMyProfile = cache(async (): Promise<ProfileDto | null> => {
   try {
     return await api().profiles.me(token);
   } catch (error) {
-    if (error instanceof ApiError && (error.status === 404 || error.status === 401)) {
+    if (error instanceof ApiError && error.status === 404) {
+      return null;
+    }
+    if (error instanceof ApiError && error.status === 401) {
+      // Treated as "no profile" so pages still render, but it isn't: the API refused the token. Say so loudly.
+      logRefusedToken(error);
       return null;
     }
     throw error;
