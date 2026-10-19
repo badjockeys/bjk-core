@@ -1,5 +1,5 @@
-# Local stand-in for Cloudflare R2, for developers without R2 keys. SQL Server and RabbitMQ come from
-# bjk-identity-server's docker-compose.yml (see docs/local-development.md).
+# Local stand-in for Cloudflare R2, for developers without R2 keys. SQL Server (which also holds the message queues)
+# comes from bjk-identity-server's docker-compose.yml (see docs/local-development.md).
 #
 #   docker compose up -d       starts it on http://localhost:9090 with both dev buckets created
 #   docker compose down -v     removes it and every stored file

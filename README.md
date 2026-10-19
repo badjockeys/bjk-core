@@ -14,9 +14,11 @@ The Bad Jockeys web app (Next.js) and API host (ASP.NET Core), built as two cont
 
 `src/BJK.Core.Api` hosts the Media, Profiles, Posts, Email and SMS modules. It accepts access tokens from bjk-identity-server for the `bjk-api` audience, and creates and migrates its database (`badjockeys`) on start. Run it with `dotnet run --project src/BJK.Core.Api --launch-profile https` after loading your user secrets (see the guide). Then https://localhost:5101/health should return `Healthy`, and `src/BJK.Core.Api/BJK.Core.Api.http` has example requests.
 
-`src/BJK.Core.MediaWorker` is the media processing worker. It takes jobs off the `media.process` queue, converts each upload with ffmpeg (720p H.264 video, or WebP photos up to 2048 pixels, plus a thumbnail, with metadata such as GPS stripped), and publishes the results. It needs ffmpeg installed and shares the API's user secrets. Run it with `dotnet run --project src/BJK.Core.MediaWorker --launch-profile worker`.
+`src/BJK.Core.MediaWorker` is the media processing worker. It takes jobs off the `media.process` queue, blurs faces and number plates, converts each upload with ffmpeg (720p H.264 video, or WebP photos up to 2048 pixels, plus a thumbnail, with metadata such as GPS stripped), and publishes the results. Its image includes the blurring models. It needs ffmpeg installed and shares the API's user secrets. Run it with `dotnet run --project src/BJK.Core.MediaWorker --launch-profile worker`.
 
 On your machine, file storage is S3Mock in Docker (`docker compose up -d`), standing in for Cloudflare R2, so no Cloudflare account is needed.
+
+Jobs and events between the API, the media workers and the identity server go through durable queues stored in SQL Server (the `messaging` schema of `badjockeys`), not a separate broker: see [docs/messaging.md](docs/messaging.md), which also has the media worker's scaling rule.
 
 ## The web app
 
@@ -32,5 +34,5 @@ Run it with `npm run dev` in `src/web` after copying `.env.local.example` to `.e
 server and API in `e2e/mock-server.mjs`) are the checks CI runs. `src/web/Dockerfile` builds the container
 (`docker build -t bjk-core-web src/web`).
 
-CI builds the API, worker and web container images, runs `pipelines/scripts/smoke-test.sh` and runs the web app's checks and end-to-end tests on every pull request. The smoke test runs against SQL Server, RabbitMQ and S3Mock (in place of Cloudflare R2), with `pipelines/scripts/fake-issuer.py` signing tokens in place of the identity server.
+CI builds the API, worker and web container images, runs `pipelines/scripts/smoke-test.sh` and runs the web app's checks and end-to-end tests on every pull request. The smoke test runs against SQL Server and S3Mock (in place of Cloudflare R2), with `pipelines/scripts/fake-issuer.py` signing tokens in place of the identity server.
 
