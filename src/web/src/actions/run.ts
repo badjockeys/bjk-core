@@ -14,7 +14,8 @@ export const SIGN_IN_FIRST: ActionResult<never> = {
 /** Shown when the API refuses a token the user does have: sending them to sign in again would just loop. */
 export const TOKEN_REFUSED: ActionResult<never> = {
   ok: false,
-  error: "The server didn't accept your sign-in. Sign out and back in; if it keeps happening, the API's log says why.",
+  error:
+    "The server didn't accept your sign-in. Sign out and back in; if it keeps happening, the API's log says why.",
 };
 
 /** Run an API call as the signed-in user, turning API errors into messages the page can show. */

@@ -146,7 +146,12 @@ export function createApiClient(baseUrl: string, fetchImpl: typeof fetch = fetch
         } catch {
           problem = undefined;
         }
-        throw new ApiError(response.status, problem, path, response.headers.get("www-authenticate") ?? undefined);
+        throw new ApiError(
+          response.status,
+          problem,
+          path,
+          response.headers.get("www-authenticate") ?? undefined,
+        );
       }
       if (response.status === 204) {
         return undefined as T;

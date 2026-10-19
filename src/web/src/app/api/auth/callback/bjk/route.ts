@@ -52,7 +52,10 @@ export async function GET(request: NextRequest) {
       // A token straight from the identity server, refused: the API and the identity server don't agree.
       logRefusedToken(error);
     } else {
-      console.error("Couldn't check for a profile after sign-in", error instanceof Error ? error.message : error);
+      console.error(
+        "Couldn't check for a profile after sign-in",
+        error instanceof Error ? error.message : error,
+      );
     }
   }
 
