@@ -58,7 +58,7 @@ Expect to approve a few things: Windows UAC prompts or your Mac password for ins
 
 `node scripts/setup-local.mjs --config-only` just creates the config files.
 
-To debug, use VS Code's **Run and Debug** panel instead: pick **"Bad Jockeys (all)"** and press F5 to build and start all four with the debugger attached (breakpoints work in the .NET code and in the web app's server code), and the web app opens in your browser when it's ready. Shift+F5 stops them all. Each app is also there on its own ("Identity server", "API", "Media worker", "Web app"), to restart just one. "Run Bad Jockeys" (Terminal → Run Task…) does the same without the debugger.
+To debug, use VS Code's **Run and Debug** panel instead: pick **"Bad Jockeys (all)"** and press F5 to start SQL Server and S3Mock in Docker (Docker Desktop must be open), then build and start all four with the debugger attached (breakpoints work in the .NET code and in the web app's server code), and the web app opens in your browser when it's ready. Shift+F5 stops them all. Each app is also there on its own ("Identity server", "API", "Media worker", "Web app"), to restart just one. "Run Bad Jockeys" (Terminal → Run Task…) does the same without the debugger.
 
 "Run Bad Jockeys" starts the identity server, the API, the media worker and the web app, each in its own terminal. The first time, the media worker can start before the API has created the database; if it errors, run the "Media worker" task again. Other tasks: "Start Docker services" and "Stop Docker services". Steps 1 to 8 below explain everything the scripts do, if you'd rather do it by hand or something goes wrong.
 

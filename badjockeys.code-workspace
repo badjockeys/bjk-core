@@ -80,6 +80,38 @@
         "presentation": {
           "reveal": "silent"
         }
+      },
+      {
+        "label": "Start SQL Server",
+        "type": "shell",
+        "command": "docker compose up -d --wait",
+        "options": {
+          "cwd": "${workspaceFolder:bjk-identity-server}"
+        },
+        "problemMatcher": [],
+        "presentation": {
+          "reveal": "silent"
+        }
+      },
+      {
+        "label": "Start S3Mock",
+        "type": "shell",
+        "command": "docker compose up -d",
+        "options": {
+          "cwd": "${workspaceFolder:bjk-core}"
+        },
+        "problemMatcher": [],
+        "presentation": {
+          "reveal": "silent"
+        }
+      },
+      {
+        "label": "Start Docker services",
+        "dependsOn": [
+          "Start SQL Server",
+          "Start S3Mock"
+        ],
+        "problemMatcher": []
       }
     ]
   },
@@ -147,7 +179,8 @@
           "Media worker",
           "Web app"
         ],
-        "stopAll": true
+        "stopAll": true,
+        "preLaunchTask": "Start Docker services"
       }
     ]
   }
