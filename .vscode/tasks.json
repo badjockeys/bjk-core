@@ -17,7 +17,16 @@
     },
     {
       "label": "Run Bad Jockeys",
-      "detail": "Identity server, API, media worker and web app, each in its own terminal",
+      "detail": "Starts Docker if needed, then the identity server, API, media worker and web app, each in its own terminal",
+      "dependsOn": [
+        "Start Docker services",
+        "Start all apps"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Start all apps",
       "dependsOn": [
         "Identity server",
         "API",
@@ -25,7 +34,8 @@
         "Web app"
       ],
       "dependsOrder": "parallel",
-      "problemMatcher": []
+      "problemMatcher": [],
+      "hide": true
     },
     {
       "label": "Identity server",
@@ -91,18 +101,6 @@
       }
     },
     {
-      "label": "Start Docker services",
-      "type": "shell",
-      "command": "docker compose up -d",
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
-      "dependsOn": [
-        "Start SQL Server"
-      ],
-      "problemMatcher": []
-    },
-    {
       "label": "Stop Docker services",
       "type": "shell",
       "command": "docker compose stop",
@@ -127,15 +125,17 @@
       }
     },
     {
-      "label": "Start SQL Server",
-      "type": "shell",
-      "command": "docker compose up -d",
-      "options": {
-        "cwd": "${workspaceFolder}/../bjk-identity-server"
-      },
+      "label": "Start Docker services",
+      "detail": "Opens Docker Desktop if needed, then starts SQL Server and S3Mock",
+      "type": "process",
+      "command": "node",
+      "args": [
+        "${workspaceFolder}/scripts/start-docker.mjs"
+      ],
       "problemMatcher": [],
       "presentation": {
-        "reveal": "silent"
+        "reveal": "always",
+        "panel": "shared"
       }
     }
   ]
