@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import type { FeedSource } from "@/actions/posts";
 import { earliestExpiry } from "@/lib/links";
+import { signInPath } from "@/lib/paths";
 import type { PagedResult, PostDto } from "@/lib/types";
 import type { Viewer } from "@/lib/viewer";
 
@@ -54,12 +55,16 @@ export function EmptyCategory({ label, signedIn }: { label: string | null; signe
       <LogoMark size={64} ring="#B5B5B0" dot={false} />
       <h1 className="h2">{label ? `No ${label.toLowerCase()} posts yet` : "No posts yet"}</h1>
       <p className="muted">Caught some on camera? Be the first to post it.</p>
-      <Link
-        href={signedIn ? "/post/new" : "/auth/sign-in?returnTo=%2Fpost%2Fnew"}
-        className="btn btn-primary"
-      >
-        Post photos or a video
-      </Link>
+      {signedIn ? (
+        <Link href="/post/new" className="btn btn-primary">
+          Post photos or a video
+        </Link>
+      ) : (
+        // A plain link: signing in leaves for the identity server, which an in-app (RSC) navigation can't follow.
+        <a href={signInPath("/post/new")} className="btn btn-primary">
+          Post photos or a video
+        </a>
+      )}
       {label ? (
         <Link href="/" className="link">
           See all posts

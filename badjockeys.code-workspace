@@ -258,7 +258,13 @@
           "uriFormat": "%s",
           "action": "openExternally"
         },
-        "preLaunchTask": "Wait for identity server and API"
+        "preLaunchTask": "Wait for identity server and API",
+        "resolveSourceMapLocations": [
+          "${workspaceFolder:bjk-core}/src/web/**",
+          "!**/node_modules/**",
+          "!**/turbopack*/**",
+          "!**/%5Bturbopack%5D/**"
+        ]
       }
     ],
     "compounds": [
