@@ -912,6 +912,34 @@ p {
   color: var(--muted);
 }
 
+/* A post's types of bad driving: black outlined tags (categories stay black). */
+.type-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.type-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--ink);
+  border-radius: 14px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.type-tag:hover {
+  background: var(--soft);
+}
+
 .tw-status {
   display: inline-flex;
   align-items: center;

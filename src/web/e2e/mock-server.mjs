@@ -220,6 +220,7 @@ function post(id, authorId, title, category, mediaIds, createdAt, extra = {}) {
     title,
     description: extra.description ?? null,
     category,
+    types: extra.types ?? [category],
     incidentAt: createdAt,
     latitude: 53.81,
     longitude: -1.6,
@@ -271,6 +272,7 @@ function postDto(p, viewer) {
     title: p.title,
     description: p.description,
     category: p.category,
+    types: p.types,
     incidentAt: p.incidentAt,
     location: { latitude: p.latitude, longitude: p.longitude, placeName: p.placeName },
     status: p.status,
@@ -611,7 +613,7 @@ async function api(req, res, url) {
     const a = reelAllowance();
     if (a.remaining === 0) return dailyLimit(a);
     const category = url.searchParams.get("category");
-    const all = db.posts.filter((p) => isReel(p) && (!category || p.category === category));
+    const all = db.posts.filter((p) => isReel(p) && (!category || p.types.includes(category)));
     const start = Number(url.searchParams.get("cursor") ?? 0);
     const size = Math.min(Number(url.searchParams.get("pageSize") ?? 10), a.remaining ?? 10);
     const items = all.slice(start, start + size);
@@ -699,14 +701,14 @@ async function api(req, res, url) {
 
   // Posts
   if (path === "/api/posts" && method === "GET") {
-    const category = url.searchParams.get("category");
+    const category = url.searchParams.get("type") ?? url.searchParams.get("category");
     const handle = url.searchParams.get("author");
     const authorId = handle ? [...db.profiles.values()].find((p) => p.handle === handle)?.id : null;
     const items = db.posts.filter(
       (p) =>
         isPublic(p) &&
         canSee(p, me) &&
-        (!category || p.category === category) &&
+        (!category || p.types.includes(category)) &&
         (!handle || p.authorId === authorId),
     );
     return send(
@@ -732,7 +734,11 @@ async function api(req, res, url) {
     const body = await json();
     if (!db.profiles.has(me)) return invalid(res, "Profile", "Create your profile before posting.");
     if (!body.title?.trim()) return invalid(res, "Title", "Add a title.");
-    if (!CATEGORIES.has(body.category)) return invalid(res, "Category", "Choose a category.");
+    const types = [...new Set(Array.isArray(body.types) && body.types.length > 0 ? body.types : body.category ? [body.category] : [])];
+    if (types.length === 0) return invalid(res, "Types", "Choose at least one type of bad driving.");
+    if (!types.every((t) => CATEGORIES.has(t))) return invalid(res, "Types", "Choose a type from the list.");
+    if ((body.description ?? "").trim().length > 500)
+      return invalid(res, "Description", "Descriptions are 500 characters or fewer.");
     if (!Array.isArray(body.mediaIds) || body.mediaIds.length === 0)
       return invalid(res, "MediaIds", "Add at least one photo or video.");
     for (const id of body.mediaIds) {
@@ -747,11 +753,12 @@ async function api(req, res, url) {
       randomUUID(),
       me,
       body.title.trim(),
-      body.category,
+      types[0],
       body.mediaIds,
       new Date().toISOString(),
       {
         description: body.description,
+        types,
         placeName: body.placeName,
         isSensitive: body.isSensitive,
         mediaState: pending ? "Pending" : "Ready",

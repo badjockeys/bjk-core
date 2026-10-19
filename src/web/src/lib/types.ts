@@ -81,7 +81,10 @@ export interface PostDto {
   author: AuthorDto;
   title: string;
   description: string | null;
+  /** The main type of bad driving (the first of `types`). */
   category: IncidentCategory;
+  /** Every type of bad driving, main first, shown as tags. Absent from older API versions: use `category`. */
+  types?: IncidentCategory[];
   incidentAt: string;
   location: LocationDto;
   status: PostStatus;
@@ -269,7 +272,8 @@ export interface MediaDto {
 export interface CreatePostRequest {
   title: string;
   description: string | null;
-  category: IncidentCategory;
+  /** Every type of bad driving that applies, the main one first (at least one). */
+  types: IncidentCategory[];
   incidentAt: string;
   latitude: number;
   longitude: number;

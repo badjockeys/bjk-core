@@ -50,3 +50,11 @@ export function categoryHref(value: IncidentCategory): string {
   const slug = CATEGORIES.find((c) => c.value === value)?.slug;
   return slug ? `/c/${slug}` : "/";
 }
+
+/** Every type of bad driving on a post, main first (older API versions only send the one category). */
+export function postTypes(post: { category: IncidentCategory; types?: IncidentCategory[] | null }): IncidentCategory[] {
+  return post.types && post.types.length > 0 ? post.types : [post.category];
+}
+
+/** The most "What happened?" can hold. */
+export const DESCRIPTION_MAX = 500;
