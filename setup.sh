@@ -23,7 +23,8 @@ node_ok() { has node && [ "$(node --version | sed 's/^v//; s/\..*//')" -ge 24 ];
 dotnet_ok() { has dotnet && dotnet --list-sdks 2>/dev/null | grep -q '^10\.'; }
 
 # Tools that may be installed but not yet on this shell's PATH.
-export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/local/share/dotnet:$HOME/.docker/bin:/Applications/Docker.app/Contents/Resources/bin:$PATH"
+# Microsoft's .NET install (/usr/local/share/dotnet) goes first: Homebrew's own "dotnet" formula only sees its own SDK.
+export PATH="/usr/local/share/dotnet:/opt/homebrew/bin:/usr/local/bin:$HOME/.docker/bin:/Applications/Docker.app/Contents/Resources/bin:$PATH"
 
 # --- Tools -----------------------------------------------------------------------------------------------------------
 step "Checking tools"
@@ -43,7 +44,7 @@ if [ "$(uname -s)" = Darwin ]; then
     if $check; then echo "$name: installed"; return; fi
     printf '\033[33m%s: installing...\033[0m\n' "$name"
     brew install "$@" || fail "$name didn't install: brew install $*"
-    $check || fail "$name installed but isn't on your PATH. Open a new terminal and run this again."
+    $check || fail "$name installed, but this terminal still finds an older copy or none. Open a new terminal and run this again; if it repeats, run: which -a ${name%% *}"
     done_ "$name: installed"
   }
   has_gh() { has gh; }
@@ -53,6 +54,18 @@ if [ "$(uname -s)" = Darwin ]; then
 
   install "GitHub CLI" has_gh gh
   install ".NET 10 SDK" dotnet_ok --cask dotnet-sdk
+
+  # A Homebrew "dotnet" formula (brew install dotnet) puts its own dotnet on the PATH, which only knows its own
+  # SDK and hides Microsoft's install. Unlink it (it stays installed; brew link dotnet restores it).
+  if brew list --formula dotnet >/dev/null 2>&1 && [ -e "$(brew --prefix)/bin/dotnet" ]; then
+    echo "Unlinking Homebrew's dotnet formula, which hides the .NET 10 SDK (brew link dotnet puts it back)."
+    brew unlink dotnet >/dev/null
+  fi
+  # Make sure new terminals (and VS Code) find Microsoft's install first too, even if ~/.zshrc sets PATH itself.
+  if [ -x /usr/local/share/dotnet/dotnet ] && ! grep -qs '/usr/local/share/dotnet' "$HOME/.zshrc"; then
+    printf '\n# .NET SDK (added by Bad Jockeys setup.sh)\nexport PATH="/usr/local/share/dotnet:$PATH"\n' >> "$HOME/.zshrc"
+    echo "Added /usr/local/share/dotnet to your PATH in ~/.zshrc"
+  fi
   if ! node_ok; then
     printf '\033[33mNode.js 24: installing...\033[0m\n'
     brew install node@24 && brew link --overwrite --force node@24 || fail "Node.js didn't install: brew install node@24"
