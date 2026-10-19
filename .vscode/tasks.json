@@ -1,0 +1,142 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Set up (one-off)",
+      "detail": "scripts/setup-local.mjs: config files, Docker, user secrets, models, build",
+      "type": "shell",
+      "command": "node scripts/setup-local.mjs",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      }
+    },
+    {
+      "label": "Run Bad Jockeys",
+      "detail": "Identity server, API, media worker and web app, each in its own terminal",
+      "dependsOn": [
+        "Identity server",
+        "API",
+        "Media worker",
+        "Web app"
+      ],
+      "dependsOrder": "parallel",
+      "problemMatcher": []
+    },
+    {
+      "label": "Identity server",
+      "type": "shell",
+      "command": "dotnet run --project src/BJK.Idsrv.Host --launch-profile https",
+      "options": {
+        "cwd": "${workspaceFolder}/../bjk-identity-server"
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "dedicated",
+        "group": "bjk",
+        "reveal": "always"
+      }
+    },
+    {
+      "label": "API",
+      "type": "shell",
+      "command": "dotnet run --project src/BJK.Core.Api --launch-profile https",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "dedicated",
+        "group": "bjk",
+        "reveal": "always"
+      }
+    },
+    {
+      "label": "Media worker",
+      "type": "shell",
+      "command": "dotnet run --project src/BJK.Core.MediaWorker --launch-profile worker",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "dedicated",
+        "group": "bjk",
+        "reveal": "always"
+      }
+    },
+    {
+      "label": "Web app",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": {
+        "cwd": "${workspaceFolder}/src/web",
+        "env": {
+          "NODE_EXTRA_CA_CERTS": "${userHome}/.aspnet/dev-cert.pem"
+        }
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "dedicated",
+        "group": "bjk",
+        "reveal": "always"
+      }
+    },
+    {
+      "label": "Start Docker services",
+      "type": "shell",
+      "command": "docker compose up -d",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "dependsOn": [
+        "Start SQL Server"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "Stop Docker services",
+      "type": "shell",
+      "command": "docker compose stop",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "dependsOn": [
+        "Stop SQL Server"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "Stop SQL Server",
+      "type": "shell",
+      "command": "docker compose stop",
+      "options": {
+        "cwd": "${workspaceFolder}/../bjk-identity-server"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent"
+      }
+    },
+    {
+      "label": "Start SQL Server",
+      "type": "shell",
+      "command": "docker compose up -d",
+      "options": {
+        "cwd": "${workspaceFolder}/../bjk-identity-server"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent"
+      }
+    }
+  ]
+}

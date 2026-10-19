@@ -24,3 +24,6 @@ out/
 !*.tfvars.example
 
 .DS_Store
+
+# Local tools and downloads (e.g. the blurring models from scripts/setup-local.mjs)
+.local/
