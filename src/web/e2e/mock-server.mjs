@@ -734,7 +734,8 @@ async function api(req, res, url) {
     const body = await json();
     if (!db.profiles.has(me)) return invalid(res, "Profile", "Create your profile before posting.");
     if (!body.title?.trim()) return invalid(res, "Title", "Add a title.");
-    const types = [...new Set(Array.isArray(body.types) && body.types.length > 0 ? body.types : body.category ? [body.category] : [])];
+    const sent = Array.isArray(body.types) && body.types.length > 0 ? body.types : [body.category];
+    const types = [...new Set(sent.filter(Boolean))];
     if (types.length === 0) return invalid(res, "Types", "Choose at least one type of bad driving.");
     if (!types.every((t) => CATEGORIES.has(t))) return invalid(res, "Types", "Choose a type from the list.");
     if ((body.description ?? "").trim().length > 500)

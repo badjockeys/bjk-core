@@ -51,8 +51,10 @@ export function categoryHref(value: IncidentCategory): string {
   return slug ? `/c/${slug}` : "/";
 }
 
+type HasTypes = { category: IncidentCategory; types?: IncidentCategory[] | null };
+
 /** Every type of bad driving on a post, main first (older API versions only send the one category). */
-export function postTypes(post: { category: IncidentCategory; types?: IncidentCategory[] | null }): IncidentCategory[] {
+export function postTypes(post: HasTypes): IncidentCategory[] {
   return post.types && post.types.length > 0 ? post.types : [post.category];
 }
 

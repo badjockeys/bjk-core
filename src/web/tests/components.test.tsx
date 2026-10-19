@@ -101,7 +101,8 @@ describe("PostCard", () => {
   });
 
   it("shows every type of bad driving as a tag, main first", () => {
-    render(<PostCard post={{ ...post, category: "Tailgating", types: ["Tailgating", "RoadRage"] }} viewer={ANONYMOUS} />);
+    const tagged: PostDto = { ...post, category: "Tailgating", types: ["Tailgating", "RoadRage"] };
+    render(<PostCard post={tagged} viewer={ANONYMOUS} />);
 
     const tags = within(screen.getByRole("list", { name: "Types of bad driving" })).getAllByRole("link");
     expect(tags.map((t) => t.textContent)).toEqual(["Tailgating", "Road rage"]);
