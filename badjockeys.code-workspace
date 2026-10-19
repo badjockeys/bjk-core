@@ -1,0 +1,36 @@
+{
+  "folders": [
+    {
+      "name": "bjk-core",
+      "path": "."
+    },
+    {
+      "name": "bjk-identity-server",
+      "path": "../bjk-identity-server"
+    },
+    {
+      "name": "bjk-modules",
+      "path": "../bjk-modules"
+    },
+    {
+      "name": "bjk-mobile",
+      "path": "../bjk-mobile"
+    }
+  ],
+  "settings": {
+    "files.exclude": {
+      "**/bin": true,
+      "**/obj": true,
+      "**/node_modules": true,
+      "**/.next": true
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      "ms-dotnettools.csdevkit",
+      "ms-mssql.mssql",
+      "dbaeumer.vscode-eslint",
+      "esbenp.prettier-vscode"
+    ]
+  }
+}

@@ -20,20 +20,61 @@ One SQL Server holds both databases:
 | `idsrv` | Identity server | `auth` (accounts), `idsrv` (tokens, keys), `users` (profiles) |
 | `badjockeys` | API, media worker | `media`, `profiles`, `posts` (one schema per module), `messaging` (the queues) |
 
+## Quick start: one command
+
+On a new computer, one script installs everything and sets it all up. It only needs the script itself: download it from GitHub (signed in, open the file in bjk-core and use **Download raw file**), or use it from a bjk-core you've already cloned.
+
+| Computer | Run |
+|---|---|
+| Windows 10 or 11 | `powershell -ExecutionPolicy Bypass -File setup.ps1` |
+| Mac | `bash setup.sh` |
+
+It's safe to run again, and skips whatever is already done. It:
+
+1. installs whatever tools are missing (Git, GitHub CLI, .NET 10 SDK, Node.js 24, Docker Desktop, ffmpeg, VS Code) with winget on Windows or Homebrew on a Mac, plus WSL 2 on Windows and Rosetta on Apple Silicon;
+2. starts Docker Desktop;
+3. signs you in to GitHub in your browser. That sign-in also gives access to the private `BJK.Modules` packages, so there's no token to create;
+4. clones the four repos side by side (next to this bjk-core, or into `~/Git/GitHub/badjockeys` on a Mac and `%USERPROFILE%\Git\badjockeys` on Windows);
+5. runs the project setup, `scripts/setup-local.mjs` (below);
+6. opens `bjk-core/badjockeys.code-workspace` in VS Code.
+
+Then in VS Code: **Terminal → Run Task… → "Run Bad Jockeys"**, and open http://localhost:3000.
+
+Expect to approve a few things: Windows UAC prompts or your Mac password for installs, Docker Desktop's terms the first time it opens, the GitHub sign-in in your browser, and trusting the HTTPS certificate. If Windows has to turn on WSL 2, it asks you to restart; run the script again afterwards. On Linux, install the tools with your package manager ([step 1](#1-install-the-prerequisites)), then run `bash setup.sh`.
+
+### The project setup on its own
+
+`scripts/setup-local.mjs` is the part that sets up the project once the tools are there. Run it on its own with **Terminal → Run Task… → "Set up (one-off)"** in VS Code, or `node scripts/setup-local.mjs` in bjk-core. It:
+
+- checks the tools, and access to the package feed. It uses the `NuGetPackageSourceCredentials_badjockeys` variable if you've set one ([step 3](#3-give-nuget-access-to-the-bad-jockeys-package-feed)); otherwise it takes your GitHub CLI sign-in and saves it in your user-level `NuGet.Config`, so every terminal and editor can restore the packages;
+- creates your git-ignored config files from the templates, with your own SQL password and secrets (`bjk-identity-server/.env` and `user-secrets.json`, `bjk-core/user-secrets.json`, `src/web/.env.local`); files you already have are left alone;
+- trusts the HTTPS development certificate and exports it for Node.js;
+- starts SQL Server and S3Mock in Docker and waits for SQL Server to be healthy;
+- loads the .NET user secrets (replacing what was there for the identity server and the API);
+- downloads the face and number plate blurring models into `bjk-core/.local/models` (git-ignored), checking each file's SHA-256;
+- builds the .NET apps and installs the web app's packages.
+
+`node scripts/setup-local.mjs --config-only` just creates the config files.
+
+"Run Bad Jockeys" starts the identity server, the API, the media worker and the web app, each in its own terminal. The first time, the media worker can start before the API has created the database; if it errors, run the "Media worker" task again. Other tasks: "Start Docker services" and "Stop Docker services". Steps 1 to 8 below explain everything the scripts do, if you'd rather do it by hand or something goes wrong.
+
 Neither app needs you to create its database. Each one creates its database and applies schema changes when it starts, and refuses any change that would delete data (see [Database changes](#database-changes)).
 
 ## 1. Install the prerequisites
 
-These steps are for macOS. Windows and Linux use the same tools.
+macOS, Windows and Linux use the same tools. The commands in this guide are for macOS's terminal; on Windows, use PowerShell, where `~` and `cp` work the same.
 
-| Tool | Version | Install | Check |
-|---|---|---|---|
-| Homebrew | latest | https://brew.sh | `brew --version` |
-| Git | any recent | `brew install git` | `git --version` |
-| .NET SDK | 10.0.100 or later | `brew install --cask dotnet-sdk`, or https://dotnet.microsoft.com/download | `dotnet --version` |
-| Node.js | 24 LTS or later | `brew install node@24`, or `nvm install 24` | `node --version` |
-| Docker Desktop | latest | `brew install --cask docker`, then open it once | `docker compose version` |
-| GitHub CLI (optional) | latest | `brew install gh` | `gh --version` |
+| Tool | Version | macOS | Windows | Check |
+|---|---|---|---|---|
+| Homebrew (macOS only) | latest | https://brew.sh | | `brew --version` |
+| Git | any recent | `brew install git` | `winget install Git.Git` | `git --version` |
+| .NET SDK | 10.0.100 or later | `brew install --cask dotnet-sdk` | `winget install Microsoft.DotNet.SDK.10` | `dotnet --version` |
+| Node.js | 24 LTS or later | `brew install node@24`, or `nvm install 24` | `winget install OpenJS.NodeJS.LTS` | `node --version` |
+| Docker Desktop | latest | `brew install --cask docker`, then open it once | `winget install Docker.DockerDesktop` (uses WSL 2), then open it once | `docker compose version` |
+| ffmpeg | any recent | `brew install ffmpeg` | `winget install Gyan.FFmpeg` | `ffmpeg -version` |
+| GitHub CLI (optional) | latest | `brew install gh` | `winget install GitHub.cli` | `gh --version` |
+
+On Windows, open a new terminal after installing so the tools are on your `PATH`.
 
 Then:
 
@@ -43,7 +84,7 @@ Then:
    dotnet dev-certs https --trust
    ```
 
-2. **Turn on Rosetta in Docker Desktop if you have an Apple Silicon Mac.** Go to **Settings → General → "Use Rosetta for x86_64/amd64 emulation on Apple Silicon"**. SQL Server only ships for x86-64.
+2. **Turn on Rosetta in Docker Desktop if you have an Apple Silicon Mac.** (Windows and Intel Macs run SQL Server directly.) Go to **Settings → General → "Use Rosetta for x86_64/amd64 emulation on Apple Silicon"**. SQL Server only ships for x86-64.
 
 3. **Install an editor:**
    - **Rider**, or **VS Code** with the **C# Dev Kit** extension, for the .NET code.
@@ -51,11 +92,7 @@ Then:
 
 4. **Install a SQL tool:** VS Code's **SQL Server (mssql)** extension, Rider's database window, or DataGrip.
 
-5. **Install ffmpeg.** The media worker uses it to convert videos and photos:
-
-   ```bash
-   brew install ffmpeg
-   ```
+5. **ffmpeg** (in the table above) is what the media worker uses to convert videos and photos.
 
 ## 2. Get the code
 
@@ -75,17 +112,25 @@ The default branch is `master`. All work happens on `feature/*` branches and is 
 
 The modules (`BJK.Modules.*`) are private NuGet packages on GitHub Packages, so restoring them needs a GitHub token.
 
+> `setup.ps1`, `setup.sh` and `scripts/setup-local.mjs` do this for you from your GitHub CLI sign-in (`gh auth login --scopes read:packages`). Use the steps below only if you'd rather manage your own token.
+
 1. **Create the token.** On GitHub, go to **Settings → Developer settings → Personal access tokens → Tokens (classic) → Generate new token (classic)**. Tick only **`read:packages`**, then copy the token.
 
-2. **Store it as an environment variable.** Add this line to `~/.zshrc`, then open a new terminal:
+2. **Store it as an environment variable.** On macOS, add this line to `~/.zshrc`, then open a new terminal:
 
    ```bash
    export NuGetPackageSourceCredentials_badjockeys="Username=<your GitHub username>;Password=<token>"
    ```
 
+   On Windows, run this once in PowerShell, then open a new terminal (and restart VS Code):
+
+   ```powershell
+   [Environment]::SetEnvironmentVariable("NuGetPackageSourceCredentials_badjockeys", "Username=<your GitHub username>;Password=<token>", "User")
+   ```
+
    NuGet uses the variable for the `badjockeys` source in each repo's `nuget.config`, so the token never goes into a repo.
 
-3. **Start your editor from that terminal** (for example `open -a Rider`). Otherwise, log out and back in so the editor sees the variable.
+3. **Start your editor from that terminal** (for example `code bjk-core/badjockeys.code-workspace` or `open -a Rider`). Otherwise, log out and back in so the editor sees the variable.
 
 ## 4. Start SQL Server
 
@@ -249,14 +294,14 @@ Some settings are optional:
 | Setting | Default |
 |---|---|
 | `MediatR:LicenseKey` | Unset. Without it MediatR logs a licence warning. |
-| `Media:MaxVideoBytes` | 500 MB |
+| `Media:MaxVideoBytes` | 150 MB |
 | `Media:MaxImageBytes` | 25 MB |
-| `Media:MaxVideoDurationSeconds` | 300 |
+| `Media:MaxVideoDurationSeconds` | 30 |
 | `Media:UploadUrlLifetime` | `00:15:00` |
-| `Media:OriginalRetention` | `90.00:00:00` |
+| `Media:UnusedOriginalRetention` | `1.00:00:00` (24 hours; originals are deleted once a post is published) |
 | `Email:Provider`, `SMS:Provider` | `Log`: emails and texts are written to the console, not sent |
 | `Media:Processing:MaxConcurrentJobs` | 1 |
-| `Media:Redaction:FaceModelPath`, `PlateModelPath` | Unset: blurring can't run, so every upload goes to `NeedsReview`. Download the models with `pipelines/scripts/download-redaction-models.sh ~/bjk-models` and point these at the two `.onnx` files to get `Ready` media locally |
+| `Media:Redaction:FaceModelPath`, `PlateModelPath` | Unset: blurring can't run, so every upload goes to `NeedsReview`. The setup script downloads the models to `bjk-core/.local/models` and sets these for you. By hand: `pipelines/scripts/download-redaction-models.sh ~/bjk-models` (macOS and Linux), then point these at the two `.onnx` files |
 | `Media:Processing:VideoHeight`, `VideoCrf` | 720, 23 |
 | `Media:Processing:ImageMaxSize`, `ThumbnailMaxSize` | 2048, 640 pixels |
 
@@ -335,7 +380,7 @@ cd ~/Git/GitHub/badjockeys/bjk-core/src/web
 cp .env.local.example .env.local      # then set AUTH_SECRET (openssl rand -base64 32)
 npm install                           # again after package.json changes
 
-# Node.js doesn't read the macOS keychain, so give it the .NET development certificate for https://localhost:5001
+# Node.js doesn't read the system certificate store, so give it the .NET development certificate for https://localhost:5001
 dotnet dev-certs https --export-path ~/.aspnet/dev-cert.pem --format PEM --no-password
 ```
 
@@ -345,10 +390,12 @@ Then, with the identity server, the API and the media worker running (step 7):
 NODE_EXTRA_CA_CERTS=~/.aspnet/dev-cert.pem npm run dev
 ```
 
-Open http://localhost:3000. **Join** goes to the identity server's sign-up page, then its age check, then back to
-the web app to create your profile. Posting, commenting and reacting need a passed age check and a confirmed email
-address; for local testing, the API's `Safety:RequireAgeVerification` can be `false` (see its user-secrets template),
-and the confirmation link is in the identity server's console.
+On Windows (PowerShell): `$env:NODE_EXTRA_CA_CERTS="$HOME\.aspnet\dev-cert.pem"; npm run dev`. The "Web app" task in VS Code sets it for you.
+
+Open http://localhost:3000. **Join** goes to the identity server's sign-up page (email, password and date of birth),
+then back to the web app to create your profile. Posting and commenting need a confirmed email address: the
+confirmation link is in the identity server's console. The age check is only needed to view posts tagged sensitive;
+locally it uses development stand-ins that always pass (`AgeAssurance` in the identity server's user secrets).
 
 | Command (in `src/web`) | Does |
 |---|---|
@@ -434,6 +481,8 @@ cd ~/Git/GitHub/badjockeys/bjk-identity-server && docker compose down -v && dock
 - **`SignatureDoesNotMatch` or `InvalidAccessKeyId` from R2.** The R2 keys are wrong, or the token isn't scoped to the dev buckets.
 - **The API returns `401` with a valid-looking token.** Check that `Authentication:Authority` is `https://localhost:5001`, that the identity server is running, and that you ran `dotnet dev-certs https --trust`.
 - **The SQL container keeps restarting on an Apple Silicon Mac.** Turn on Rosetta in Docker Desktop (step 1).
+- **Docker Desktop on Windows says WSL 2 is missing or out of date.** Run `wsl --install` (or `wsl --update`) in an administrator PowerShell, restart, then open Docker Desktop again.
+- **`'ffmpeg' is not recognized` on Windows.** Open a new terminal after installing it, or set `Media:Processing:FfmpegPath` and `FfprobePath` to the full paths (`where.exe ffmpeg`).
 - **The web app says `unable to verify the first certificate` or `self-signed certificate` when signing in.** Node.js doesn't trust the .NET development certificate: export it and start the web app with `NODE_EXTRA_CA_CERTS` (step 8).
 - **Signing in comes back with "Signing in didn't work".** Check the web app's console. Usually `IDSRV_CLIENT_SECRET` doesn't match the identity server's `Clients:Web:Secret`, or `APP_URL` doesn't match `Clients:Web:RedirectUris`.
 - **A port is already in use (1433, 9090, 5001, 5101 or 3000).** Stop whatever is using it (`lsof -i :<port>`), or change the left-hand port in the compose file and the matching setting.
