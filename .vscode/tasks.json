@@ -80,7 +80,10 @@
         "panel": "dedicated",
         "group": "bjk",
         "reveal": "always"
-      }
+      },
+      "dependsOn": [
+        "Wait for API (task)"
+      ]
     },
     {
       "label": "Web app",
@@ -98,7 +101,10 @@
         "panel": "dedicated",
         "group": "bjk",
         "reveal": "always"
-      }
+      },
+      "dependsOn": [
+        "Wait for identity server and API (task)"
+      ]
     },
     {
       "label": "Stop Docker services",
@@ -123,6 +129,37 @@
         "reveal": "always",
         "panel": "shared"
       }
+    },
+    {
+      "label": "Wait for identity server and API (task)",
+      "type": "process",
+      "command": "node",
+      "args": [
+        "${workspaceFolder}/scripts/wait-for-apps.mjs",
+        "identity",
+        "api"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "dedicated"
+      },
+      "hide": true
+    },
+    {
+      "label": "Wait for API (task)",
+      "type": "process",
+      "command": "node",
+      "args": [
+        "${workspaceFolder}/scripts/wait-for-apps.mjs",
+        "api"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "dedicated"
+      },
+      "hide": true
     }
   ]
 }
