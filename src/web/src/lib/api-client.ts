@@ -7,6 +7,7 @@
 
 import {
   AreaClient,
+  DraftsClient,
   HeatmapClient,
   MediaClient,
   NotificationsClient,
@@ -26,6 +27,7 @@ import type {
   ProblemDetails,
   PublicReportRequest,
   ReactionType,
+  SaveDraftRequest,
   ReportReason,
   RoadUser,
 } from "./types";
@@ -211,6 +213,14 @@ export function endpoints(api: ApiClient) {
       respondToTag: (token: string, postId: string, accept: boolean) =>
         posts(token).posts_RespondToTag(postId, { accept }),
       removeMyTag: (token: string, postId: string) => posts(token).posts_RemoveMyTag(postId),
+    },
+    drafts: {
+      list: (token: string) => client(DraftsClient, { token }).drafts_List(),
+      get: (token: string, draftId: string) => client(DraftsClient, { token }).drafts_Get(draftId),
+      create: (token: string, body: SaveDraftRequest) => client(DraftsClient, { token }).drafts_Create(body),
+      update: (token: string, draftId: string, body: SaveDraftRequest) =>
+        client(DraftsClient, { token }).drafts_Update(draftId, body),
+      remove: (token: string, draftId: string) => client(DraftsClient, { token }).drafts_Delete(draftId),
     },
     comments: {
       list: (token: string, postId: string, page = 1, pageSize = 20) =>

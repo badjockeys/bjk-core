@@ -99,6 +99,8 @@ function seed() {
   });
   const dave = USERS.dave.id;
   db = {
+    // Drafts of posts (bjk-modules DraftsController): up to 5 each.
+    drafts: [],
     profiles: new Map([
       [
         dave,
@@ -942,7 +944,79 @@ async function api(req, res, url) {
     created.latitude = Math.round(body.latitude / 0.0045) * 0.0045;
     created.longitude = body.longitude;
     db.posts.unshift(created);
+    if (body.draftId) db.drafts = db.drafts.filter((d) => !(d.id === body.draftId && d.authorId === me));
     return send(res, 201, postDto(created, me));
+  }
+
+  // Drafts: like bjk-modules' DraftsController.
+  const draftDto = (d) => ({
+    ...d,
+    authorId: undefined,
+    mediaIds: undefined,
+    media: d.mediaIds
+      .map((id) => db.media.get(id))
+      .filter((m) => m && m.status !== "Deleted")
+      .map((m) => ({
+        mediaId: m.id,
+        mediaType: m.mediaType,
+        status: m.status,
+        thumbnailUrl: m.thumbnailUrl,
+        playbackUrl: m.playbackUrl,
+        durationSeconds: m.durationSeconds,
+        width: m.width,
+        height: m.height,
+        failureReason: m.failureReason,
+      })),
+    expiresAt: new Date(Date.parse(d.updatedAt) + 30 * 86_400_000).toISOString(),
+  });
+  const draftFrom = (body) => ({
+    title: body.title ?? null,
+    description: body.description ?? null,
+    types: body.types ?? [],
+    incidentAt: body.incidentAt ?? null,
+    latitude: body.latitude ?? null,
+    longitude: body.longitude ?? null,
+    placeName: body.placeName ?? null,
+    isSensitive: !!body.isSensitive,
+    passengers: body.passengers ?? [],
+    vehicleType: body.vehicleType ?? null,
+    vehicleMake: body.vehicleMake ?? null,
+    vehicleModel: body.vehicleModel ?? null,
+    vehicleColour: body.vehicleColour ?? null,
+    reportedToPolice: body.reportedToPolice ?? null,
+    mediaIds: body.mediaIds ?? [],
+    updatedAt: new Date().toISOString(),
+  });
+  if (path === "/api/posts/drafts" && method === "GET") {
+    if (!requireUser()) return;
+    const mine = db.drafts
+      .filter((d) => d.authorId === me)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    return send(res, 200, mine.map(draftDto));
+  }
+  if (path === "/api/posts/drafts" && method === "POST") {
+    if (!requireUser()) return;
+    const body = await json();
+    if (db.drafts.filter((d) => d.authorId === me).length >= 5)
+      return invalid(res, "Drafts", "You can keep up to 5 drafts. Post or delete one first.");
+    const now = new Date().toISOString();
+    const draft = { id: randomUUID(), authorId: me, createdAt: now, ...draftFrom(body) };
+    db.drafts.push(draft);
+    return send(res, 201, draftDto(draft));
+  }
+  if ((m = path.match(/^\/api\/posts\/drafts\/([0-9a-f-]{36})$/))) {
+    if (!requireUser()) return;
+    const draft = db.drafts.find((d) => d.id === m[1] && d.authorId === me);
+    if (!draft) return problem(res, 404, "Draft not found.");
+    if (method === "GET") return send(res, 200, draftDto(draft));
+    if (method === "PUT") {
+      Object.assign(draft, draftFrom(await json()));
+      return send(res, 200, draftDto(draft));
+    }
+    if (method === "DELETE") {
+      db.drafts = db.drafts.filter((d) => d !== draft);
+      return send(res, 204);
+    }
   }
   if ((m = path.match(/^\/api\/posts\/([0-9a-f-]{36})$/))) {
     const p = db.posts.find((x) => x.id === m[1]);

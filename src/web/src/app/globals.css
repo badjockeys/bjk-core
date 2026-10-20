@@ -2047,6 +2047,81 @@ dialog.composer-dialog::backdrop {
   border-top: 1px solid var(--line);
 }
 
+/* Drafts: the prompt when leaving, the link to them and their list. */
+.cmp-leave-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cmp-drafts-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #f5fbfe;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cmp-draft-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.cmp-draft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.cmp-draft-open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cmp-draft-thumb {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: #eef0f2;
+}
+
+.cmp-draft-thumb-empty {
+  display: grid;
+  place-items: center;
+}
+
+.cmp-draft-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .cmp-types {
   border: 0;
   margin: 0;
