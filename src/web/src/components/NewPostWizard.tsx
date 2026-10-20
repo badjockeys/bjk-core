@@ -8,7 +8,7 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { discardMedia, getMedia } from "@/actions/media";
 import { createPost } from "@/actions/posts";
 import { followBlocker } from "@/lib/blockers";
-import { categoryLabel, CATEGORY_CHOICES } from "@/lib/categories";
+import { categoryLabel, CATEGORY_CHOICES, DESCRIPTION_MAX } from "@/lib/categories";
 import { duration, plural, ukLocalToIso } from "@/lib/format";
 import { shrinkPhoto } from "@/lib/image-resize";
 import type { IncidentCategory } from "@/lib/types";
@@ -358,7 +358,7 @@ export function NewPostWizard({
       const request = {
         title: fields.title,
         description: fields.description || null,
-        category: fields.category as IncidentCategory,
+        types: [fields.category as IncidentCategory],
         incidentAt: ukLocalToIso(fields.date, fields.time)!,
         latitude: round6(fields.pin!.lat),
         longitude: round6(fields.pin!.lng),
@@ -622,7 +622,7 @@ export function NewPostWizard({
               <textarea
                 className={`textarea${errors.description ? " input-error" : ""}`}
                 rows={3}
-                maxLength={5000}
+                maxLength={DESCRIPTION_MAX}
                 value={fields.description}
                 onChange={(e) => set("description", e.target.value)}
               />

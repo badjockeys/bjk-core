@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { categoryHref, categoryLabel } from "@/lib/categories";
+import { categoryHref, categoryLabel, postTypes } from "@/lib/categories";
 import { timeAgo } from "@/lib/format";
 import { postPath, profilePath } from "@/lib/paths";
 import type { PostDto } from "@/lib/types";
@@ -81,12 +81,18 @@ export function PostCard({ post, viewer }: { post: PostDto; viewer: Viewer }) {
               {post.location.placeName}
             </span>
           ) : null}
-          <Link href={categoryHref(post.category)}>
-            <TagIcon />
-            {categoryLabel(post.category)}
-          </Link>
           {post.isSensitive ? <span>Sensitive</span> : null}
         </div>
+        <ul className="type-tags" aria-label="Types of bad driving">
+          {postTypes(post).map((type) => (
+            <li key={type}>
+              <Link href={categoryHref(type)} className="type-tag">
+                <TagIcon />
+                {categoryLabel(type)}
+              </Link>
+            </li>
+          ))}
+        </ul>
         <PostMedia post={post} signedIn={viewer.signedIn} />
         <div className="tw-actions">
           <Link href={`${href}#comments`} className="tw-act" aria-label={`${post.commentCount} comments`}>

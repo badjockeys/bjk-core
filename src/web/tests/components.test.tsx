@@ -100,6 +100,15 @@ describe("PostCard", () => {
     expect(screen.getByRole("button", { name: /^31 reactions/ })).toBeInTheDocument();
   });
 
+  it("shows every type of bad driving as a tag, main first", () => {
+    const tagged: PostDto = { ...post, category: "Tailgating", types: ["Tailgating", "RoadRage"] };
+    render(<PostCard post={tagged} viewer={ANONYMOUS} />);
+
+    const tags = within(screen.getByRole("list", { name: "Types of bad driving" })).getAllByRole("link");
+    expect(tags.map((t) => t.textContent)).toEqual(["Tailgating", "Road rage"]);
+    expect(tags[1]).toHaveAttribute("href", "/c/road-rage");
+  });
+
   it("shows the author a processing badge while the media are being processed", () => {
     render(
       <PostCard

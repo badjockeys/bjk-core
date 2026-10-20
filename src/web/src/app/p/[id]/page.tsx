@@ -18,7 +18,7 @@ import { SensitiveCover } from "@/components/SensitiveCover";
 import { appealPost } from "@/actions/posts";
 import { api } from "@/lib/api";
 import { getAccessToken, getViewer } from "@/lib/auth";
-import { categoryHref, categoryLabel } from "@/lib/categories";
+import { categoryHref, categoryLabel, postTypes } from "@/lib/categories";
 import { dateTime, plural, postedAt } from "@/lib/format";
 import { joinPath, postPath, profilePath, signInPath } from "@/lib/paths";
 import { earliestExpiry } from "@/lib/links";
@@ -38,7 +38,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: "Not found", robots: { index: false } };
   }
   const where = post.location.placeName ? ` in ${post.location.placeName}` : "";
-  const summary = `${categoryLabel(post.category)}${where}, ${dateTime(post.incidentAt)}.`;
+  const summary = `${postTypes(post).map(categoryLabel).join(", ")}${where}, ${dateTime(post.incidentAt)}.`;
   const description = post.description ? `${summary} ${post.description.slice(0, 160)}` : summary;
   const first = post.media[0];
   // Thumbnails are made by the media worker after faces and number plates are blurred. Sensitive posts only ever
@@ -159,7 +159,15 @@ export default async function PostPage({ params, searchParams }: Props) {
           </div>
           <div className="fact">
             <span className="small muted">What</span>
-            <Link href={categoryHref(post.category)}>{categoryLabel(post.category)}</Link>
+            <ul className="type-tags" aria-label="Types of bad driving">
+              {postTypes(post).map((type) => (
+                <li key={type}>
+                  <Link href={categoryHref(type)} className="type-tag">
+                    {categoryLabel(type)}
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
 
