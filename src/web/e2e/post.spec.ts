@@ -184,3 +184,30 @@ test("the bell shows unread notifications until you open them", async ({ page })
   await page.reload();
   await expect(page.getByLabel("Comments on your posts: by email")).toBeChecked();
 });
+
+test("Premium members choose a home area and switch on area alerts", async ({ page, request }) => {
+  await request.post("http://localhost:4010/__next-user", { data: "dave" });
+  await signIn(page, "/account/notifications");
+
+  const section = page.getByRole("region", { name: "Area alerts" });
+  await section.getByRole("combobox", { name: "Home area" }).fill("Rain");
+  await section.getByRole("option", { name: /Rainhill/ }).click();
+  await expect(section.getByText("Rainhill", { exact: true })).toBeVisible();
+
+  await section.getByLabel("Tell me about new posts near Rainhill").check();
+  await section.getByLabel("10 km").check();
+  await section.getByLabel(/As they're posted/).check();
+  await section.getByRole("button", { name: "Save area alerts" }).click();
+  await expect(section.getByText("Saved.")).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByLabel("10 km")).toBeChecked();
+});
+
+test("Free members can set a home area but alerts are Premium", async ({ page }) => {
+  await signIn(page, "/account/notifications");
+  const section = page.getByRole("region", { name: "Area alerts" });
+  await section.getByRole("combobox", { name: "Home area" }).fill("Kirk");
+  await section.getByRole("option", { name: /Kirkstall/ }).click();
+  await expect(section.getByText("Area alerts are part of Premium.")).toBeVisible();
+});

@@ -75,6 +75,30 @@ export interface NotificationDto {
   isRead: boolean;
 }
 
+/** A UK place from the lookup, position to about 1 km. */
+export interface PlaceDto {
+  name: string;
+  detail: string | null;
+  latitude: number;
+  longitude: number;
+}
+
+export type AreaAlertMode = "Digest" | "Instant";
+
+/** Your home area (private) and Premium area alerts. */
+export interface AreaSettingsDto {
+  placeName: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  enabled: boolean;
+  radiusKm: number;
+  mode: AreaAlertMode;
+  email: boolean;
+  canUseAlerts: boolean;
+  radiuses: number[];
+  instantDailyCap: number;
+}
+
 export interface NotificationSettingDto {
   type: NotificationType;
   label: string;

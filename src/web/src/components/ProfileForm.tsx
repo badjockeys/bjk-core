@@ -3,14 +3,16 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 
+import { setHomeArea } from "@/actions/places";
 import { checkHandle, createProfile, setAvatar, updateProfile } from "@/actions/profiles";
 import { followBlocker } from "@/lib/blockers";
 import { shrinkPhoto } from "@/lib/image-resize";
-import type { ProfileDto, RoadUser } from "@/lib/types";
+import type { PlaceDto, ProfileDto, RoadUser } from "@/lib/types";
 import { contentTypeOf, MAX_PHOTO_BYTES, PHOTO_TYPES, uploadFile, waitUntilReady } from "@/lib/upload";
 
 import { Avatar } from "./Avatar";
 import { TickIcon } from "./icons";
+import { PlaceSearch } from "./PlaceSearch";
 
 const BIO_MAX = 500;
 const HANDLE_RULE = /^[a-z][a-z0-9_]{2,29}$/;
@@ -45,6 +47,7 @@ export function ProfileForm({
   const [bio, setBio] = useState(profile?.bio ?? "");
   const [roadUser, setRoadUser] = useState<RoadUser | null>(profile?.roadUser ?? null);
   const [showRoadUser, setShowRoadUser] = useState(profile?.showRoadUser ?? false);
+  const [homePlace, setHomePlace] = useState<PlaceDto | null>(null);
   const [photo, setPhoto] = useState<{ file: File; preview: string } | null>(null);
   const [removePhoto, setRemovePhoto] = useState(false);
   const [handleState, setHandleState] = useState<HandleState>({ kind: "idle", message: "" });
@@ -137,6 +140,11 @@ export function ProfileForm({
           setFormError(saved.error);
         }
         return;
+      }
+
+      if (homePlace) {
+        // Best effort: the profile is saved either way, and the area can be chosen again.
+        await setHomeArea(homePlace);
       }
 
       try {
@@ -253,19 +261,31 @@ export function ProfileForm({
           />
           {fieldError("displayName") ? <span className="error">{fieldError("displayName")}</span> : null}
         </label>
-        <label className="field">
-          <span className="label">
+        <div className="field">
+          <label className="label" htmlFor="profile-area">
             Town or area <span className="muted">(optional)</span>
-          </span>
-          <input
-            className={`input${fieldError("location") ? " input-error" : ""}`}
-            type="text"
-            maxLength={100}
+          </label>
+          <PlaceSearch
+            id="profile-area"
             value={location}
-            onChange={(e) => setLocation(e.target.value)}
+            invalid={Boolean(fieldError("location"))}
+            placeholder="Start typing a town or postcode"
+            onText={(text) => {
+              setLocation(text);
+              setHomePlace(null);
+            }}
+            onPick={(place) => {
+              setLocation(place.name);
+              setHomePlace(place);
+            }}
           />
-          {fieldError("location") ? <span className="error">{fieldError("location")}</span> : null}
-        </label>
+          <span className={fieldError("location") ? "error" : "help"}>
+            {fieldError("location") ??
+              (homePlace
+                ? "Your home area, for area alerts. Only the name shows on your profile."
+                : "Choose from the list to use it as your home area for alerts.")}
+          </span>
+        </div>
       </div>
 
       <label className="field">

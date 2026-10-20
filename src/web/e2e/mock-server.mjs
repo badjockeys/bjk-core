@@ -215,6 +215,7 @@ function seed() {
       ],
     ]),
     notificationSettings: new Map(),
+    areas: new Map(),
   };
   db.posts.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   addComment(
@@ -762,6 +763,51 @@ async function api(req, res, url) {
       page(items, url, (p) => postDto(p, me)),
     );
   }
+  // Places and home areas
+  if (path === "/api/places" && method === "GET") {
+    if (!requireUser()) return;
+    const q = (url.searchParams.get("q") ?? "").toLowerCase();
+    return send(
+      res,
+      200,
+      PLACES.filter((p) => p.name.toLowerCase().startsWith(q)),
+    );
+  }
+  if (path.startsWith("/api/notifications/area")) {
+    if (!requireUser()) return;
+    const premium = viewer.plan === "premium" || viewer.plan === "premium_plus";
+    const area = db.areas.get(me) ?? null;
+    const dto = (a) => ({
+      placeName: a?.placeName ?? null,
+      latitude: a?.latitude ?? null,
+      longitude: a?.longitude ?? null,
+      enabled: !!a?.enabled && premium,
+      radiusKm: a?.radiusKm ?? 5,
+      mode: a?.mode ?? "Digest",
+      email: !!a?.email,
+      canUseAlerts: premium,
+      radiuses: [2, 5, 10, 25],
+      instantDailyCap: 10,
+    });
+    if (path === "/api/notifications/area" && method === "GET") return send(res, 200, dto(area));
+    if (path === "/api/notifications/area" && method === "DELETE") {
+      db.areas.delete(me);
+      return send(res, 204);
+    }
+    if (path === "/api/notifications/area/home" && method === "PUT") {
+      const body = await json();
+      const next = { ...(area ?? {}), ...body };
+      db.areas.set(me, next);
+      return send(res, 200, dto(next));
+    }
+    if (path === "/api/notifications/area/alerts" && method === "PUT") {
+      const body = await json();
+      if (body.enabled && !premium) return problem(res, 403, "Area alerts are part of Premium.");
+      if (!area) return invalid(res, "PlaceName", "Choose your home area first.");
+      Object.assign(area, body);
+      return send(res, 200, dto(area));
+    }
+  }
   // Notifications
   if (path === "/api/notifications" && method === "GET") {
     if (!requireUser()) return;
@@ -1194,6 +1240,11 @@ async function api(req, res, url) {
   return false;
 }
 
+const PLACES = [
+  { name: "Rainhill", detail: "St. Helens, North West", latitude: 53.42, longitude: -2.77 },
+  { name: "Rainford", detail: "St. Helens, North West", latitude: 53.5, longitude: -2.79 },
+  { name: "Kirkstall", detail: "Leeds, Yorkshire and The Humber", latitude: 53.82, longitude: -1.6 },
+];
 const NOTIFICATION_TYPES = [
   ["PassengerTagged", "Someone tags you as a passenger", true, true],
   ["PassengerAccepted", "Someone accepts your passenger tag", true, false],

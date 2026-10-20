@@ -4,6 +4,8 @@
 
 import type {
   AppealDto,
+  AreaAlertMode,
+  AreaSettingsDto,
   AreaStatsDto,
   BlockDto,
   CommentDto,
@@ -17,6 +19,7 @@ import type {
   NotificationSettingDto,
   PagedResult,
   PassengerTagStatus,
+  PlaceDto,
   PostDto,
   ProblemDetails,
   ProfileDto,
@@ -338,6 +341,10 @@ export function endpoints(api: ApiClient) {
       /** Everything core holds about the user (profile, posts, comments, reactions, reports, media). */
       dataExport: (token: string) => api.request<unknown>("GET", "/api/me/data-export", { token }),
     },
+    places: {
+      search: (token: string, q: string) =>
+        api.request<PlaceDto[]>("GET", "/api/places", { token, query: { q } }),
+    },
     notifications: {
       list: (token: string, page = 1, pageSize = 20) =>
         api.request<PagedResult<NotificationDto>>("GET", "/api/notifications", {
@@ -350,6 +357,14 @@ export function endpoints(api: ApiClient) {
         api.request<void>("POST", "/api/notifications/read", { token, body: { ids } }),
       settings: (token: string) =>
         api.request<NotificationSettingDto[]>("GET", "/api/notifications/settings", { token }),
+      area: (token: string) => api.request<AreaSettingsDto>("GET", "/api/notifications/area", { token }),
+      setHomeArea: (token: string, place: { placeName: string; latitude: number; longitude: number }) =>
+        api.request<AreaSettingsDto>("PUT", "/api/notifications/area/home", { token, body: place }),
+      setAreaAlerts: (
+        token: string,
+        alerts: { enabled: boolean; radiusKm: number; mode: AreaAlertMode; email: boolean },
+      ) => api.request<AreaSettingsDto>("PUT", "/api/notifications/area/alerts", { token, body: alerts }),
+      clearHomeArea: (token: string) => api.request<void>("DELETE", "/api/notifications/area", { token }),
       updateSettings: (token: string, settings: NotificationSettingDto[]) =>
         api.request<NotificationSettingDto[]>("PUT", "/api/notifications/settings", {
           token,

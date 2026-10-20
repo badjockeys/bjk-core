@@ -2306,6 +2306,44 @@ dialog.composer-dialog::backdrop {
   outline-offset: 2px;
 }
 
+/* --- Place search and area alerts --- */
+
+.place-search {
+  position: relative;
+}
+
+.place-list {
+  position: absolute;
+  z-index: 30;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(17, 17, 17, 0.12);
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.place-option {
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.place-option:hover,
+.place-active {
+  background: var(--brand-tint);
+}
+
+.area-alerts {
+  border-top: 1px solid var(--line);
+}
+
 /* --- Responsive --- */
 
 @media (max-width: 1023.98px) {

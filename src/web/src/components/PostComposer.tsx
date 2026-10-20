@@ -39,6 +39,7 @@ import {
   VideoIcon,
 } from "./icons";
 import type { Pin } from "./MapPicker";
+import { PlaceSearch } from "./PlaceSearch";
 import { TrimVideo, type TrimmedClip } from "./TrimVideo";
 
 const MapPicker = dynamic(() => import("./MapPicker"), {
@@ -1088,17 +1089,24 @@ function WherePanel({
     <div className="cmp-panel">
       <PanelHead title="Where did it happen?" onBack={onBack} />
       <div className="cmp-scroll cmp-panel-body">
-        <label className="field">
-          <span className="label">Road and town</span>
-          <input
-            className="input"
-            type="text"
+        <div className="field">
+          <label className="label" htmlFor="where-name">
+            Road and town
+          </label>
+          <PlaceSearch
+            id="where-name"
             maxLength={200}
             placeholder="e.g. A57 Warrington Road, Rainhill"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onText={setName}
+            onPick={(place) => {
+              // A town or postcode area puts the pin near; move it to the exact spot on the map.
+              setName(place.detail ? `${place.name}, ${place.detail.split(",")[0]}` : place.name);
+              setSpot({ lat: place.latitude, lng: place.longitude });
+            }}
           />
-        </label>
+          <span className="help">Pick a town to move the map there, then tap the exact spot.</span>
+        </div>
         <button type="button" className="btn" style={{ alignSelf: "flex-start" }} onClick={locateMe}>
           <PinIcon size={16} color="#111111" />
           Use my location

@@ -7,12 +7,12 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- Bad Jockeys modules, from GitHub Packages (bjk-modules). Keep them on the same version. -->
-    <PackageVersion Include="BJK.Modules.Media" Version="0.2.0-ci.75" />
-    <PackageVersion Include="BJK.Modules.Profiles" Version="0.2.0-ci.75" />
-    <PackageVersion Include="BJK.Modules.Posts" Version="0.2.0-ci.75" />
-    <PackageVersion Include="BJK.Modules.Notifications" Version="0.2.0-ci.75" />
-    <PackageVersion Include="BJK.Modules.Email" Version="0.2.0-ci.75" />
-    <PackageVersion Include="BJK.Modules.SMS" Version="0.2.0-ci.75" />
+    <PackageVersion Include="BJK.Modules.Media" Version="0.2.0-ci.78" />
+    <PackageVersion Include="BJK.Modules.Profiles" Version="0.2.0-ci.78" />
+    <PackageVersion Include="BJK.Modules.Posts" Version="0.2.0-ci.78" />
+    <PackageVersion Include="BJK.Modules.Notifications" Version="0.2.0-ci.78" />
+    <PackageVersion Include="BJK.Modules.Email" Version="0.2.0-ci.78" />
+    <PackageVersion Include="BJK.Modules.SMS" Version="0.2.0-ci.78" />
 
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.13" />
 
