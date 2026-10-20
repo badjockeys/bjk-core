@@ -5,6 +5,7 @@ using BJK.Modules.Notifications;
 using BJK.Modules.Posts;
 using BJK.Modules.Profiles;
 using BJK.Modules.Shared;
+using BJK.Modules.Shared.Configuration;
 using BJK.Modules.Shared.Security;
 using BJK.Modules.SMS;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -68,6 +69,11 @@ builder.Services.AddBjkModules(
 
 builder.Services.AddHealthChecks();
 
+// Outside Development the API refuses to start until every setting has a live value (the modules add their own;
+// see "Deployed environments refuse to start" in the bjk-modules README).
+builder.Services.RequireWhenDeployed("Authentication:Authority", "the identity server's https address", DeployedSettingChecks.IsHttps);
+builder.Services.RequireWhenDeployed("Cors:AllowedOrigins:0", "the web app's https address", DeployedSettingChecks.IsHttps);
+
 // --- API reference ---
 
 // Generated from the controllers by NSwag at run time, so it always matches the code. See ApiDocsOptions.
@@ -95,6 +101,16 @@ builder.Services.AddOpenApiDocument(document =>
 });
 
 var app = builder.Build();
+
+// --check-settings: run every startup settings check and exit, without touching the database. Deploy pipelines run
+// it with the environment's settings before rolling out (docs/local-development.md, "Going live").
+if (SettingsCheck.Requested(args))
+{
+    return SettingsCheck.Run(app.Services);
+}
+
+// Check the settings before touching the database: outside Development a missing setting stops here.
+app.Services.GetService<Microsoft.Extensions.Options.IStartupValidator>()?.Validate();
 
 // Create the database if needed and apply each module's schema changes. Never drops data (see DatabaseMigrator).
 // Skipped while NSwag generates the web app's API client (nswag.json): it only reads the endpoints.
@@ -129,3 +145,4 @@ app.MapControllers();
 app.MapHealthChecks("/health");
 
 await app.RunAsync();
+return 0;

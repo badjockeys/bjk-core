@@ -517,6 +517,38 @@ curl -fs "$BASE_URL/api-docs/index.html" | grep -qi swagger || fail "Swagger UI 
 pass "Swagger UI is served at /api-docs"
 stop_app
 
+# ---------- settings checks (--check-settings) ----------
+
+# Development: the CI settings are fine, so the check passes.
+dotnet run --project "$PROJECT" --configuration Release --no-build --no-launch-profile -- --check-settings > check.log 2>&1 \
+  || { cat check.log; fail "--check-settings failed in Development."; }
+grep -q "Settings check passed" check.log || fail "--check-settings didn't say it passed."
+pass "--check-settings passes in Development"
+
+# Anywhere else, every missing or stand-in setting is listed at once, and it exits 1 without starting.
+if ASPNETCORE_ENVIRONMENT=Production dotnet run --project "$PROJECT" --configuration Release --no-build --no-launch-profile -- --check-settings > check.log 2>&1; then
+  cat check.log; fail "--check-settings passed in Production with local settings."
+fi
+# Matched by setting name: without user secrets most are missing, and the rest are stand-ins ("must be ...").
+for expected in "Email:Provider " "SMS:Provider " "Cors:AllowedOrigins:0 " "Captcha:TurnstileSecretKey " "MediatR:LicenseKey " \
+  "Notifications:AppUrl "; do
+  grep -qF "  $expected" check.log || { cat check.log; fail "--check-settings in Production didn't report: $expected"; }
+done
+pass "--check-settings in Production lists every missing setting and exits 1"
+
+if DOTNET_ENVIRONMENT=Production dotnet run --project "$WORKER_PROJECT" --configuration Release --no-build --no-launch-profile -- --check-settings > check.log 2>&1; then
+  cat check.log; fail "The media worker's --check-settings passed in Production with local settings."
+fi
+grep -qF "Media:Storage:SensitiveBucket is missing" check.log || { cat check.log; fail "The media worker's --check-settings didn't report the sensitive bucket."; }
+pass "media worker --check-settings in Production lists what's missing"
+
+# The API itself refuses to start in Production with local settings.
+if ASPNETCORE_ENVIRONMENT=Production timeout 60 dotnet run --project "$PROJECT" --configuration Release --no-build --no-launch-profile > check.log 2>&1; then
+  fail "The API started in Production with local settings."
+fi
+grep -qF "Email:Provider " check.log || { cat check.log; fail "The API's refusal to start didn't name the missing settings."; }
+pass "API refuses to start in Production without every setting"
+
 # ---------- summary ----------
 
 checklist=$(printf '%s\n' "${PASSED[@]}")
