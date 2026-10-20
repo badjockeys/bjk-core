@@ -136,7 +136,8 @@ export function createApiClient(baseUrl: string, fetchImpl: typeof fetch = fetch
             headers.Authorization = `Bearer ${options.token}`;
           }
 
-          const request: RequestInit & { next?: { revalidate: number } } = { ...init, method, headers };
+          // Next.js adds `next` (data cache options) to RequestInit.
+          const request: RequestInit = { ...init, method, headers };
           if (!options.token && options.revalidate && method === "GET") {
             request.next = { revalidate: options.revalidate };
           } else {
