@@ -36,6 +36,15 @@ jobs:
         continue-on-error: true
         run: |
           exec > >(tee check.log) 2>&1
+          mkdir /tmp/hashcheck && cd /tmp/hashcheck && dotnet new console -n HashCheck -o . >/dev/null
+          dotnet add package Microsoft.Extensions.Identity.Core >/dev/null
+          cat > Program.cs <<'CS'
+          var hasher = new Microsoft.AspNetCore.Identity.PasswordHasher<object>();
+          Console.WriteLine("HASH CHECK: " + hasher.VerifyHashedPassword(new object(), "AQAAAAIAAYagAAAAEGJhZC1qb2NrZXlzLWV4ISHHfiA+ebc/ETxxaRsO5gH4ku9xsWiNpBpdGfCWALv+cg==", "BadJockeys!2026"));
+          Console.WriteLine("WRONG PASSWORD: " + hasher.VerifyHashedPassword(new object(), "AQAAAAIAAYagAAAAEGJhZC1qb2NrZXlzLWV4ISHHfiA+ebc/ETxxaRsO5gH4ku9xsWiNpBpdGfCWALv+cg==", "nope"));
+          CS
+          dotnet run
+          cd "$GITHUB_WORKSPACE"
           set -x
           docker run -d --name bad-jockeys-sql-server -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD=Ci-Passw0rd-2026 -p 1433:1433 mcr.microsoft.com/mssql/server:2022-latest
           docker run -d --name s3 -p 9090:9090 -e initialBuckets=bjk-dev-originals,bjk-dev-public adobe/s3mock:3.12.0
