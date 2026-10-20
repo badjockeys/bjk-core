@@ -7,6 +7,16 @@ permissions:
   contents: write
   packages: read
 env:
+  ConnectionStrings__AppDatabase: Server=localhost,1433;Database=badjockeys;User Id=sa;Password=x;TrustServerCertificate=True
+  Authentication__Authority: http://localhost:5999
+  Cors__AllowedOrigins__0: http://localhost:3000
+  Captcha__TurnstileSecretKey: 1x0000000000000000000000000000000AA
+  Media__Storage__ServiceUrl: http://localhost:9090
+  Media__Storage__AccessKeyId: ci-s3
+  Media__Storage__SecretAccessKey: ci-s3-secret
+  Media__Storage__OriginalsBucket: bjk-ci-originals
+  Media__Storage__PublicBucket: bjk-ci-public
+  Media__Storage__PublicBaseUrl: http://localhost:9090/bjk-ci-public/
   NuGetPackageSourceCredentials_badjockeys: Username=${{ github.actor }};Password=${{ secrets.GITHUB_TOKEN }}
 jobs:
   generate:
