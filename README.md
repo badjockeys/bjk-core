@@ -16,7 +16,7 @@ The Bad Jockeys web app (Next.js) and API host (ASP.NET Core), built as two cont
 
 One script installs the tools and sets everything up on a new computer: `powershell -ExecutionPolicy Bypass -File scripts\setup\setup.ps1` on Windows, `bash scripts/setup/setup.sh` on a Mac. Then, in the VS Code workspace it opens (`badjockeys.code-workspace`), run the task **"Run Bad Jockeys"**. The [local development guide](docs/local-development.md) has the details.
 
-Going live: [`go-live.settings.template.json`](go-live.settings.template.json) (API and media worker) and [`src/web/.env.production.example`](src/web/.env.production.example) (web app) list every setting a deployed environment needs, with placeholders where a real value or supplier account is still missing.
+Going live: see [Going live](docs/local-development.md#going-live) for every setting a deployed environment must change, and what accounts are still needed.
 
 ## The API
 

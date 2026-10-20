@@ -346,13 +346,59 @@ None of these reach the browser, so the same container image works in every envi
 
 ### Adding a setting
 
-If you add a setting, add it to `user-secrets.template.json` (or `.env.local.example`) in the same pull request, so everyone else knows to load it. If live needs a different value, add it to the go-live checklists as well.
+If you add a setting, add it to `user-secrets.template.json` (or `.env.local.example`) in the same pull request, so everyone else knows to load it. If live needs a different value, add it to [Going live](#going-live) as well.
 
 ### Going live
 
-Two checklists list every setting a deployed environment needs, with a `<GO-LIVE ...>` placeholder wherever a real value or supplier account is still missing: [`go-live.settings.template.json`](../go-live.settings.template.json) for the API and the media worker, and [`src/web/.env.production.example`](../src/web/.env.production.example) for the web app (the identity server has its own). Setup never reads them. On your machine nothing needs a supplier account: S3Mock stands in for R2, email and texts go to the console (`Provider: Log`), the CAPTCHA uses Cloudflare's test keys, and maps use OpenStreetMap's public tiles.
+On your machine nothing needs a supplier account: S3Mock stands in for R2, email and texts go to the console (`Provider: Log`), the CAPTCHA uses Cloudflare's test keys, and maps use OpenStreetMap's public tiles. These are what a deployed environment must change. Secrets go in Key Vault; everything else is a container setting (Terraform). Nested keys become environment variables with `__`, e.g. `Email__SendGrid__ApiKey`. The identity server's list is in its README.
 
 **`Log` isn't chosen by environment.** `Email:Provider` and `SMS:Provider` default to `Log` everywhere, so a deployed app without `SendGrid` or `Twilio` set quietly sends nothing (it logs that each message was dropped).
+
+**API and media worker** (they share their settings):
+
+| Setting | Live value | Still needed |
+|---|---|---|
+| `ConnectionStrings:AppDatabase` | Azure SQL `badjockeys` with the managed identity, `Encrypt=True` | The live server |
+| `MediatR:LicenseKey` (secret) | The licence key | Get one |
+| `Authentication:Authority` | The identity server, e.g. `https://auth.badjockeys.com` | The live domain |
+| `Cors:AllowedOrigins` | The web app, e.g. `https://badjockeys.com` | The live domain |
+| `ApiDocs:Enabled` | `false`, unless the API reference should be public | |
+| `Email:Provider` | `SendGrid` | A SendGrid account |
+| `Email:SendGrid:ApiKey` (secret) | A key with Mail Send only | A SendGrid account |
+| `Email:FromAddress`, `Email:ReplyToAddress`, `Email:LogoUrl` | e.g. `no-reply@badjockeys.com` (verified domain), `support@badjockeys.com`, a PNG logo URL | Domain verified in SendGrid |
+| `SMS:Provider` | `Twilio` | A Twilio account |
+| `SMS:Twilio:AccountSid`, `ApiKeySid`, `ApiKeySecret` (secret), `MessagingServiceSid` | An API key rather than the auth token; a Messaging Service rather than one number | A Twilio account; the UK sender ID registered |
+| `Media:Storage:ServiceUrl` | `https://<account id>.r2.cloudflarestorage.com` | A Cloudflare account |
+| `Media:Storage:AccessKeyId`, `SecretAccessKey` (secrets) | An R2 token with Object Read & Write on the live buckets only | A Cloudflare account |
+| `Media:Storage:OriginalsBucket`, `PublicBucket`, `SensitiveBucket` | e.g. `bjk-live-originals` (CORS `PUT` from the web app, 90-day deletion rule), `bjk-live-public`, `bjk-live-sensitive` (private) | The buckets (Terraform) |
+| `Media:Storage:PublicBaseUrl` | The public bucket's domain behind Cloudflare, e.g. `https://media.badjockeys.com/` | The domain |
+| `Media:Processing:FfmpegPath`, `FfprobePath` | Paths in the worker image, e.g. `/usr/bin/ffmpeg` | |
+| `Media:Redaction:FaceModelPath`, `PlateModelPath` | Paths to the two models in the worker image | The models in the image |
+| `Media:Redaction:ReviewEverything` | `true` at launch, so a moderator checks every upload | |
+| `Media:SensitiveDetection:Enabled`, `ModelPath` | `false` until a model is chosen | **A gore and injury model** (not chosen yet) |
+| `Captcha:TurnstileSecretKey` (secret) | The real Turnstile widget's secret | A Cloudflare account |
+| `Screening:Provider` | `Keywords` (built in), or `Http` with `Endpoint` for a classifier | Optional |
+| `Reels:ViewerKeySecret` (secret) | A long random string (`openssl rand -base64 48`) | |
+| `Plans:Overrides` | Empty | **Stripe billing** (not built yet) |
+| `Notifications:AppUrl`, `Posts:AppUrl` | The web app, e.g. `https://badjockeys.com` | The live domain |
+| `Posts:ReportsInbox` (from bjk-modules #30) | `support@badjockeys.com` (the default) | The mailbox must exist |
+| `Heatmap:VehicleMinCellCount`, `Heatmap:ModelFilterMinSpanKm` | Optional: defaults 5 and 10 | |
+
+The API also needs outbound HTTPS to `api.postcodes.io` (place names; no key).
+
+**Web app** (container settings; the names are the same as in `.env.local`):
+
+| Setting | Live value | Still needed |
+|---|---|---|
+| `APP_URL` | e.g. `https://badjockeys.com` | The live domain |
+| `API_BASE_URL` | e.g. `https://api.badjockeys.com` | The live domain |
+| `IDSRV_AUTHORITY` | e.g. `https://auth.badjockeys.com` | The live domain |
+| `IDSRV_CLIENT_SECRET` (secret) | The identity server's `Clients:Web:Secret` | |
+| `AUTH_SECRET` (secret) | `openssl rand -base64 32`; changing it signs everyone out | |
+| `IDSRV_ALLOW_HTTP` | `false` (never true outside the end-to-end tests) | |
+| `TURNSTILE_SITE_KEY` | The real Turnstile widget's site key | A Cloudflare account |
+| `MEDIA_ORIGINS`, `UPLOAD_ORIGINS` | The public media domain, and `https://<account id>.r2.cloudflarestorage.com` | A Cloudflare account |
+| `MAP_TILE_URL`, `MAP_ATTRIBUTION` | A tile provider's URL and attribution (OpenStreetMap's public tiles aren't allowed for heavy use) | **A map tile provider** |
 
 ## 7. Run the back end
 
