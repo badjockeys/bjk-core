@@ -4,7 +4,7 @@ import { useId, useState, useTransition } from "react";
 
 import type { ActionResult } from "@/lib/action-result";
 import { followBlocker } from "@/lib/blockers";
-import { IN_APP_REASONS } from "@/lib/reasons";
+import { IN_APP_REASONS, PROFILE_REASONS } from "@/lib/reasons";
 import type { ReportReason } from "@/lib/types";
 
 import { Modal } from "./Modal";
@@ -54,7 +54,7 @@ export function ReportDialog({
         <fieldset className="field">
           <legend className="label">Why are you reporting it?</legend>
           <div className="col">
-            {IN_APP_REASONS.map((r) => (
+            {(what === "profile" ? PROFILE_REASONS : IN_APP_REASONS).map((r) => (
               <label key={r.value} className="radio">
                 <input
                   type="radio"

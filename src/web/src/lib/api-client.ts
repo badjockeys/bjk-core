@@ -20,6 +20,7 @@ import {
 } from "./generated/api";
 import type {
   AreaAlertMode,
+  CommentSetting,
   HeatmapQuery,
   IncidentCategory,
   NotificationSettingDto,
@@ -216,6 +217,9 @@ export function endpoints(api: ApiClient) {
       respondToTag: (token: string, postId: string, accept: boolean) =>
         posts(token).posts_RespondToTag(postId, { accept }),
       removeMyTag: (token: string, postId: string) => posts(token).posts_RemoveMyTag(postId),
+      /** On your own post: who can comment (everyone, or nobody). */
+      setCommentSetting: (token: string, postId: string, setting: CommentSetting) =>
+        posts(token).posts_SetCommentSetting(postId, { setting }),
     },
     drafts: {
       list: (token: string) => client(DraftsClient, { token }).drafts_List(),
@@ -237,6 +241,12 @@ export function endpoints(api: ApiClient) {
         posts(token).posts_EditComment(postId, commentId, { body }),
       remove: (token: string, postId: string, commentId: string) =>
         posts(token).posts_DeleteComment(postId, commentId),
+      /** The text now and before each edit, newest first. */
+      history: (token: string, postId: string, commentId: string) =>
+        posts(token).posts_GetCommentHistory(postId, commentId),
+      /** On your own post: hide someone's comment from everyone else, or show it again. */
+      setHidden: (token: string, postId: string, commentId: string, hidden: boolean) =>
+        posts(token).posts_SetCommentHidden(postId, commentId, { hidden }),
       react: (token: string, postId: string, commentId: string, type: ReactionType) =>
         posts(token).posts_ReactToComment(postId, commentId, { type }),
       unreact: (token: string, postId: string, commentId: string) =>

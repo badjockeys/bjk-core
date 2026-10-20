@@ -136,6 +136,7 @@ export default async function PostPage({ params, searchParams }: Props) {
             signedIn={viewer.signedIn}
             className="icon-btn"
             afterDelete="home"
+            commentSetting={post.commentSetting}
           />
         </div>
         <WithPassengers passengers={post.passengers} showPending={isMine} />
@@ -215,6 +216,8 @@ export default async function PostPage({ params, searchParams }: Props) {
           viewer={viewer}
           initial={comments}
           totalCount={post.commentCount}
+          postAuthorId={post.author.id}
+          commentsOff={post.commentSetting === "Off"}
           blockerNotice={commentBlocker(viewer, here)}
         />
       ) : (

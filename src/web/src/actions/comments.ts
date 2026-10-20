@@ -3,7 +3,7 @@
 import { api } from "@/lib/api";
 import type { ActionResult } from "@/lib/action-result";
 import { IN_APP_REASONS, isReason } from "@/lib/reasons";
-import type { CommentDto, PagedResult, ReactionType, ReportReason } from "@/lib/types";
+import type { CommentDto, CommentVersionDto, PagedResult, ReactionType, ReportReason } from "@/lib/types";
 
 import { asUser } from "./run";
 
@@ -61,6 +61,23 @@ export async function editComment(
     return { ok: false, error: "Write something first." };
   }
   return asUser((t) => api().comments.edit(t, postId, commentId, body.trim()));
+}
+
+/** A comment's text now and before each edit, newest first. */
+export async function commentHistory(
+  postId: string,
+  commentId: string,
+): Promise<ActionResult<CommentVersionDto[]>> {
+  return asUser((t) => api().comments.history(t, postId, commentId));
+}
+
+/** On your own post: hide someone's comment (and its replies) from everyone else, or show it again. */
+export async function setCommentHidden(
+  postId: string,
+  commentId: string,
+  hidden: boolean,
+): Promise<ActionResult<CommentDto>> {
+  return asUser((t) => api().comments.setHidden(t, postId, commentId, hidden));
 }
 
 export async function deleteComment(postId: string, commentId: string): Promise<ActionResult> {

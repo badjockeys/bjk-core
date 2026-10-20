@@ -197,6 +197,31 @@ test.describe("posting", () => {
   });
 });
 
+test("the post's author hides a comment and turns comments off", async ({ page, request }) => {
+  await request.post("http://localhost:4010/__next-user", { data: "dave" });
+  await signIn(page, `/p/${SEED.photoPost}`);
+
+  const larry = page.locator(".comment", { hasText: "Report it to the store too" });
+  await larry.getByRole("button", { name: /More options for this comment/ }).click();
+  await page.getByRole("menuitem", { name: "Hide comment" }).click();
+  await expect(larry.getByText("You hid this. Nobody else can see it or its replies.")).toBeVisible();
+
+  await page.getByRole("button", { name: "Edit or delete your post" }).click();
+  await page.getByRole("menuitem", { name: "Turn off comments" }).click();
+  await expect(page.getByText("Comments are off. The ones already there stay.")).toBeVisible();
+  // The author can still comment.
+  await expect(page.getByPlaceholder("Add a comment")).toBeVisible();
+
+  // Everyone else sees a placeholder, and can't comment.
+  await page.context().clearCookies();
+  await request.post("http://localhost:4010/__next-user", { data: "roadhog" });
+  await signIn(page, `/p/${SEED.photoPost}`);
+  await expect(page.getByText("Hidden by the post's author")).toBeVisible();
+  await expect(page.getByText("Report it to the store too")).toHaveCount(0);
+  await expect(page.getByText("The author has turned comments off on this post.")).toBeVisible();
+  await expect(page.getByPlaceholder("Add a comment")).toHaveCount(0);
+});
+
 test("comment, reply and react", async ({ page }) => {
   await signIn(page, `/p/${SEED.photoPost}`);
 
@@ -230,7 +255,15 @@ test("comment, reply and react", async ({ page }) => {
   await page.getByRole("button", { name: "Save", exact: true }).click();
   const edited = page.locator(".comment", { hasText: "Same car was outside the school on Monday." });
   await expect(edited).toBeVisible();
-  await expect(edited.getByText("· edited")).toBeVisible();
+
+  // "Edited" shows every version, newest first.
+  await edited.getByRole("button", { name: "Edited: see earlier versions" }).click();
+  const history = page.getByRole("dialog", { name: "Edit history" });
+  await expect(history.getByRole("listitem")).toHaveCount(2);
+  await expect(history.getByRole("listitem").first()).toContainText("Same car was outside the school on Monday.");
+  await expect(history.getByRole("listitem").last()).toContainText("Same car was outside the school yesterday.");
+  await history.getByRole("button", { name: "Close" }).last().click();
+  await expect(history).toBeHidden();
 
   // Reply is in someone else's ⋯ menu too, with Report.
   await larry.getByRole("button", { name: /More options for this comment/ }).click();

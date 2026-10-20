@@ -764,6 +764,24 @@ p {
   overflow-wrap: anywhere;
 }
 
+/* "Edited": a comment's versions, newest first. */
+.comment-history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.comment-version {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
 .replies {
   margin-left: 42px;
   display: flex;
