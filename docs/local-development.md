@@ -489,6 +489,10 @@ locally it uses development stand-ins that always pass (`AgeAssurance` in the id
   12 months, custom). The ranges follow the heat map's plan limits (Free and visitors: 7 days; Premium: 12 months;
   Premium +: 5 years), and Premium can narrow it to an area around a place. Signed-out answers are cached for five
   minutes.
+- **Hashtags** in posts' titles and descriptions link to the tag's page (`/tag/m62`, from
+  `GET /api/posts?hashtag=`). Typing `#` in the composer suggests tags, most used first (`GET /api/hashtags`). The
+  right panel's **Trending** card lists the hashtags and towns with the most posts today against their usual level
+  (`GET /api/trends`), and is hidden when nothing is trending.
 - **Uploads** go straight from the browser to storage: the web server asks the API for a signed link
   (`POST /api/media/uploads`), the browser `PUT`s the file to S3Mock (or R2) with a progress bar, then the web server
   tells the API it's there. Photos are shrunk in the browser first; videos are trimmed to at most 30 seconds and
