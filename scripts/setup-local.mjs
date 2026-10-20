@@ -30,6 +30,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { removeOldGroups, startServices } from "./docker-services.mjs";
 import { OWNER_EMAIL, OWNER_PLAN } from "./sql/example-data/data.mjs";
+import { applyReporting, reportingPassword } from "./sql/reporting/apply.mjs";
 import { ownerId, seedExampleData } from "./sql/example-data/seed.mjs";
 
 const core = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -217,6 +218,9 @@ function createConfig() {
       : `${example.trimEnd()}\nBJK_SQL_PASSWORD=${password}\n`;
     writeIfMissing(envFile, env, carried ? "bjk-core/.env (SQL password carried over from bjk-identity-server/.env)" : "bjk-core/.env");
   }
+
+  // The reports' read-only login (Grafana reads it from .env too).
+  reportingPassword();
 
   const fromTemplate = (template, edit) => {
     const text = readFileSync(template, "utf8")
@@ -432,6 +436,18 @@ async function exampleData() {
   }
 }
 
+function reporting() {
+  step("Setting up the reports");
+  try {
+    applyReporting();
+    ok("Reporting views and the read-only bjk_reporting login are ready. Reports: http://localhost:3300");
+  } catch (error) {
+    console.warn(
+      colour("33", `The reporting views weren't applied: ${error.message}\nRun node scripts/sql/reporting/apply.mjs once the API and identity server have started.`),
+    );
+  }
+}
+
 if (configOnly) {
   createConfig();
 } else {
@@ -444,6 +460,7 @@ if (configOnly) {
   await downloadModels();
   build();
   await exampleData();
+  reporting();
   console.log(
     `\n${colour("1;32", "Setup complete.")} In VS Code: Terminal > Run Task... > "Run Bad Jockeys", then open http://localhost:3000`,
   );
