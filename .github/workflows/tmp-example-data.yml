@@ -1,0 +1,84 @@
+# Temporary: checks the example data scripts against real databases. Removed before review.
+name: tmp-example-data
+on:
+  push:
+    branches: [feature/example-data]
+permissions:
+  contents: write
+  packages: read
+env:
+  NuGetPackageSourceCredentials_badjockeys: Username=${{ github.actor }};Password=${{ secrets.GITHUB_TOKEN }}
+  ConnectionStrings__AppDatabase: Server=localhost,1433;Database=badjockeys;User Id=sa;Password=Ci-Passw0rd-2026;TrustServerCertificate=True
+  Authentication__Authority: http://localhost:5999
+  Authentication__RequireHttpsMetadata: "false"
+  Cors__AllowedOrigins__0: http://localhost:3000
+  Captcha__TurnstileSecretKey: 1x0000000000000000000000000000000AA
+  Media__Storage__ServiceUrl: http://localhost:9090
+  Media__Storage__AccessKeyId: ci-s3
+  Media__Storage__SecretAccessKey: ci-s3-secret
+  Media__Storage__OriginalsBucket: bjk-dev-originals
+  Media__Storage__PublicBucket: bjk-dev-public
+  Media__Storage__PublicBaseUrl: http://localhost:9090/bjk-dev-public/
+  ASPNETCORE_ENVIRONMENT: Development
+  ASPNETCORE_URLS: http://localhost:5100
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Run everything
+        continue-on-error: true
+        run: |
+          exec > >(tee check.log) 2>&1
+          set -x
+          docker run -d --name bad-jockeys-sql-server -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD=Ci-Passw0rd-2026 -p 1433:1433 mcr.microsoft.com/mssql/server:2022-latest
+          docker run -d --name s3 -p 9090:9090 -e initialBuckets=bjk-dev-originals,bjk-dev-public adobe/s3mock:3.12.0
+          echo "BJK_SQL_PASSWORD=Ci-Passw0rd-2026" > .env
+          sql() { docker exec -i bad-jockeys-sql-server /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P Ci-Passw0rd-2026 -C -b -I "$@"; }
+          for _ in $(seq 1 40); do sql -Q "SELECT 1" >/dev/null 2>&1 && break; sleep 3; done
+          dotnet build src/BJK.Core.Api --configuration Release
+          dotnet run --project src/BJK.Core.Api --configuration Release --no-build --no-launch-profile > api.log 2>&1 &
+          for _ in $(seq 1 60); do curl -fs http://localhost:5100/health && break; sleep 2; done
+          # Stand-in for the identity server's database: the tables the scripts touch, as its migrations create them.
+          sql -Q "CREATE DATABASE idsrv"
+          sql -d idsrv <<'SQL'
+          CREATE SCHEMA auth;
+          GO
+          CREATE SCHEMA users;
+          GO
+          CREATE TABLE auth.AspNetUsers (Id nvarchar(450) NOT NULL PRIMARY KEY, AccessFailedCount int NOT NULL, ConcurrencyStamp nvarchar(max), Email nvarchar(256), EmailConfirmed bit NOT NULL, LockoutEnabled bit NOT NULL, LockoutEnd datetimeoffset, NormalizedEmail nvarchar(256), NormalizedUserName nvarchar(256), PasswordHash nvarchar(max), PhoneNumber nvarchar(max), PhoneNumberConfirmed bit NOT NULL, SecurityStamp nvarchar(max), TwoFactorEnabled bit NOT NULL, UserName nvarchar(256));
+          CREATE UNIQUE INDEX UserNameIndex ON auth.AspNetUsers (NormalizedUserName) WHERE NormalizedUserName IS NOT NULL;
+          CREATE TABLE auth.AspNetUserClaims (Id int IDENTITY PRIMARY KEY, ClaimType nvarchar(max), ClaimValue nvarchar(max), UserId nvarchar(450) NOT NULL);
+          CREATE TABLE auth.AspNetUserLogins (LoginProvider nvarchar(450) NOT NULL, ProviderKey nvarchar(450) NOT NULL, ProviderDisplayName nvarchar(max), UserId nvarchar(450) NOT NULL, PRIMARY KEY (LoginProvider, ProviderKey));
+          CREATE TABLE auth.AspNetUserRoles (UserId nvarchar(450) NOT NULL, RoleId nvarchar(450) NOT NULL, PRIMARY KEY (UserId, RoleId));
+          CREATE TABLE auth.AspNetUserTokens (UserId nvarchar(450) NOT NULL, LoginProvider nvarchar(450) NOT NULL, Name nvarchar(450) NOT NULL, Value nvarchar(max), PRIMARY KEY (UserId, LoginProvider, Name));
+          CREATE TABLE users.Accounts (Id uniqueidentifier NOT NULL PRIMARY KEY, AgeCheckAttempts int NOT NULL, AgeCheckAttemptsSince datetimeoffset, AgeCheckMethod nvarchar(20), AgeCheckProvider nvarchar(100), AgeCheckRecordedAt datetimeoffset, AgeCheckReference nvarchar(16), AgeCheckResult nvarchar(30), AgeCheckStatus nvarchar(20) NOT NULL, CreatedAt datetimeoffset NOT NULL, DateOfBirth date, DeactivatedAt datetimeoffset, DeletionDueAt datetimeoffset, RowVersion rowversion NOT NULL, Status nvarchar(20) NOT NULL, UpdatedAt datetimeoffset);
+          GO
+          SQL
+          # The owner, with a profile, so the passenger tag and notification are added.
+          sql -Q "INSERT idsrv.auth.AspNetUsers (Id, UserName, NormalizedUserName, Email, NormalizedEmail, EmailConfirmed, LockoutEnabled, AccessFailedCount, PhoneNumberConfirmed, TwoFactorEnabled) VALUES ('11111111-2222-4333-8444-555555555555', 'aaron.greenhalgh@badjockey.com', 'AARON.GREENHALGH@BADJOCKEY.COM', 'aaron.greenhalgh@badjockey.com', 'AARON.GREENHALGH@BADJOCKEY.COM', 1, 1, 0, 0, 0); INSERT badjockeys.profiles.Profiles (Id, Handle, DisplayName, CreatedAt, ShowRoadUser) VALUES ('11111111-2222-4333-8444-555555555555', 'aaron', 'Aaron Greenhalgh', SYSDATETIMEOFFSET(), 0);"
+          node scripts/seed-example-data.mjs
+          echo "=== second run"
+          node scripts/seed-example-data.mjs
+          sql -Q "SELECT (SELECT COUNT(*) FROM idsrv.auth.AspNetUsers) users, (SELECT COUNT(*) FROM badjockeys.profiles.Profiles) profiles, (SELECT COUNT(*) FROM badjockeys.posts.Posts) posts, (SELECT COUNT(*) FROM badjockeys.media.Media) media, (SELECT COUNT(*) FROM badjockeys.posts.Comments) comments, (SELECT COUNT(*) FROM badjockeys.posts.Reactions) reactions, (SELECT COUNT(*) FROM badjockeys.posts.PostPassengers) tags, (SELECT COUNT(*) FROM badjockeys.notifications.Notifications) notes"
+          sql -Q "SELECT TOP 3 Title, IncidentAt, IsDark FROM badjockeys.posts.Posts ORDER BY IncidentAt DESC"
+          curl -s "http://localhost:5100/api/posts?pageSize=3" | head -c 3000; echo
+          curl -s "http://localhost:5100/api/posts/e0000000-0000-4000-8001-000000000004" | head -c 3000; echo
+          curl -s "http://localhost:5100/api/profiles/dashcam_dave"; echo
+          curl -s -o /dev/null -w "photo %{http_code} %{content_type}\n" "http://localhost:9090/bjk-dev-public/examples/e0000000-0000-4000-8002-000000000011.svg"
+          echo "=== remove"
+          node scripts/seed-example-data.mjs --remove
+          sql -Q "SELECT (SELECT COUNT(*) FROM idsrv.auth.AspNetUsers) users, (SELECT COUNT(*) FROM badjockeys.profiles.Profiles) profiles, (SELECT COUNT(*) FROM badjockeys.posts.Posts) posts, (SELECT COUNT(*) FROM badjockeys.media.Media) media, (SELECT COUNT(*) FROM badjockeys.notifications.Notifications) notes"
+          tail -30 api.log
+      - name: Push the log
+        if: ${{ always() }}
+        run: |
+          git add -f check.log
+          git -c user.name=ci -c user.email=ci@example.com commit -m "Example data check log"
+          git push origin HEAD:refs/heads/tmp/example-data-check --force
