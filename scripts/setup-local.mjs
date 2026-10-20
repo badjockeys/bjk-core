@@ -23,7 +23,8 @@
 
 import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createServer } from "node:net";
+import { createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -348,30 +349,68 @@ async function healthy(url) {
  * start, so any that aren't already running are started for a moment (from the Debug build) and stopped again.
  * A problem here only warns: the rest of the setup is still done.
  */
+/** A free TCP port on this computer, for starting an app briefly without clashing with anything. */
+function freePort() {
+  return new Promise((done, failed) => {
+    const server = createServer();
+    server.once("error", failed);
+    server.listen(0, "127.0.0.1", () => {
+      const { port } = server.address();
+      server.close(() => done(port));
+    });
+  });
+}
+
+/** The last lines of a log file, indented, for an error message. */
+function tail(file, lines = 25) {
+  try {
+    return readFileSync(file, "utf8").trimEnd().split(/\r?\n/).slice(-lines).map((l) => `    ${l}`).join("\n");
+  } catch {
+    return "    (no output)";
+  }
+}
+
 async function exampleData() {
   step("Adding example users and posts");
   const api = join(core, "src", "BJK.Core.Api");
+  const logs = join(core, ".local", "logs");
+  mkdirSync(logs, { recursive: true });
+  // `running` is where the app answers when you run it normally; if it's up there, its database already exists.
   const apps = [
-    { name: "identity server", project: join(idsrv, "src", "BJK.Idsrv.Host"), dll: "BJK.Idsrv.Host.dll", url: "http://localhost:5000" },
-    { name: "API", project: api, dll: "BJK.Core.Api.dll", url: "http://localhost:5100" },
+    { name: "identity server", project: join(idsrv, "src", "BJK.Idsrv.Host"), dll: "BJK.Idsrv.Host.dll", running: "http://localhost:5000", log: "setup-identity-server.log" },
+    { name: "API", project: api, dll: "BJK.Core.Api.dll", running: "http://localhost:5100", log: "setup-api.log" },
   ];
   const started = [];
   try {
     for (const app of apps) {
-      if (await healthy(app.url)) continue;
+      if (await healthy(app.running)) continue;
+      // A free port of its own, so it can't clash with the app already running or anything else (on a Mac,
+      // AirPlay Receiver usually holds port 5000).
+      const url = `http://127.0.0.1:${await freePort()}`;
+      const logFile = join(logs, app.log);
+      const log = createWriteStream(logFile);
       console.log(`Starting the ${app.name} for a moment, so its database is up to date...`);
       const child = spawn("dotnet", [join(app.project, "bin", "Debug", "net10.0", app.dll)], {
         cwd: app.project,
-        env: { ...process.env, ASPNETCORE_ENVIRONMENT: "Development", ASPNETCORE_URLS: app.url },
-        stdio: "ignore",
+        env: { ...process.env, ASPNETCORE_ENVIRONMENT: "Development", ASPNETCORE_URLS: url },
+        stdio: ["ignore", "pipe", "pipe"],
       });
+      child.stdout.pipe(log);
+      child.stderr.pipe(log);
       started.push(child);
       let up = false;
       for (let i = 0; i < 90 && !up && child.exitCode === null; i++) {
         await new Promise((done) => setTimeout(done, 2000));
-        up = await healthy(app.url);
+        up = await healthy(url);
       }
-      if (!up) throw new Error(`The ${app.name} didn't start, so its database may not exist yet.`);
+      if (!up) {
+        const why = child.exitCode === null ? "didn't answer within 3 minutes" : `stopped (exit code ${child.exitCode})`;
+        await new Promise((done) => setTimeout(done, 500));
+        throw new Error(
+          `The ${app.name} ${why}, so its database may not be ready. Its last output (full log: ${logFile}):\n${tail(logFile)}`,
+        );
+      }
+      ok(`The ${app.name} started and its database is up to date.`);
     }
 
     await seedExampleData();
