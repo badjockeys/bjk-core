@@ -1,0 +1,219 @@
+// Writes seed.sql from data.mjs. Run it after changing data.mjs: node scripts/sql/example-data/build-sql.mjs
+// The SQL is committed, so anyone can also run it by hand (Rider, Azure Data Studio, sqlcmd).
+
+import { pbkdf2Sync } from "node:crypto";
+import { writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { ids, OWNER_EMAIL, PASSWORD, posts, users } from "./data.mjs";
+
+const here = dirname(fileURLToPath(import.meta.url));
+
+const CATEGORIES = [
+  "RoadRage",
+  "DangerousOvertaking",
+  "Tailgating",
+  "MobilePhoneUse",
+  "Speeding",
+  "RedLightRunning",
+  "CuttingUp",
+  "Undertaking",
+  "LaneHogging",
+  "ClosePass",
+  "BadParking",
+  "Other",
+];
+
+const q = (value) => (value === null || value === undefined ? "NULL" : `N'${String(value).replace(/'/g, "''")}'`);
+const bit = (value) => (value === null || value === undefined ? "NULL" : value ? "1" : "0");
+
+/**
+ * ASP.NET Core Identity's password hash (version 3: PBKDF2, HMAC-SHA512, 100,000 iterations), as UserManager writes
+ * it. One fixed salt is fine for local example accounts.
+ */
+function identityHash(password) {
+  const salt = Buffer.from("bad-jockeys-ex!!", "utf8");
+  const subkey = pbkdf2Sync(password, salt, 100_000, 32, "sha512");
+  const header = Buffer.alloc(13);
+  header.writeUInt8(0x01, 0);
+  header.writeUInt32BE(2, 1); // KeyDerivationPrf.HMACSHA512
+  header.writeUInt32BE(100_000, 5);
+  header.writeUInt32BE(salt.length, 9);
+  return Buffer.concat([header, salt, subkey]).toString("base64");
+}
+
+/** A UK local date and time, `daysAgo` days back, as a datetimeoffset with the right UK offset (GMT or BST). */
+const ukTime = (daysAgo, time, plusMinutes = 0) => {
+  const [h, m] = time.split(":").map(Number);
+  return `(DATEADD(minute, ${h * 60 + m + plusMinutes}, CAST(DATEADD(day, -${daysAgo}, @Today) AS datetime2)) AT TIME ZONE 'GMT Standard Time')`;
+};
+
+/** Roughly dark in autumn: before 07:30 or from 18:15. */
+const isDark = (time) => {
+  const [h, m] = time.split(":").map(Number);
+  const minutes = h * 60 + m;
+  return minutes < 7 * 60 + 30 || minutes >= 18 * 60 + 15;
+};
+
+// Clears the previous run first, so running it again replaces the example data: everything with an id starting
+// E0000000, and what other people did to it (reactions, comments, tags, notifications). Nothing else is touched.
+const clearSql = `BEGIN TRANSACTION;
+
+DECLARE @Example TABLE (Id uniqueidentifier PRIMARY KEY);
+INSERT @Example SELECT Id FROM badjockeys.profiles.Profiles WHERE LEFT(CONVERT(char(36), Id), 8) = 'E0000000';
+DECLARE @ExamplePosts TABLE (Id uniqueidentifier PRIMARY KEY);
+INSERT @ExamplePosts SELECT Id FROM badjockeys.posts.Posts WHERE LEFT(CONVERT(char(36), Id), 8) = 'E0000000';
+
+DELETE FROM badjockeys.notifications.Notifications
+WHERE LEFT(CONVERT(char(36), Id), 8) = 'E0000000'
+   OR PostId IN (SELECT Id FROM @ExamplePosts) OR ActorId IN (SELECT Id FROM @Example) OR UserId IN (SELECT Id FROM @Example);
+DELETE FROM badjockeys.notifications.AreaAlertItems WHERE PostId IN (SELECT Id FROM @ExamplePosts) OR UserId IN (SELECT Id FROM @Example);
+DELETE FROM badjockeys.notifications.NotificationSettings WHERE UserId IN (SELECT Id FROM @Example);
+DELETE FROM badjockeys.notifications.NotificationContacts WHERE UserId IN (SELECT Id FROM @Example);
+DELETE FROM badjockeys.notifications.AreaSubscriptions WHERE UserId IN (SELECT Id FROM @Example);
+
+DELETE FROM badjockeys.posts.CommentReactions
+WHERE UserId IN (SELECT Id FROM @Example)
+   OR CommentId IN (SELECT Id FROM badjockeys.posts.Comments WHERE PostId IN (SELECT Id FROM @ExamplePosts) OR AuthorId IN (SELECT Id FROM @Example));
+DELETE FROM badjockeys.posts.Comments WHERE PostId IN (SELECT Id FROM @ExamplePosts) AND ParentCommentId IS NOT NULL;
+DELETE FROM badjockeys.posts.Comments WHERE PostId IN (SELECT Id FROM @ExamplePosts) OR AuthorId IN (SELECT Id FROM @Example);
+DELETE FROM badjockeys.posts.Reactions WHERE PostId IN (SELECT Id FROM @ExamplePosts) OR UserId IN (SELECT Id FROM @Example);
+DELETE FROM badjockeys.posts.PostPassengers WHERE PostId IN (SELECT Id FROM @ExamplePosts) OR UserId IN (SELECT Id FROM @Example);
+DELETE FROM badjockeys.posts.ReelPlays WHERE PostId IN (SELECT Id FROM @ExamplePosts);
+DELETE FROM badjockeys.posts.ReelPlayDailyCounts WHERE PostId IN (SELECT Id FROM @ExamplePosts);
+DELETE FROM badjockeys.posts.Appeals WHERE PostId IN (SELECT Id FROM @ExamplePosts);
+DELETE FROM badjockeys.posts.Reports WHERE PostId IN (SELECT Id FROM @ExamplePosts) OR TargetId IN (SELECT Id FROM @Example);
+DELETE FROM badjockeys.posts.PostMedia WHERE PostId IN (SELECT Id FROM @ExamplePosts);
+DELETE FROM badjockeys.posts.Posts WHERE Id IN (SELECT Id FROM @ExamplePosts);
+
+DELETE FROM badjockeys.media.Media WHERE LEFT(CONVERT(char(36), Id), 8) = 'E0000000';
+DELETE FROM badjockeys.profiles.Blocks WHERE BlockerId IN (SELECT Id FROM @Example) OR BlockedId IN (SELECT Id FROM @Example);
+DELETE FROM badjockeys.profiles.Profiles WHERE Id IN (SELECT Id FROM @Example);
+
+DELETE FROM idsrv.users.Accounts WHERE LEFT(CONVERT(char(36), Id), 8) = 'E0000000';
+DELETE FROM idsrv.auth.AspNetUserClaims WHERE LEFT(UserId, 8) = 'e0000000';
+DELETE FROM idsrv.auth.AspNetUserLogins WHERE LEFT(UserId, 8) = 'e0000000';
+DELETE FROM idsrv.auth.AspNetUserRoles WHERE LEFT(UserId, 8) = 'e0000000';
+DELETE FROM idsrv.auth.AspNetUserTokens WHERE LEFT(UserId, 8) = 'e0000000';
+DELETE FROM idsrv.auth.AspNetUsers WHERE LEFT(Id, 8) = 'e0000000';
+
+COMMIT;
+`;
+
+const lines = [];
+const add = (text) => lines.push(text);
+
+add(`-- Example users and posts for a LOCAL Bad Jockeys (never run it anywhere else). Generated by build-sql.mjs from
+-- data.mjs: change those and rebuild rather than editing this file.
+--
+-- Adds ${users.length} sign-in accounts (password ${PASSWORD}, email confirmed, age check passed) with profiles, and ${posts.length} posts
+-- around Prescot, Liverpool, Warrington, Manchester, Leeds and London, with reactions, comments and replies. The
+-- photos are placeholder dashcam frames, uploaded to local file storage by seed.mjs (the setup runs it, and it runs
+-- this script).
+--
+-- If the owner account below exists and has a profile, one post tags it as a passenger (waiting for approval) and
+-- the bell shows that. Safe to run again: it clears the previous example data first.
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
+
+DECLARE @OwnerEmail nvarchar(256) = ${q(OWNER_EMAIL)};
+`);
+add("-- Clear the previous run.");
+add(clearSql);
+add(`BEGIN TRANSACTION;
+
+DECLARE @Now datetimeoffset = SYSDATETIMEOFFSET();
+DECLARE @Today date = CAST(SYSDATETIMEOFFSET() AT TIME ZONE 'GMT Standard Time' AS date);
+DECLARE @Owner uniqueidentifier = (
+  SELECT TRY_CONVERT(uniqueidentifier, u.Id) FROM idsrv.auth.AspNetUsers u WHERE u.NormalizedEmail = UPPER(@OwnerEmail));
+IF @Owner IS NOT NULL AND NOT EXISTS (SELECT 1 FROM badjockeys.profiles.Profiles WHERE Id = @Owner)
+BEGIN
+  PRINT 'The owner account has no profile yet, so it isn''t tagged. Finish sign-up in the web app and run this again.';
+  SET @Owner = NULL;
+END
+`);
+
+// --- Accounts (identity server) ---
+const hash = identityHash(PASSWORD);
+add(`-- Sign-in accounts (identity server, database idsrv).`);
+for (const u of users) {
+  const id = ids.userId(u.n);
+  const email = u.email.toLowerCase();
+  add(`INSERT idsrv.auth.AspNetUsers (Id, UserName, NormalizedUserName, Email, NormalizedEmail, EmailConfirmed, PasswordHash,
+  SecurityStamp, ConcurrencyStamp, PhoneNumber, PhoneNumberConfirmed, TwoFactorEnabled, LockoutEnd, LockoutEnabled, AccessFailedCount)
+VALUES (${q(id)}, ${q(email)}, ${q(email.toUpperCase())}, ${q(email)}, ${q(email.toUpperCase())}, 1, ${q(hash)},
+  ${q(`EXAMPLE${String(u.n).padStart(27, "0")}`)}, ${q(ids.userId(u.n + 100))}, NULL, 0, 0, NULL, 1, 0);
+INSERT idsrv.users.Accounts (Id, Status, CreatedAt, DateOfBirth, AgeCheckStatus, AgeCheckMethod, AgeCheckResult, AgeCheckRecordedAt, AgeCheckAttempts)
+VALUES ('${id}', N'Active', DATEADD(day, -30, @Now), '${1970 + u.n * 3}-0${(u.n % 9) + 1}-1${u.n % 9}', N'Passed', N'FaceEstimate', N'Passed', DATEADD(day, -30, @Now), 1);`);
+}
+
+// --- Profiles ---
+add(`\n-- Profiles (database badjockeys).`);
+for (const u of users) {
+  add(`INSERT badjockeys.profiles.Profiles (Id, Handle, DisplayName, Bio, Location, AvatarMediaId, IsMinor, RoadUser, ShowRoadUser, CreatedAt)
+VALUES ('${ids.userId(u.n)}', ${q(u.handle)}, ${q(u.name)}, ${q(u.bio)}, ${q(u.location)}, NULL, 0, ${q(u.roadUser)}, ${bit(u.show)}, DATEADD(day, -30, @Now));`);
+}
+
+// --- Posts, photos, reactions, comments ---
+let comment = 0;
+for (const p of posts) {
+  const id = ids.postId(p.n);
+  const author = ids.userId(p.by);
+  const [lat, lng, place] = p.at;
+  const flags = p.types.reduce((acc, t) => acc | (1 << CATEGORIES.indexOf(t)), 0);
+  const [vType, vMake, vModel, vColour] = p.vehicle ?? [null, null, null, null];
+  add(`\n-- Post ${p.n}: ${p.title}`);
+  for (let i = 1; i <= p.photos; i++) {
+    const media = ids.mediaId(p.n, i);
+    const key = `examples/${media}.svg`;
+    add(`INSERT badjockeys.media.Media (Id, UserId, MediaType, Status, OriginalFileName, OriginalContentType, OriginalKey, OriginalSizeBytes,
+  PlaybackKey, ThumbnailKey, FeedKey, Width, Height, IsRestricted, ProcessingAttempts, Revision, CreatedAt, UploadedAt, ProcessedAt)
+VALUES ('${media}', '${author}', N'Image', N'Ready', N'dashcam-${p.n}-${i}.jpg', N'image/svg+xml', N'${key}', 20000,
+  N'${key}', N'${key}', N'${key}', 1600, 900, 0, 1, 1, ${ukTime(p.ago, p.time, 20)}, ${ukTime(p.ago, p.time, 20)}, ${ukTime(p.ago, p.time, 21)});`);
+  }
+  add(`INSERT badjockeys.posts.Posts (Id, AuthorId, Title, Description, Category, TypeFlags, IncidentAt, Latitude, Longitude, PlaceName,
+  Status, MediaState, MediaReadyAt, HasVideo, IsAuthorDeactivated, IsFlagged, IsSensitive, ReelScore, SensitiveReview, SensitiveSource,
+  IsDark, ReportedToPolice, VehicleType, VehicleMake, VehicleModel, VehicleColour, CreatedAt)
+VALUES ('${id}', '${author}', ${q(p.title)}, ${q(p.text)}, ${q(p.types[0])}, ${flags}, ${ukTime(p.ago, p.time)}, ${lat}, ${lng}, ${q(place)},
+  N'Published', N'Ready', ${ukTime(p.ago, p.time, 22)}, 0, 0, 0, 0, 0, N'None', N'None',
+  ${bit(isDark(p.time))}, ${bit(p.reported)}, ${q(vType)}, ${q(vMake)}, ${q(vModel)}, ${q(vColour)}, ${ukTime(p.ago, p.time, 22)});`);
+  for (let i = 1; i <= p.photos; i++) {
+    add(`INSERT badjockeys.posts.PostMedia (PostId, MediaId, Position) VALUES ('${id}', '${ids.mediaId(p.n, i)}', ${i - 1});`);
+  }
+  let minute = 40;
+  for (const [type, who] of Object.entries(p.reactions ?? {})) {
+    for (const u of who) {
+      add(`INSERT badjockeys.posts.Reactions (PostId, UserId, Type, CreatedAt) VALUES ('${id}', '${ids.userId(u)}', N'${type}', ${ukTime(p.ago, p.time, minute++)});`);
+    }
+  }
+  for (const [by, text, replies] of p.comments ?? []) {
+    const parent = ids.commentId(++comment);
+    minute += 15;
+    add(`INSERT badjockeys.posts.Comments (Id, PostId, AuthorId, Body, Status, ParentCommentId, IsAuthorDeactivated, IsFlagged, CreatedAt)
+VALUES ('${parent}', '${id}', '${ids.userId(by)}', ${q(text)}, N'Visible', NULL, 0, 0, ${ukTime(p.ago, p.time, minute)});`);
+    for (const [replyBy, replyText] of replies ?? []) {
+      minute += 10;
+      add(`INSERT badjockeys.posts.Comments (Id, PostId, AuthorId, Body, Status, ParentCommentId, IsAuthorDeactivated, IsFlagged, CreatedAt)
+VALUES ('${ids.commentId(++comment)}', '${id}', '${ids.userId(replyBy)}', ${q(replyText)}, N'Visible', '${parent}', 0, 0, ${ukTime(p.ago, p.time, minute)});`);
+    }
+  }
+  if (p.passengerOwner) {
+    add(`IF @Owner IS NOT NULL
+BEGIN
+  INSERT badjockeys.posts.PostPassengers (PostId, UserId, Status, TaggedAt, RespondedAt) VALUES ('${id}', @Owner, N'Pending', ${ukTime(p.ago, p.time, 22)}, NULL);
+  INSERT badjockeys.notifications.Notifications (Id, UserId, Type, ActorId, PostId, CommentId, PostTitle, Count, CreatedAt, UpdatedAt, ReadAt)
+  VALUES ('e0000000-0000-4000-8004-000000000001', @Owner, N'PassengerTagged', '${author}', '${id}', NULL, ${q(p.title)}, 1,
+    ${ukTime(p.ago, p.time, 22)}, ${ukTime(p.ago, p.time, 22)}, NULL);
+END`);
+  }
+}
+
+add(`
+COMMIT;
+PRINT 'Added ${users.length} example users and ${posts.length} posts. Sign in as any of them with ${PASSWORD}:';
+${users.map((u) => `PRINT '  ${u.email}  @${u.handle}';`).join("\n")}
+`);
+
+writeFileSync(join(here, "seed.sql"), lines.join("\n"));
+console.log(`Wrote seed.sql (${users.length} users, ${posts.length} posts).`);
