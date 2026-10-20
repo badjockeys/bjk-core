@@ -5447,7 +5447,6 @@ export interface SaveDraftCommand {
     vehicleColour: VehicleColour | null;
     reportedToPolice: boolean | null;
     mediaIds: string[] | null;
-    isEmpty: boolean;
 }
 
 /** The draft limits. */
