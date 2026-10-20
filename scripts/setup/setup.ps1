@@ -2,8 +2,8 @@
   Bad Jockeys: complete local setup on Windows 10 or 11. Safe to run again; it skips whatever is already done.
 
   Run it from PowerShell (it can be the only file you have; it fetches the repos itself):
-      powershell -ExecutionPolicy Bypass -File scripts\setup.ps1
-      powershell -ExecutionPolicy Bypass -File scripts\setup.ps1 -Upgrade    (also upgrades the tools; restarts Docker Desktop)
+      powershell -ExecutionPolicy Bypass -File scripts\setup\setup.ps1
+      powershell -ExecutionPolicy Bypass -File scripts\setup\setup.ps1 -Upgrade    (also upgrades the tools; restarts Docker Desktop)
 
   Run it again any time: it pulls the latest code into each repo that's on master with no uncommitted changes
   (others are left alone), and restarts itself if that brought a newer setup.ps1.
@@ -152,8 +152,8 @@ Done 'You can see all four repos and the packages'
 
 # --- Repos -----------------------------------------------------------------------------------------------------------
 Step 'Getting the code'
-if ($PSScriptRoot -and (Test-Path (Join-Path $PSScriptRoot 'setup-local.mjs'))) {
-    $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent   # in a bjk-core clone (bjk-core\scripts): use the folder around it
+if ($PSScriptRoot -and (Test-Path (Join-Path (Split-Path $PSScriptRoot -Parent) 'setup-local.mjs'))) {
+    $root = Split-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) -Parent   # in a bjk-core clone (bjk-core\scripts\setup): use the folder around it
 } else {
     $root = Join-Path $HOME 'Git\badjockeys'
 }
@@ -186,7 +186,7 @@ $core = Join-Path $root 'bjk-core'
 
 # If bjk-core now has a different setup.ps1 than the one running (it was just updated, or this copy was a
 # download), carry on with that one so the latest steps run. Once only.
-$latest = Join-Path $core 'scripts\setup.ps1'
+$latest = Join-Path $core 'scripts\setup\setup.ps1'
 if (-not $env:BJK_SETUP_RESTARTED -and (Test-Path $latest) -and ((Get-FileHash $latest).Hash -ne $SelfHash)) {
     Write-Host 'Restarting with the latest setup.ps1 from bjk-core...'
     $env:BJK_SETUP_RESTARTED = '1'

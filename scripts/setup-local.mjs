@@ -18,8 +18,8 @@
 //   8. adds example users and posts (scripts/sql/example-data), starting the identity server and the API for a
 //      moment first so their databases exist, and gives the owner account its plan (Plans:Overrides)
 //
-// Needs the tools installed and bjk-identity-server cloned next to bjk-core: scripts/setup.ps1 (Windows) and
-// scripts/setup.sh (macOS) do both, then run this. Uses only Node.js built-ins.
+// Needs the tools installed and bjk-identity-server cloned next to bjk-core: scripts/setup/setup.ps1 (Windows) and
+// scripts/setup/setup.sh (macOS) do both, then run this. Uses only Node.js built-ins.
 
 import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
@@ -150,8 +150,8 @@ function ensurePackageCredentials() {
       return;
     }
     fail(
-      "No GitHub access for the private BJK.Modules packages. Either run the full setup (scripts/setup.ps1 on Windows,\n" +
-        "scripts/setup.sh on a Mac), or sign in with the GitHub CLI and run this again:\n" +
+      "No GitHub access for the private BJK.Modules packages. Either run the full setup (scripts/setup/setup.ps1 on Windows,\n" +
+        "scripts/setup/setup.sh on a Mac), or sign in with the GitHub CLI and run this again:\n" +
         "  gh auth login --web --scopes read:packages      (or, if you're already signed in: gh auth refresh -s read:packages)\n" +
         "If you're signed in but still see this, your GitHub account needs access to the badjockeys organisation's repos.",
     );

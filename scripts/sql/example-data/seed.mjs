@@ -33,7 +33,7 @@ function sqlPassword() {
   } catch {
     // Falls through to the message below.
   }
-  fail("Couldn't read BJK_SQL_PASSWORD from bjk-core/.env. Run the setup first (scripts/setup.sh or scripts/setup.ps1).");
+  fail("Couldn't read BJK_SQL_PASSWORD from bjk-core/.env. Run the setup first (scripts/setup/setup.sh or scripts/setup/setup.ps1).");
 }
 
 /** Runs T-SQL in the local SQL Server container and returns what sqlcmd printed. */

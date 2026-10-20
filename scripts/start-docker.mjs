@@ -40,7 +40,7 @@ function openDockerDesktop() {
 
 async function ensureDocker() {
   if (spawnSync("docker", ["--version"], { stdio: "ignore" }).error) {
-    fail("Docker isn't installed. Run the setup (scripts/setup.sh on a Mac, scripts/setup.ps1 on Windows), then try again.");
+    fail("Docker isn't installed. Run the setup (scripts/setup/setup.sh on a Mac, scripts/setup/setup.ps1 on Windows), then try again.");
   }
   if (dockerAnswers()) return;
 
