@@ -7,6 +7,266 @@
 /* eslint-disable */
 // ReSharper disable InconsistentNaming
 
+export class AdminKnownImagesClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * Uploads blocked because they matched a known image, newest first. No pictures are kept.
+     * @param page (optional) 
+     * @param pageSize (optional) 
+     */
+    adminKnownImages_ListMatches(page?: number | undefined, pageSize?: number | undefined, signal?: AbortSignal): Promise<PagedResultOfKnownImageMatchDto> {
+        let url_ = this.baseUrl + "/api/admin/known-images/matches?";
+        if (page === null)
+            throw new globalThis.Error("The parameter 'page' cannot be null.");
+        else if (page !== undefined)
+            url_ += "page=" + encodeURIComponent("" + page) + "&";
+        if (pageSize === null)
+            throw new globalThis.Error("The parameter 'pageSize' cannot be null.");
+        else if (pageSize !== undefined)
+            url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processAdminKnownImages_ListMatches(_response);
+        });
+    }
+
+    protected processAdminKnownImages_ListMatches(response: Response): Promise<PagedResultOfKnownImageMatchDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PagedResultOfKnownImageMatchDto;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PagedResultOfKnownImageMatchDto>(null as any);
+    }
+
+    /**
+     * Record that a match was reported to the authorities, with their reference.
+     */
+    adminKnownImages_MarkReported(id: string, request: MarkReportedRequest, signal?: AbortSignal): Promise<KnownImageMatchDto> {
+        let url_ = this.baseUrl + "/api/admin/known-images/matches/{id}/reported";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processAdminKnownImages_MarkReported(_response);
+        });
+    }
+
+    protected processAdminKnownImages_MarkReported(response: Response): Promise<KnownImageMatchDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as KnownImageMatchDto;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<KnownImageMatchDto>(null as any);
+    }
+
+    /**
+     * The hashes, newest first; ?source= for one source's (e.g. Moderation, Test, IWF).
+     * @param source (optional) 
+     * @param page (optional) 
+     * @param pageSize (optional) 
+     */
+    adminKnownImages_ListHashes(source?: string | null | undefined, page?: number | undefined, pageSize?: number | undefined, signal?: AbortSignal): Promise<PagedResultOfKnownImageHashDto> {
+        let url_ = this.baseUrl + "/api/admin/known-images?";
+        if (source !== undefined && source !== null)
+            url_ += "source=" + encodeURIComponent("" + source) + "&";
+        if (page === null)
+            throw new globalThis.Error("The parameter 'page' cannot be null.");
+        else if (page !== undefined)
+            url_ += "page=" + encodeURIComponent("" + page) + "&";
+        if (pageSize === null)
+            throw new globalThis.Error("The parameter 'pageSize' cannot be null.");
+        else if (pageSize !== undefined)
+            url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processAdminKnownImages_ListHashes(_response);
+        });
+    }
+
+    protected processAdminKnownImages_ListHashes(response: Response): Promise<PagedResultOfKnownImageHashDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PagedResultOfKnownImageHashDto;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PagedResultOfKnownImageHashDto>(null as any);
+    }
+
+    /**
+     * Add a hash by hand (e.g. one given by the police).
+     */
+    adminKnownImages_Add(request: AddKnownImageHashRequest, signal?: AbortSignal): Promise<KnownImageHashDto> {
+        let url_ = this.baseUrl + "/api/admin/known-images";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processAdminKnownImages_Add(_response);
+        });
+    }
+
+    protected processAdminKnownImages_Add(response: Response): Promise<KnownImageHashDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as KnownImageHashDto;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<KnownImageHashDto>(null as any);
+    }
+
+    /**
+     * Remove a hash added by moderators or for testing.
+     */
+    adminKnownImages_Remove(id: string, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/admin/known-images/{id}";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            signal,
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processAdminKnownImages_Remove(_response);
+        });
+    }
+
+    protected processAdminKnownImages_Remove(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+}
+
 export class AdminMediaClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -424,6 +684,64 @@ export class AdminMediaClient {
             });
         }
         return Promise.resolve<MediaReviewDto>(null as any);
+    }
+
+    /**
+     * Block copies of this media: its file hash and perceptual hashes go on the known-image list, so the same picture
+    (or a resized or recompressed copy) is blocked if it's uploaded again. Use after removing it. Returns how many
+    hashes were added.
+     */
+    adminMedia_BlockCopies(id: string, request: BlockCopiesRequest, signal?: AbortSignal): Promise<BlockCopiesResult> {
+        let url_ = this.baseUrl + "/api/admin/media/{id}/block-copies";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processAdminMedia_BlockCopies(_response);
+        });
+    }
+
+    protected processAdminMedia_BlockCopies(response: Response): Promise<BlockCopiesResult> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as BlockCopiesResult;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<BlockCopiesResult>(null as any);
     }
 }
 
@@ -2095,6 +2413,155 @@ export class AdminPostsClient {
             });
         }
         return Promise.resolve<PagedResultOfAuditEntryDto>(null as any);
+    }
+
+    /**
+     * Blocked web addresses (posts and comments containing one are held for review); ?source= filters.
+     * @param source (optional) 
+     * @param page (optional) 
+     * @param pageSize (optional) 
+     */
+    adminPosts_ListBlockedUrls(source?: string | null | undefined, page?: number | undefined, pageSize?: number | undefined, signal?: AbortSignal): Promise<PagedResultOfBlockedUrlDto> {
+        let url_ = this.baseUrl + "/api/admin/blocked-urls?";
+        if (source !== undefined && source !== null)
+            url_ += "source=" + encodeURIComponent("" + source) + "&";
+        if (page === null)
+            throw new globalThis.Error("The parameter 'page' cannot be null.");
+        else if (page !== undefined)
+            url_ += "page=" + encodeURIComponent("" + page) + "&";
+        if (pageSize === null)
+            throw new globalThis.Error("The parameter 'pageSize' cannot be null.");
+        else if (pageSize !== undefined)
+            url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processAdminPosts_ListBlockedUrls(_response);
+        });
+    }
+
+    protected processAdminPosts_ListBlockedUrls(response: Response): Promise<PagedResultOfBlockedUrlDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PagedResultOfBlockedUrlDto;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PagedResultOfBlockedUrlDto>(null as any);
+    }
+
+    /**
+     * Block a web address. A bare host covers the whole site.
+     */
+    adminPosts_AddBlockedUrl(request: AddBlockedUrlRequest, signal?: AbortSignal): Promise<BlockedUrlDto> {
+        let url_ = this.baseUrl + "/api/admin/blocked-urls";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processAdminPosts_AddBlockedUrl(_response);
+        });
+    }
+
+    protected processAdminPosts_AddBlockedUrl(response: Response): Promise<BlockedUrlDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as BlockedUrlDto;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<BlockedUrlDto>(null as any);
+    }
+
+    /**
+     * Unblock an address added by a moderator. A reason is required (?reason=).
+     * @param reason (optional) 
+     */
+    adminPosts_RemoveBlockedUrl(id: string, reason?: string | null | undefined, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/admin/blocked-urls/{id}?";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        if (reason !== undefined && reason !== null)
+            url_ += "reason=" + encodeURIComponent("" + reason) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            signal,
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processAdminPosts_RemoveBlockedUrl(_response);
+        });
+    }
+
+    protected processAdminPosts_RemoveBlockedUrl(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
     }
 }
 
@@ -5950,6 +6417,85 @@ export class PersonalDataClient {
     }
 }
 
+export interface PagedResultOfKnownImageMatchDto {
+    items: KnownImageMatchDto[];
+    page: number;
+    pageSize: number;
+    totalCount: number;
+}
+
+/** An upload blocked because it matched a known image. No picture is kept. */
+export interface KnownImageMatchDto {
+    id: string;
+    mediaId: string;
+    userId: string;
+    kind: KnownHashKind;
+    source: string;
+    reference: string | null;
+    distance: number | null;
+    sha256: string | null;
+    matchedAt: string;
+    reportedAt: string | null;
+    reportReference: string | null;
+}
+
+/** How a known image is identified. */
+export type KnownHashKind = "Pdq" | "Sha256" | "Md5";
+
+export interface ProblemDetails {
+    type: string | null;
+    title: string | null;
+    status: number | null;
+    detail: string | null;
+    instance: string | null;
+
+    [key: string]: any;
+}
+
+export interface HttpValidationProblemDetails extends ProblemDetails {
+    errors: { [key: string]: string[]; };
+
+    [key: string]: any;
+}
+
+export interface ValidationProblemDetails extends HttpValidationProblemDetails {
+    errors: { [key: string]: string[]; };
+
+    [key: string]: any;
+}
+
+export interface MarkReportedRequest {
+    /** The authority's reference for the report. */
+    reference: string;
+}
+
+export interface PagedResultOfKnownImageHashDto {
+    items: KnownImageHashDto[];
+    page: number;
+    pageSize: number;
+    totalCount: number;
+}
+
+/** A hash on the known-image list. */
+export interface KnownImageHashDto {
+    id: string;
+    kind: KnownHashKind;
+    value: string;
+    source: string;
+    reference: string | null;
+    addedAt: string;
+    addedBy: string | null;
+}
+
+export interface AddKnownImageHashRequest {
+    /** Pdq, Sha256 or Md5. */
+    kind: KnownHashKind;
+    /** The hash, hex. */
+    value: string;
+    /** Where it came from, optional. */
+    reference: string | null;
+}
+
 /** A piece of media. IsSensitive media (in a post tagged sensitive) is shown blurred to anyone but the uploader, moderators and age-verified adults: IsBlurred is then true, PlaybackUrl and ThumbnailUrl are null and only PreviewUrl (a heavily blurred picture; null until it's made) is given. Callers who may see it get short-lived signed links once its files are private, valid until LinksExpireAt. Photos have FeedUrl, a 1080 px copy for feeds (PlaybackUrl is the full 2048 px image); null for videos and older photos. */
 export interface MediaDto {
     id: string;
@@ -5976,28 +6522,6 @@ export type MediaType = "Video" | "Image";
 
 /** Where a piece of media is in its journey. Only Ready media is ever shown to other users. */
 export type MediaStatus = "Uploading" | "Processing" | "Ready" | "NeedsReview" | "Failed" | "Deleted";
-
-export interface ProblemDetails {
-    type: string | null;
-    title: string | null;
-    status: number | null;
-    detail: string | null;
-    instance: string | null;
-
-    [key: string]: any;
-}
-
-export interface HttpValidationProblemDetails extends ProblemDetails {
-    errors: { [key: string]: string[]; };
-
-    [key: string]: any;
-}
-
-export interface ValidationProblemDetails extends HttpValidationProblemDetails {
-    errors: { [key: string]: string[]; };
-
-    [key: string]: any;
-}
 
 export interface PagedResultOfMediaReviewDto {
     items: MediaReviewDto[];
@@ -6076,6 +6600,16 @@ export interface RejectMediaRequest {
 export interface AddRedactionsRequest {
     /** Regions to blur. */
     regions: ManualRedaction[] | null;
+}
+
+export interface BlockCopiesResult {
+    /** Hashes added to the known-image list. */
+    hashesAdded: number;
+}
+
+export interface BlockCopiesRequest {
+    /** Why, for the audit log. */
+    reason: string;
 }
 
 export interface RequestUploadResult {
@@ -6532,6 +7066,30 @@ export interface AuditEntryDto {
     reason: string;
     before: string | null;
     after: string | null;
+}
+
+export interface PagedResultOfBlockedUrlDto {
+    items: BlockedUrlDto[];
+    page: number;
+    pageSize: number;
+    totalCount: number;
+}
+
+/** A blocked web address. */
+export interface BlockedUrlDto {
+    id: string;
+    pattern: string;
+    source: string;
+    reference: string | null;
+    addedAt: string;
+    addedBy: string | null;
+}
+
+export interface AddBlockedUrlRequest {
+    /** The address, e.g. example.com or https://example.com/page. */
+    address: string;
+    /** Why, for the audit log. */
+    reason: string;
 }
 
 /** A saved draft, to reopen in the composer. */
