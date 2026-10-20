@@ -1322,28 +1322,10 @@ p {
   background: var(--soft);
 }
 
-.nav-on,
-.nav-on:hover {
-  font-weight: 600;
-  background: var(--brand);
-  color: #ffffff;
-  padding-right: 24px;
-}
-
-.nav-on svg [fill="#111111"] {
-  fill: #ffffff;
-}
-
-.nav-on svg [stroke="#111111"] {
-  stroke: #ffffff;
-}
-
-.x-post {
-  height: 52px;
-  border-radius: 26px;
-  margin-top: 14px;
-  width: 100%;
-  font-size: 17px;
+/* The page you're on: bold black with the filled icon, like X (no coloured pill). */
+.nav-on {
+  font-weight: 700;
+  color: var(--ink);
 }
 
 .x-me {
@@ -3201,4 +3183,23 @@ dialog.composer-dialog::backdrop {
     border-left: 1px solid var(--line);
     padding: 18px;
   }
+}
+
+/* The Replies tab on a profile. */
+.profile-replies {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.profile-reply {
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.profile-reply-post {
+  color: var(--ink);
+  font-weight: 600;
 }

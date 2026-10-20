@@ -34,6 +34,7 @@ export type {
   PostMediaState,
   PostStatus,
   ProfileDto,
+  ProfileReplyDto,
   PublicReportRequest,
   ReactionType,
   ReelPlayResult,

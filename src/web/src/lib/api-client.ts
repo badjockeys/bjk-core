@@ -198,6 +198,9 @@ export function endpoints(api: ApiClient) {
           q.pageSize ?? 20,
         ),
       mine: (token: string, page = 1, pageSize = 20) => posts(token).posts_ListMine(page, pageSize),
+      /** One person's comments and replies, with the post each is on (their profile's Replies tab). */
+      replies: (token: string, handle: string, page = 1, pageSize = 20) =>
+        posts(token).posts_ListProfileReplies(handle, page, pageSize),
       get: (token: string | null, postId: string) => posts(token).posts_Get(postId),
       create: (token: string, body: CreatePostRequest) => posts(token).posts_Create(body),
       remove: (token: string, postId: string) => posts(token).posts_Delete(postId),
@@ -230,6 +233,8 @@ export function endpoints(api: ApiClient) {
       add: (token: string, postId: string, body: string) => posts(token).posts_AddComment(postId, { body }),
       reply: (token: string, postId: string, commentId: string, body: string) =>
         posts(token).posts_Reply(postId, commentId, { body }),
+      edit: (token: string, postId: string, commentId: string, body: string) =>
+        posts(token).posts_EditComment(postId, commentId, { body }),
       remove: (token: string, postId: string, commentId: string) =>
         posts(token).posts_DeleteComment(postId, commentId),
       react: (token: string, postId: string, commentId: string, type: ReactionType) =>
