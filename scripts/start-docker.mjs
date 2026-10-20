@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Makes sure SQL Server and S3Mock are running before the apps start, on macOS, Windows or Linux.
 //
-//   node scripts/start-docker.mjs
+//   node scripts/start-docker.mjs                  (add --open-reports to open Grafana in the browser once it's up)
 //
 // If Docker Desktop is closed, it opens it and waits (up to 3 minutes) for it to be ready, then starts the
 // "bad-jockeys" group (bjk-core's docker-compose.yml) and waits until it's up (SQL Server until it's healthy). When everything is
@@ -9,7 +9,7 @@
 // so VS Code stops before launching apps that would only fail on their database connection.
 // Uses only Node.js built-ins.
 
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -74,4 +74,10 @@ if (!existsSync(join(core, ".env"))) {
 }
 removeOldGroups();
 if (!startServices(core)) fail(`SQL Server or S3Mock didn't start. Run 'docker compose logs' in ${core} to see why.`);
-console.log("SQL Server and S3Mock are running (Docker group bad-jockeys).");
+console.log("SQL Server, S3Mock and Grafana are running (Docker group bad-jockeys).");
+
+// F5 and "Run Bad Jockeys": open the reports in the browser once Grafana answers, without holding up the apps.
+if (process.argv.includes("--open-reports")) {
+  spawn(process.execPath, [join(core, "scripts", "open-reports.mjs")], { stdio: "ignore", detached: true }).unref();
+  console.log("Reports: http://localhost:3300 (opens in your browser when Grafana is ready)");
+}

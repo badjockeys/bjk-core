@@ -129,6 +129,20 @@ jobs:
           Logging__Console__FormatterOptions__ColorBehavior: Disabled
         run: bash pipelines/scripts/smoke-test.sh
 
+      # The reports: the reporting views and read-only login against the database the smoke test left behind, and
+      # Grafana with the provisioned data sources and dashboards, running every panel's query.
+      - name: Reports
+        env:
+          SQL_CONTAINER: ${{ job.services.sql.id }}
+        run: bash pipelines/scripts/reporting-check.sh
+
+      - name: Upload the Grafana log
+        if: ${{ failure() && hashFiles('grafana.log') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: grafana-log
+          path: grafana.log
+
       # The API reference NSwag generated from this build's controllers, to download or import into Postman.
       - name: Upload the OpenAPI document
         if: ${{ !cancelled() && hashFiles('openapi.json') != '' }}
