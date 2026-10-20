@@ -529,9 +529,10 @@ pass "--check-settings passes in Development"
 if ASPNETCORE_ENVIRONMENT=Production dotnet run --project "$PROJECT" --configuration Release --no-build --no-launch-profile -- --check-settings > check.log 2>&1; then
   cat check.log; fail "--check-settings passed in Production with local settings."
 fi
-for expected in "Email:Provider must be SendGrid" "SMS:Provider must be Twilio" "Cors:AllowedOrigins:0 must be the web app's https address" \
-  "Captcha:TurnstileSecretKey must be the real Turnstile secret key" "MediatR:LicenseKey is missing" "Notifications:AppUrl is missing"; do
-  grep -qF "$expected" check.log || { cat check.log; fail "--check-settings in Production didn't report: $expected"; }
+# Matched by setting name: without user secrets most are missing, and the rest are stand-ins ("must be ...").
+for expected in "Email:Provider " "SMS:Provider " "Cors:AllowedOrigins:0 " "Captcha:TurnstileSecretKey " "MediatR:LicenseKey " \
+  "Notifications:AppUrl "; do
+  grep -qF "  $expected" check.log || { cat check.log; fail "--check-settings in Production didn't report: $expected"; }
 done
 pass "--check-settings in Production lists every missing setting and exits 1"
 
@@ -545,7 +546,7 @@ pass "media worker --check-settings in Production lists what's missing"
 if ASPNETCORE_ENVIRONMENT=Production timeout 60 dotnet run --project "$PROJECT" --configuration Release --no-build --no-launch-profile > check.log 2>&1; then
   fail "The API started in Production with local settings."
 fi
-grep -qF "Email:Provider must be SendGrid" check.log || { cat check.log; fail "The API's refusal to start didn't name the missing settings."; }
+grep -qF "Email:Provider " check.log || { cat check.log; fail "The API's refusal to start didn't name the missing settings."; }
 pass "API refuses to start in Production without every setting"
 
 # ---------- summary ----------
