@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { api } from "@/lib/api";
+import { getViewer } from "@/lib/auth";
 import type { ActionResult } from "@/lib/action-result";
 import type { AuthorDto } from "@/lib/types";
 
@@ -14,11 +15,18 @@ export async function findPassenger(handle: string): Promise<ActionResult<Author
   if (!/^[a-z0-9_]{3,30}$/.test(clean)) {
     return { ok: false, error: "Enter their @username." };
   }
+  const viewer = await getViewer();
+  if (viewer.handle?.toLowerCase() === clean) {
+    return { ok: false, error: "You can't tag yourself." };
+  }
   const found = await asUser((t) => api().profiles.get(t, clean));
   if (!found.ok) {
     return { ok: false, error: `We couldn't find @${clean}.` };
   }
   const p = found.data;
+  if (viewer.userId && p.id === viewer.userId) {
+    return { ok: false, error: "You can't tag yourself." };
+  }
   return {
     ok: true,
     data: { id: p.id, handle: p.handle, displayName: p.displayName, avatarUrl: p.avatarUrl, roadUser: null },

@@ -33,7 +33,7 @@ export function FeedHeader({ viewer, title = "Home" }: { viewer: Viewer; title?:
 /** Desktop: "Seen some bad driving?", which opens the new post composer as a pop-up over the feed. */
 export function Composer({ viewer }: { viewer: Viewer }) {
   return (
-    <Link href="/post/new" className="composer d-only">
+    <Link href="/post/new" className="feed-composer d-only">
       <Avatar name={viewer.displayName ?? viewer.email} url={viewer.avatarUrl} />
       <span className="composer-in">
         <span className="composer-ph">Seen some bad driving?</span>

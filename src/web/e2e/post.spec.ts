@@ -101,6 +101,10 @@ test.describe("posting", () => {
 
     // Driving incidents can have passengers: they're asked to accept before their name shows.
     await dialog.getByRole("button", { name: "Tag a passenger" }).click();
+    // Not yourself: the author can't be their own passenger.
+    await dialog.getByLabel("Passenger's username").fill("@roadhog");
+    await dialog.getByRole("button", { name: "Add", exact: true }).click();
+    await expect(dialog.getByText("You can't tag yourself.")).toBeVisible();
     await dialog.getByLabel("Passenger's username").fill("@lane_one_larry");
     await dialog.getByRole("button", { name: "Add", exact: true }).click();
     await expect(dialog.getByRole("button", { name: "Remove @lane_one_larry" })).toBeVisible();
