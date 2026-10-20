@@ -13,6 +13,7 @@
     <PackageReference Include="BJK.Modules.Email" />
     <PackageReference Include="BJK.Modules.SMS" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+    <PackageReference Include="NSwag.AspNetCore" />
   </ItemGroup>
 
 </Project>

@@ -31,3 +31,24 @@ public sealed class ApiCorsOptions
 
     public string[] AllowedOrigins { get; set; } = [];
 }
+
+/// <summary>
+/// The API reference: an OpenAPI document generated from the controllers by NSwag, and Swagger UI to try it.
+/// Section <c>ApiDocs</c>. Nothing is stored; it always matches the running code.
+/// </summary>
+public sealed class ApiDocsOptions
+{
+    public const string SectionName = "ApiDocs";
+
+    /// <summary>The OpenAPI document's address. <c>{documentName}</c> is <c>v1</c>.</summary>
+    public const string DocumentPath = "/openapi/{documentName}.json";
+
+    /// <summary>Swagger UI's address.</summary>
+    public const string UiPath = "/api-docs";
+
+    /// <summary>
+    /// Serve the document and Swagger UI. Unset means on in Development only, so the API's shape isn't published
+    /// in production unless someone chooses to.
+    /// </summary>
+    public bool? Enabled { get; set; }
+}

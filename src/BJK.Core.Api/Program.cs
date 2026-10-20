@@ -8,6 +8,8 @@ using BJK.Modules.Shared;
 using BJK.Modules.Shared.Security;
 using BJK.Modules.SMS;
 using Microsoft.AspNetCore.HttpOverrides;
+using NSwag;
+using NSwag.Generation.Processors.Security;
 
 const string ConnectionStringName = "AppDatabase";
 
@@ -66,6 +68,32 @@ builder.Services.AddBjkModules(
 
 builder.Services.AddHealthChecks();
 
+// --- API reference ---
+
+// Generated from the controllers by NSwag at run time, so it always matches the code. See ApiDocsOptions.
+const string BearerScheme = "Bearer";
+var apiDocsEnabled = builder.Configuration.GetSection(ApiDocsOptions.SectionName).Get<ApiDocsOptions>()?.Enabled
+    ?? builder.Environment.IsDevelopment();
+builder.Services.AddOpenApiDocument(document =>
+{
+    document.DocumentName = "v1";
+    document.Title = "Bad Jockeys API";
+    document.Version = "v1";
+    document.Description =
+        "The Media, Profiles, Posts and Notifications modules. Calls that need a signed-in user take an access " +
+        "token from bjk-identity-server with that module's scope (bjk.media, bjk.profiles or bjk.posts; " +
+        "Notifications uses bjk.profiles). Back-office calls need the .manage scope too.";
+    document.AddSecurity(BearerScheme, new OpenApiSecurityScheme
+    {
+        Type = OpenApiSecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        Description = "An access token from bjk-identity-server.",
+    });
+    // Marks only the endpoints that require authorisation, so anonymous ones show without a padlock.
+    document.OperationProcessors.Add(new AspNetCoreOperationSecurityScopeProcessor(BearerScheme));
+});
+
 var app = builder.Build();
 
 // Create the database if needed and apply each module's schema changes. Never drops data (see DatabaseMigrator).
@@ -82,6 +110,16 @@ app.UseHttpsRedirection();
 app.UseCors(ApiCorsOptions.PolicyName);
 app.UseAuthentication();
 app.UseAuthorization();
+
+if (apiDocsEnabled)
+{
+    app.UseOpenApi(settings => settings.Path = ApiDocsOptions.DocumentPath);
+    app.UseSwaggerUi(settings =>
+    {
+        settings.Path = ApiDocsOptions.UiPath;
+        settings.DocumentPath = ApiDocsOptions.DocumentPath;
+    });
+}
 
 app.MapControllers();
 app.MapHealthChecks("/health");
