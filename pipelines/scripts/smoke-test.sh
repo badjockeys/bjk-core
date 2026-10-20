@@ -320,7 +320,6 @@ pass "video is capped at 30 frames a second"
 
 request GET "/api/media/$PHOTO_ID" "" "$TOKEN_B"
 expect 200 "others can see the media once it's ready"
-MEDIA_ID=$PHOTO_ID
 
 # ---------- online safety: a known image is blocked ----------
 
@@ -333,6 +332,8 @@ expect_sql "SELECT FailureReason FROM media.Media WHERE Id = '$KNOWN_ID'" "This 
 expect_sql "SELECT COUNT(*) FROM media.KnownImageMatches WHERE MediaId = '$KNOWN_ID'" 1 "the match is recorded"
 expect_sql "SELECT CASE WHEN PlaybackKey IS NULL THEN 'none' ELSE 'published' END FROM media.Media WHERE Id = '$KNOWN_ID'" none "nothing is published"
 expect_sql "SELECT CASE WHEN NudityScore IS NULL THEN 'missing' ELSE 'scored' END FROM media.Media WHERE Id = '$PHOTO_ID'" scored "photos are scored for nudity"
+# The rest of the test posts the processed photo, not the blocked test image.
+MEDIA_ID=$PHOTO_ID
 
 wait_for "queue_messages media.process" 0 "no jobs left on the queue"
 expect_sql "SELECT COUNT(*) FROM [messaging].[media.process.failed]" 0 "no jobs in the dead-letter table"
