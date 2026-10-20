@@ -10,7 +10,6 @@ import {
   HeatmapClient,
   MediaClient,
   NotificationsClient,
-  PersonalDataClient,
   PlacesClient,
   PostsClient,
   ProfilesClient,
