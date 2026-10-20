@@ -27,7 +27,7 @@
       "typeStyle": "Interface",
       "enumStyle": "StringLiteral",
       "generateDtoTypes": true,
-      "markOptionalProperties": true,
+      "markOptionalProperties": false,
       "dateTimeType": "String",
       "nullValue": "Null",
       "generateCloneMethod": false,
