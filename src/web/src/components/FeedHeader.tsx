@@ -4,6 +4,7 @@ import type { Viewer } from "@/lib/viewer";
 
 import { Avatar } from "./Avatar";
 import { LogoMark, PhotoIcon } from "./icons";
+import { NotificationBell } from "./NotificationBell";
 
 /** The top of the feed: avatar, logo (phones) or "Home" (desktop). */
 export function FeedHeader({ viewer, title = "Home" }: { viewer: Viewer; title?: string }) {
@@ -20,7 +21,7 @@ export function FeedHeader({ viewer, title = "Home" }: { viewer: Viewer; title?:
         <Link href="/" className="logo" aria-label="Bad Jockeys home">
           <LogoMark size={28} />
         </Link>
-        <span />
+        {viewer.signedIn ? <NotificationBell /> : <span />}
       </header>
       <header className="c-head d-only">
         <h1>{title}</h1>

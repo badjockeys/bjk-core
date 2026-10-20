@@ -13,6 +13,8 @@ import type {
   HeatmapQuery,
   IncidentCategory,
   MediaDto,
+  NotificationDto,
+  NotificationSettingDto,
   PagedResult,
   PassengerTagStatus,
   PostDto,
@@ -335,6 +337,24 @@ export function endpoints(api: ApiClient) {
     me: {
       /** Everything core holds about the user (profile, posts, comments, reactions, reports, media). */
       dataExport: (token: string) => api.request<unknown>("GET", "/api/me/data-export", { token }),
+    },
+    notifications: {
+      list: (token: string, page = 1, pageSize = 20) =>
+        api.request<PagedResult<NotificationDto>>("GET", "/api/notifications", {
+          token,
+          query: { page, pageSize },
+        }),
+      unreadCount: (token: string) =>
+        api.request<{ unread: number }>("GET", "/api/notifications/unread-count", { token }),
+      markRead: (token: string, ids: string[] | null) =>
+        api.request<void>("POST", "/api/notifications/read", { token, body: { ids } }),
+      settings: (token: string) =>
+        api.request<NotificationSettingDto[]>("GET", "/api/notifications/settings", { token }),
+      updateSettings: (token: string, settings: NotificationSettingDto[]) =>
+        api.request<NotificationSettingDto[]>("PUT", "/api/notifications/settings", {
+          token,
+          body: { settings: settings.map(({ type, inApp, email }) => ({ type, inApp, email })) },
+        }),
     },
   };
 }

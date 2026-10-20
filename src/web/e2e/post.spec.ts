@@ -161,3 +161,26 @@ test("members report a post from its ⋯ menu", async ({ page, request }) => {
   const state = await (await request.get("http://localhost:4010/__state")).json();
   expect(state.reports).toEqual([expect.objectContaining({ target: SEED.photoPost, reason: "Spam" })]);
 });
+
+test("the bell shows unread notifications until you open them", async ({ page }) => {
+  await signIn(page, "/");
+  const bell = page.getByRole("link", { name: "Notifications, 1 unread" }).first();
+  await expect(bell).toBeVisible();
+  await bell.click();
+
+  await expect(page.getByRole("heading", { name: "Notifications" })).toBeVisible();
+  await expect(
+    page.getByText("Dashcam Dave tagged you as a passenger on \u201cUndertaking a lorry on the M62\u201d."),
+  ).toBeVisible();
+
+  await page.goto("/");
+  await expect(page.getByRole("link", { name: "Notifications", exact: true }).first()).toBeVisible();
+
+  // Settings: email for comments too.
+  await page.goto("/account/notifications");
+  await page.getByLabel("Comments on your posts: by email").check();
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Saved.")).toBeVisible();
+  await page.reload();
+  await expect(page.getByLabel("Comments on your posts: by email")).toBeChecked();
+});

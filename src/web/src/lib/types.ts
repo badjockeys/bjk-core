@@ -53,6 +53,35 @@ export interface AuthorDto {
 
 export type RoadUser = "Driver" | "Cyclist" | "Both";
 
+export type NotificationType =
+  | "PassengerTagged"
+  | "PassengerAccepted"
+  | "CommentOnPost"
+  | "ReplyToComment"
+  | "ReactionOnPost"
+  | "AreaPost";
+
+/** One notification for the bell. `text` is ready to show; `at` is when it last changed. */
+export interface NotificationDto {
+  id: string;
+  type: NotificationType;
+  actor: { id: string; handle: string | null; displayName: string; avatarUrl: string | null } | null;
+  postId: string | null;
+  commentId: string | null;
+  postTitle: string | null;
+  count: number;
+  text: string;
+  at: string;
+  isRead: boolean;
+}
+
+export interface NotificationSettingDto {
+  type: NotificationType;
+  label: string;
+  inApp: boolean;
+  email: boolean;
+}
+
 export type PassengerTagStatus = "Pending" | "Accepted" | "Declined";
 
 /** Someone tagged as being in the author's vehicle. Others only see Accepted ones. */

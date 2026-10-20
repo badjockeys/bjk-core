@@ -195,6 +195,26 @@ function seed() {
     blocks: new Map(),
     appeals: [],
     reelPlays: new Map(),
+    // Per user: the bell, and settings that differ from the defaults.
+    notifications: new Map([
+      [
+        USERS.roadhog.id,
+        [
+          {
+            id: "9a1e0000-0000-4000-8000-000000000001",
+            type: "PassengerTagged",
+            actorId: dave,
+            postId: SEED.videoPost,
+            commentId: null,
+            postTitle: "Undertaking a lorry on the M62",
+            count: 1,
+            at: ago(20),
+            isRead: false,
+          },
+        ],
+      ],
+    ]),
+    notificationSettings: new Map(),
   };
   db.posts.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   addComment(
@@ -742,6 +762,42 @@ async function api(req, res, url) {
       page(items, url, (p) => postDto(p, me)),
     );
   }
+  // Notifications
+  if (path === "/api/notifications" && method === "GET") {
+    if (!requireUser()) return;
+    const items = (db.notifications.get(me) ?? []).slice().sort((a, b) => b.at.localeCompare(a.at));
+    return send(res, 200, page(items, url, notificationDto));
+  }
+  if (path === "/api/notifications/unread-count" && method === "GET") {
+    if (!requireUser()) return;
+    return send(res, 200, { unread: (db.notifications.get(me) ?? []).filter((n) => !n.isRead).length });
+  }
+  if (path === "/api/notifications/read" && method === "POST") {
+    if (!requireUser()) return;
+    const { ids } = await json();
+    for (const n of db.notifications.get(me) ?? []) {
+      if (!ids || ids.length === 0 || ids.includes(n.id)) n.isRead = true;
+    }
+    return send(res, 204);
+  }
+  if (path === "/api/notifications/settings") {
+    if (!requireUser()) return;
+    const chosen = db.notificationSettings.get(me) ?? new Map();
+    db.notificationSettings.set(me, chosen);
+    if (method === "PUT") {
+      for (const change of (await json()).settings ?? []) chosen.set(change.type, change);
+    }
+    return send(
+      res,
+      200,
+      NOTIFICATION_TYPES.map(([type, label, inApp, email]) => ({
+        type,
+        label,
+        inApp: chosen.get(type)?.inApp ?? inApp,
+        email: chosen.get(type)?.email ?? email,
+      })),
+    );
+  }
   if (path === "/api/posts/tagged" && method === "GET") {
     if (!requireUser()) return;
     const status = url.searchParams.get("status") ?? "Pending";
@@ -1138,6 +1194,22 @@ async function api(req, res, url) {
   return false;
 }
 
+const NOTIFICATION_TYPES = [
+  ["PassengerTagged", "Someone tags you as a passenger", true, true],
+  ["PassengerAccepted", "Someone accepts your passenger tag", true, false],
+  ["CommentOnPost", "Comments on your posts", true, false],
+  ["ReplyToComment", "Replies to your comments", true, false],
+  ["ReactionOnPost", "Reactions to your posts", true, false],
+];
+function notificationDto(n) {
+  const actor = n.actorId ? author(n.actorId) : null;
+  const who = actor?.displayName ?? "Someone";
+  const text =
+    n.type === "PassengerTagged"
+      ? `${who} tagged you as a passenger on \u201c${n.postTitle}\u201d. Accept to show your name.`
+      : `${who} commented on your post \u201c${n.postTitle}\u201d.`;
+  return { ...n, actor, text };
+}
 function profileDto(p, owner = false) {
   return {
     id: p.id,

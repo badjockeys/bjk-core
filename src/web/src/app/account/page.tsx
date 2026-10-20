@@ -76,6 +76,13 @@ export default async function AccountPage() {
           </span>
           <ChevronIcon />
         </Link>
+        <Link href="/account/notifications" className="list-item">
+          <span className="col" style={{ gap: 0 }}>
+            <span>Notifications</span>
+            <span className="small muted">What shows in the bell, and what&apos;s emailed</span>
+          </span>
+          <ChevronIcon />
+        </Link>
         <a href={security} className="list-item">
           <span className="col" style={{ gap: 0 }}>
             <span>Sign-in and security</span>
