@@ -86,7 +86,8 @@
         "type": "process",
         "command": "node",
         "args": [
-          "${workspaceFolder:bjk-core}/scripts/start-docker.mjs"
+          "${workspaceFolder:bjk-core}/scripts/start-docker.mjs",
+          "--open-reports"
         ],
         "problemMatcher": [],
         "presentation": {

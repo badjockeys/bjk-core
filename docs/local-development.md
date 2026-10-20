@@ -10,6 +10,7 @@ This guide gets the whole platform running on your machine:
 | Media worker (converts uploads with ffmpeg) | bjk-core, `src/BJK.Core.MediaWorker` | .NET + ffmpeg | no address, reads the queue |
 | Web app | bjk-core, `src/web` | Node.js (Next.js) | http://localhost:3000 |
 | File storage | bjk-core (`docker-compose.yml`): S3Mock, standing in for Cloudflare R2 | Docker, group `bad-jockeys` | http://localhost:9090 |
+| Reports (Grafana) | bjk-core (`docker-compose.yml`, `src/reporting`) | Docker, group `bad-jockeys` | http://localhost:3300 |
 
 > **Status (19 Oct 2026):** everything in the table runs: the identity server, the API, the media worker and the web app (`src/web`).
 
@@ -480,6 +481,24 @@ SELECT Id, UserId, MediaType, Status, OriginalFileName, CreatedAt FROM media.Med
 ```
 
 Every person has one id. A user's profile id equals their sign-in account id (the `sub` in their token). It's also the `{userId}` folder in storage keys: `{userId}/{mediaId}/original.mp4`.
+
+## Reports
+
+Two Grafana dashboards, at **http://localhost:3300** (no sign-in needed to view; `admin` / `admin` to edit). F5 ("Bad Jockeys") and the task "Run Bad Jockeys" open them in your browser once Grafana is up, alongside the web app:
+
+- **Identity server:** accounts now (active, deactivated, email confirmed, two-step on, locked out, age-checked, under 18), sign-ups and deactivations per day, age bands, how people sign in (password or Google, Apple, Facebook), age checks, staff roles, and account changes still waiting to reach the app.
+- **Bad Jockeys** (the home page): posts now and per day, people active in the last 30 days, features in use (drafts, area alerts, passenger tags), posts by type, top places, when incidents happen, uploads and processing times, faces and plates blurred, queues and failed jobs, comments, reactions and reel plays, reports (per day, open and overdue, decision times) and moderation actions.
+
+How it fits together:
+
+- **Counts only.** Grafana reads only the `reporting` schema in each database: views that count and group (`scripts/sql/reporting/idsrv.sql` and `badjockeys.sql`). They never return emails, names, handles, ids, dates of birth or report details. Place names are the public ones shown on posts.
+- **Read-only login.** Grafana signs in as `bjk_reporting`, which can read those views and nothing else, not even the tables behind them. Its password is `BJK_REPORTING_PASSWORD` in `bjk-core/.env`; the setup creates it.
+- **Grafana** runs in the `bad-jockeys` Docker group. Its data sources and dashboards come from `src/reporting/grafana` (provisioned, so they can't drift). To change a dashboard, edit it in Grafana as admin, then **Export → Save to file** and replace the JSON in `src/reporting/grafana/dashboards`; edits made only in Grafana are lost when it restarts.
+- **After pulling changes to the views**, or if the setup couldn't apply them (the identity server and API must each have started once, so both databases exist): `node scripts/sql/reporting/apply.mjs`.
+- **Adding a report:** add or change a view in the matching `scripts/sql/reporting/*.sql` (counts only, `CREATE OR ALTER VIEW reporting.<Name>`), apply it, then add a panel. CI applies every view, checks `bjk_reporting` can read each one but not the tables, starts Grafana and runs every panel's query.
+- **Logs and errors aren't here:** those are monitoring, which goes to Grafana Cloud (OpenTelemetry) once deployed.
+
+When deployed, Grafana is its own container behind Cloudflare Access, with Google sign-in limited to badjockeys.com; `bjk_reporting` is a contained database user in each Azure SQL database, its password a container secret.
 
 ## Database changes
 
