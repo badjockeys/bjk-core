@@ -11,10 +11,12 @@ import { Gallery } from "@/components/Gallery";
 import { ClockIcon, SpinnerIcon } from "@/components/icons";
 import { LinkExpiryRefresh } from "@/components/LinkExpiryRefresh";
 import { PostMoreMenu } from "@/components/PostMoreMenu";
+import { RoadBadge, WithPassengers } from "@/components/PostPeople";
 import { ProcessingWatcher } from "@/components/ProcessingWatcher";
 import { isBlurred } from "@/components/PostMedia";
 import { ReactionBar } from "@/components/ReactionBar";
 import { SensitiveCover } from "@/components/SensitiveCover";
+import { TagRequest } from "@/components/TagRequest";
 import { appealPost } from "@/actions/posts";
 import { api } from "@/lib/api";
 import { getAccessToken, getViewer } from "@/lib/auth";
@@ -76,6 +78,7 @@ export default async function PostPage({ params, searchParams }: Props) {
   const posted = (await searchParams).posted;
   const viewer = await getViewer();
   const isMine = viewer.userId === post.author.id;
+  const myTag = viewer.userId ? post.passengers?.find((p) => p.person.id === viewer.userId) : undefined;
   const processing = post.mediaState === "Pending";
   const here = postPath(post.id);
 
@@ -116,6 +119,7 @@ export default async function PostPage({ params, searchParams }: Props) {
             ) : (
               <span>{post.author.displayName}</span>
             )}
+            <RoadBadge value={post.author.roadUser} />
             <span className="muted small">
               {post.author.handle ? `@${post.author.handle} · ` : ""}
               <time dateTime={post.createdAt} suppressHydrationWarning>
@@ -133,6 +137,10 @@ export default async function PostPage({ params, searchParams }: Props) {
             afterDelete="home"
           />
         </div>
+        <WithPassengers passengers={post.passengers} showPending={isMine} />
+        {myTag ? (
+          <TagRequest postId={post.id} authorName={post.author.displayName} status={myTag.status} />
+        ) : null}
         <h1 id="post-title" className="h1">
           {post.title}
         </h1>

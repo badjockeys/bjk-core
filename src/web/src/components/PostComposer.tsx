@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 
 import { discardMedia, getMedia } from "@/actions/media";
+import { findPassenger } from "@/actions/passengers";
 import { createPost } from "@/actions/posts";
 import { followBlocker } from "@/lib/blockers";
 import { categoryLabel, CATEGORY_CHOICES, DESCRIPTION_MAX } from "@/lib/categories";
 import { duration, plural, ukLocalToIso, whenLabel } from "@/lib/format";
 import { shrinkPhoto } from "@/lib/image-resize";
-import type { IncidentCategory } from "@/lib/types";
+import type { AuthorDto, IncidentCategory } from "@/lib/types";
 import {
   contentTypeOf,
   kindOf,
@@ -71,7 +72,11 @@ interface Fields {
   description: string;
   sensitive: boolean;
   owned: boolean;
+  /** People in the author's vehicle (driving incidents only, up to 4). */
+  passengers: AuthorDto[];
 }
+
+const MAX_PASSENGERS = 4;
 
 const PARALLEL_UPLOADS = 3;
 let nextKey = 0;
@@ -143,6 +148,7 @@ export function PostComposer({
     description: "",
     sensitive: false,
     owned: false,
+    passengers: [],
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -390,6 +396,7 @@ export function PostComposer({
         title: fields.title,
         description: fields.description || null,
         types: fields.types,
+        passengers: onTheRoad ? fields.passengers.map((p) => p.handle!) : [],
         incidentAt: ukLocalToIso(fields.date, fields.time)!,
         latitude: round6(fields.pin!.lat),
         longitude: round6(fields.pin!.lng),
@@ -419,6 +426,7 @@ export function PostComposer({
         setErrors({
           title: fieldErrors.title?.[0] ?? "",
           types: (fieldErrors.types ?? fieldErrors.category)?.[0] ?? "",
+          passengers: fieldErrors.passengers?.[0] ?? "",
           description: fieldErrors.description?.[0] ?? "",
           placeName: fieldErrors.placeName?.[0] ?? "",
           pin: (fieldErrors.location ?? fieldErrors.latitude ?? fieldErrors.longitude)?.[0] ?? "",
@@ -432,6 +440,7 @@ export function PostComposer({
     });
   };
 
+  const onTheRoad = fields.types.some((t) => t !== "BadParking");
   const needed = stillNeeded(fields, items.length, failed > 0);
   const canPost = needed.length === 0 && uploading === 0 && !pending;
   const when = whenLabel(fields.date, fields.time, defaultDate);
@@ -692,6 +701,14 @@ export function PostComposer({
               <span className="error">{errors.placeName || errors.pin}</span>
             ) : null}
 
+            {onTheRoad ? (
+              <PassengersRow
+                passengers={fields.passengers}
+                error={errors.passengers}
+                onChange={(passengers) => set("passengers", passengers)}
+              />
+            ) : null}
+
             <div className="cmp-row">
               <span className="cmp-row-label">Sensitive</span>
               <label className="check">
@@ -821,6 +838,105 @@ function stillNeeded(fields: Fields, media: number, failed: boolean): string[] {
   if (!fields.placeName.trim() || !fields.pin) needed.push("where it happened");
   if (!fields.owned) needed.push("confirm you took them");
   return needed;
+}
+
+/** Tag up to four people who were in your vehicle. Each is asked to accept before their name shows. */
+function PassengersRow({
+  passengers,
+  error,
+  onChange,
+}: {
+  passengers: AuthorDto[];
+  error: string | undefined;
+  onChange: (passengers: AuthorDto[]) => void;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [handle, setHandle] = useState("");
+  const [problem, setProblem] = useState<string | null>(null);
+  const [looking, startLooking] = useTransition();
+
+  const add = () =>
+    startLooking(async () => {
+      setProblem(null);
+      const found = await findPassenger(handle);
+      if (!found.ok) {
+        setProblem(found.error);
+        return;
+      }
+      if (passengers.some((p) => p.id === found.data.id)) {
+        setProblem(`@${found.data.handle} is already tagged.`);
+        return;
+      }
+      onChange([...passengers, found.data]);
+      setHandle("");
+      setAdding(false);
+    });
+
+  return (
+    <div className="cmp-row cmp-row-top">
+      <span className="cmp-row-label" id="passengers-label">
+        Passengers <span className="small">(optional)</span>
+      </span>
+      <div className="cmp-passengers">
+        <div className="cmp-chips" role="group" aria-labelledby="passengers-label">
+          {passengers.map((p) => (
+            <span key={p.id} className="cmp-chip">
+              <span className="cmp-chip-avatar" aria-hidden="true">
+                {(p.displayName || p.handle || "?").slice(0, 1).toUpperCase()}
+              </span>
+              @{p.handle}
+              <button
+                type="button"
+                className="cmp-chip-x cmp-chip-x-dark"
+                aria-label={`Remove @${p.handle}`}
+                onClick={() => onChange(passengers.filter((x) => x.id !== p.id))}
+              >
+                <CloseIcon size={12} />
+              </button>
+            </span>
+          ))}
+          {!adding && passengers.length < MAX_PASSENGERS ? (
+            <button type="button" className="cmp-chip" onClick={() => setAdding(true)}>
+              <PlusIcon size={14} />
+              Tag a passenger
+            </button>
+          ) : null}
+        </div>
+        {adding ? (
+          <div className="row" style={{ gap: 8 }}>
+            <label className="sr-only" htmlFor="passenger-handle">
+              Passenger&apos;s username
+            </label>
+            <input
+              id="passenger-handle"
+              className="input"
+              type="text"
+              placeholder="@username"
+              autoComplete="off"
+              autoCapitalize="none"
+              value={handle}
+              onChange={(e) => setHandle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  add();
+                }
+              }}
+            />
+            <button type="button" className="btn btn-sm" disabled={looking || !handle.trim()} onClick={add}>
+              Add
+            </button>
+            <button type="button" className="link" onClick={() => setAdding(false)}>
+              Cancel
+            </button>
+          </div>
+        ) : null}
+        <span className={problem || error ? "error" : "help"}>
+          {problem || error || "They'll be asked to confirm before their name shows on the post."}
+        </span>
+      </div>
+    </div>
+  );
 }
 
 function PanelHead({ title, onBack }: { title: string; onBack: () => void }) {

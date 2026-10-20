@@ -14,6 +14,7 @@ import type {
   IncidentCategory,
   MediaDto,
   PagedResult,
+  PassengerTagStatus,
   PostDto,
   ProblemDetails,
   ProfileDto,
@@ -23,6 +24,7 @@ import type {
   ReelsPage,
   ReportReason,
   ReportReceipt,
+  RoadUser,
   RequestUploadResult,
 } from "./types";
 
@@ -197,6 +199,15 @@ export function endpoints(api: ApiClient) {
         api.request<void>("POST", `/api/posts/${id(postId)}/reports`, { token, body: { reason, details } }),
       appeal: (token: string, postId: string, statement: string) =>
         api.request<AppealDto>("POST", `/api/posts/${id(postId)}/appeal`, { token, body: { statement } }),
+      tagged: (token: string, status: PassengerTagStatus = "Pending", page = 1, pageSize = 20) =>
+        api.request<PagedResult<PostDto>>("GET", "/api/posts/tagged", {
+          token,
+          query: { status, page, pageSize },
+        }),
+      respondToTag: (token: string, postId: string, accept: boolean) =>
+        api.request<PostDto>("PUT", `/api/posts/${id(postId)}/passengers/me`, { token, body: { accept } }),
+      removeMyTag: (token: string, postId: string) =>
+        api.request<void>("DELETE", `/api/posts/${id(postId)}/passengers/me`, { token }),
     },
     comments: {
       list: (token: string, postId: string, page = 1, pageSize = 20) =>
@@ -274,6 +285,8 @@ export function endpoints(api: ApiClient) {
         api.request<ProfileDto>("PUT", "/api/profiles/me", { token, body }),
       changeHandle: (token: string, handle: string) =>
         api.request<ProfileDto>("PUT", "/api/profiles/me/handle", { token, body: { handle } }),
+      setRoadUser: (token: string, roadUser: RoadUser | null, show: boolean) =>
+        api.request<ProfileDto>("PUT", "/api/profiles/me/road-user", { token, body: { roadUser, show } }),
       setAvatar: (token: string, mediaId: string | null) =>
         api.request<ProfileDto>("PUT", "/api/profiles/me/avatar", { token, body: { mediaId } }),
       handleAvailability: (handle: string) =>

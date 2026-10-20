@@ -85,12 +85,32 @@ test.describe("posting", () => {
     await dialog.getByLabel("Road and town").fill("A57 Warrington Road, Rainhill");
     await dialog.getByRole("button", { name: "Use my location" }).click();
     await dialog.getByRole("button", { name: "Use this place" }).click();
+
+    // Driving incidents can have passengers: they're asked to accept before their name shows.
+    await dialog.getByRole("button", { name: "Tag a passenger" }).click();
+    await dialog.getByLabel("Passenger's username").fill("@lane_one_larry");
+    await dialog.getByRole("button", { name: "Add", exact: true }).click();
+    await expect(dialog.getByRole("button", { name: "Remove @lane_one_larry" })).toBeVisible();
+
     await dialog.getByLabel(/I took these photos/).check();
     await dialog.getByRole("button", { name: "Post", exact: true }).click();
 
     await expect(page).toHaveURL(/\/p\/[0-9a-f-]{36}/);
     await expect(dialog).toBeHidden();
     await expect(page.getByText("Posted. Thanks for sharing.")).toBeVisible();
+    await expect(page.getByText("Waiting for @lane_one_larry to accept")).toBeVisible();
+  });
+
+  test("a passenger approves their tag from the account page", async ({ page }) => {
+    await signIn(page, "/account");
+    const requests = page.getByRole("region", { name: "Approve tags" });
+    await expect(requests.getByRole("link", { name: "Undertaking a lorry on the M62" })).toBeVisible();
+    await requests.getByRole("button", { name: "Accept" }).click();
+    await expect(page.getByRole("heading", { name: "Approve tags" })).toBeHidden();
+
+    await page.goto(`/p/${SEED.videoPost}`);
+    await expect(page.getByText("You're shown on this post as a passenger.")).toBeVisible();
+    await expect(page.locator(".with-line").first()).toContainText("with Road Hog");
   });
 });
 

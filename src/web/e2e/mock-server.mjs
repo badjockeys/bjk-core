@@ -110,6 +110,9 @@ function seed() {
           location: "Leeds",
           avatarMediaId: null,
           createdAt: ago(60 * 24 * 10),
+          isMinor: false,
+          roadUser: "Driver",
+          showRoadUser: true,
         },
       ],
       [
@@ -122,6 +125,7 @@ function seed() {
           location: "Leeds",
           avatarMediaId: null,
           createdAt: ago(60 * 24 * 5),
+          isMinor: false,
         },
       ],
     ]),
@@ -152,7 +156,9 @@ function seed() {
       post(SEED.sensitivePost, dave, "Serious crash on the A64", "RoadRage", ["m-5"], ago(30), {
         isSensitive: true,
       }),
-      post(SEED.videoPost, dave, "Undertaking a lorry on the M62", "Undertaking", ["m-4"], ago(300)),
+      post(SEED.videoPost, dave, "Undertaking a lorry on the M62", "Undertaking", ["m-4"], ago(300), {
+        passengers: [{ userId: USERS.roadhog.id, status: "Pending" }],
+      }),
       post(SEED.secondVideo, dave, "Cutting up on the A64", "CuttingUp", ["m-7"], ago(400), {
         placeName: "A64, York",
       }),
@@ -206,6 +212,7 @@ function seed() {
     location: null,
     avatarMediaId: null,
     createdAt: ago(60 * 24 * 20),
+    isMinor: false,
   });
   codes = new Map();
   refreshTokens = new Map();
@@ -221,6 +228,7 @@ function post(id, authorId, title, category, mediaIds, createdAt, extra = {}) {
     description: extra.description ?? null,
     category,
     types: extra.types ?? [category],
+    passengers: extra.passengers ?? [],
     incidentAt: createdAt,
     latitude: 53.81,
     longitude: -1.6,
@@ -246,8 +254,24 @@ seed();
 function author(id) {
   const p = db.profiles.get(id);
   return p
-    ? { id, handle: p.handle, displayName: p.displayName, avatarUrl: avatarUrl(p) }
+    ? {
+        id,
+        handle: p.handle,
+        displayName: p.displayName,
+        avatarUrl: avatarUrl(p),
+        roadUser: p.showRoadUser ? (p.roadUser ?? null) : null,
+      }
     : { id, handle: null, displayName: "Former member", avatarUrl: null };
+}
+// Accepted passengers for everyone; the author also sees pending ones; you always see your own tag.
+function passengersFor(p, viewer) {
+  return p.passengers
+    .filter(
+      (t) =>
+        db.profiles.has(t.userId) &&
+        (t.status === "Accepted" || t.userId === viewer || (t.status === "Pending" && p.authorId === viewer)),
+    )
+    .map((t) => ({ person: author(t.userId), status: t.status }));
 }
 function avatarUrl(profile) {
   const m = profile.avatarMediaId && db.media.get(profile.avatarMediaId);
@@ -273,6 +297,7 @@ function postDto(p, viewer) {
     description: p.description,
     category: p.category,
     types: p.types,
+    passengers: passengersFor(p, viewer),
     incidentAt: p.incidentAt,
     location: { latitude: p.latitude, longitude: p.longitude, placeName: p.placeName },
     status: p.status,
@@ -717,6 +742,18 @@ async function api(req, res, url) {
       page(items, url, (p) => postDto(p, me)),
     );
   }
+  if (path === "/api/posts/tagged" && method === "GET") {
+    if (!requireUser()) return;
+    const status = url.searchParams.get("status") ?? "Pending";
+    const items = db.posts.filter(
+      (p) => isPublic(p) && p.passengers.some((t) => t.userId === me && t.status === status),
+    );
+    return send(
+      res,
+      200,
+      page(items, url, (p) => postDto(p, me)),
+    );
+  }
   if (path === "/api/posts/mine" && method === "GET") {
     if (!requireUser()) return;
     return send(
@@ -738,6 +775,22 @@ async function api(req, res, url) {
     const types = [...new Set(sent.filter(Boolean))];
     if (types.length === 0) return invalid(res, "Types", "Choose at least one type of bad driving.");
     if (!types.every((t) => CATEGORIES.has(t))) return invalid(res, "Types", "Choose a type from the list.");
+    const handles = [...new Set((body.passengers ?? []).map((h) => h.replace(/^@/, "").toLowerCase()))];
+    if (handles.length > 0 && types.every((t) => t === "BadParking"))
+      return invalid(
+        res,
+        "Passengers",
+        "Passengers can only be tagged on driving incidents, not bad parking.",
+      );
+    if (handles.length > 4) return invalid(res, "Passengers", "You can tag up to 4 passengers.");
+    const passengers = [];
+    for (const h of handles) {
+      const person = [...db.profiles.values()].find((x) => x.handle === h);
+      if (!person) return invalid(res, "Passengers", `We couldn't find @${h}.`);
+      if (person.id === me) return invalid(res, "Passengers", "You can't tag yourself.");
+      if (person.isMinor !== false) return invalid(res, "Passengers", `You can't tag @${h}.`);
+      passengers.push({ userId: person.id, status: "Pending" });
+    }
     if ((body.description ?? "").trim().length > 500)
       return invalid(res, "Description", "Descriptions are 500 characters or fewer.");
     if (!Array.isArray(body.mediaIds) || body.mediaIds.length === 0)
@@ -760,6 +813,7 @@ async function api(req, res, url) {
       {
         description: body.description,
         types,
+        passengers,
         placeName: body.placeName,
         isSensitive: body.isSensitive,
         mediaState: pending ? "Pending" : "Ready",
@@ -786,6 +840,18 @@ async function api(req, res, url) {
     if (!requireUser()) return;
     if (!p || !canSee(p, me)) return problem(res, 404, `Post ${m[1]} was not found.`);
     const rest = m[2];
+    if (rest === "passengers/me") {
+      const tag = p.passengers.find((t) => t.userId === me);
+      if (!tag) return problem(res, 404, "Passenger tag not found.");
+      if (method === "DELETE") {
+        p.passengers = p.passengers.filter((t) => t !== tag);
+        return send(res, 204);
+      }
+      const { accept } = await json();
+      if (tag.status === "Declined" && accept) return invalid(res, "Accept", "You declined this tag.");
+      tag.status = accept ? "Accepted" : "Declined";
+      return send(res, 200, postDto(p, me));
+    }
     if (rest === "reaction") {
       const map = db.reactions.get(p.id) ?? new Map();
       db.reactions.set(p.id, map);
@@ -909,7 +975,7 @@ async function api(req, res, url) {
     if (!requireUser()) return;
     const mine = db.profiles.get(me);
     if (method === "GET")
-      return mine ? send(res, 200, profileDto(mine)) : problem(res, 404, "Profile not found.");
+      return mine ? send(res, 200, profileDto(mine, true)) : problem(res, 404, "Profile not found.");
     if (method === "PUT") {
       if (!mine) return problem(res, 404, "Profile not found.");
       const body = await json();
@@ -937,6 +1003,17 @@ async function api(req, res, url) {
     };
     db.profiles.set(me, created);
     return send(res, 201, profileDto(created));
+  }
+  if (path === "/api/profiles/me/road-user" && method === "PUT") {
+    if (!requireUser()) return;
+    const mine = db.profiles.get(me);
+    if (!mine) return problem(res, 404, "Profile not found.");
+    const body = await json();
+    if (body.roadUser !== null && !["Driver", "Cyclist", "Both"].includes(body.roadUser))
+      return invalid(res, "RoadUser", "Choose driver, cyclist or both.");
+    mine.roadUser = body.roadUser;
+    mine.showRoadUser = body.roadUser !== null && !!body.show;
+    return send(res, 200, profileDto(mine, true));
   }
   if (path === "/api/profiles/me/handle" && method === "PUT") {
     if (!requireUser()) return;
@@ -1061,7 +1138,7 @@ async function api(req, res, url) {
   return false;
 }
 
-function profileDto(p) {
+function profileDto(p, owner = false) {
   return {
     id: p.id,
     handle: p.handle,
@@ -1070,6 +1147,8 @@ function profileDto(p) {
     location: p.location ?? null,
     avatarUrl: avatarUrl(p),
     createdAt: p.createdAt,
+    roadUser: owner || p.showRoadUser ? (p.roadUser ?? null) : null,
+    showRoadUser: owner ? !!p.showRoadUser : null,
   };
 }
 

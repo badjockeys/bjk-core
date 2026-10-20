@@ -47,6 +47,18 @@ export interface AuthorDto {
   handle: string | null;
   displayName: string;
   avatarUrl: string | null;
+  /** "Driver", "Cyclist" or "Both", only if they chose to show it. */
+  roadUser?: RoadUser | null;
+}
+
+export type RoadUser = "Driver" | "Cyclist" | "Both";
+
+export type PassengerTagStatus = "Pending" | "Accepted" | "Declined";
+
+/** Someone tagged as being in the author's vehicle. Others only see Accepted ones. */
+export interface PassengerDto {
+  person: AuthorDto;
+  status: PassengerTagStatus;
 }
 
 export interface LocationDto {
@@ -85,6 +97,8 @@ export interface PostDto {
   category: IncidentCategory;
   /** Every type of bad driving, main first, shown as tags. Absent from older API versions: use `category`. */
   types?: IncidentCategory[];
+  /** Passengers (bjk-modules feature/passenger-tags). Absent from older API versions. */
+  passengers?: PassengerDto[];
   incidentAt: string;
   location: LocationDto;
   status: PostStatus;
@@ -226,6 +240,10 @@ export interface ProfileDto {
   location: string | null;
   avatarUrl: string | null;
   createdAt: string;
+  /** Shown to others only if they chose to; always to themselves. */
+  roadUser?: RoadUser | null;
+  /** Only for your own profile. */
+  showRoadUser?: boolean | null;
 }
 
 export interface HandleAvailability {
@@ -280,6 +298,8 @@ export interface CreatePostRequest {
   placeName: string | null;
   mediaIds: string[];
   isSensitive: boolean;
+  /** @handles of passengers (driving incidents only, up to 4). Each is asked to accept. */
+  passengers?: string[];
 }
 
 export interface PublicReportRequest {

@@ -10,6 +10,7 @@ import { Avatar } from "./Avatar";
 import { CommentIcon, PinIcon, TagIcon } from "./icons";
 import { PostMedia } from "./PostMedia";
 import { PostMoreMenu } from "./PostMoreMenu";
+import { RoadBadge, WithPassengers } from "./PostPeople";
 import { ReactionCount } from "./ReactionCount";
 import { ShareButton } from "./ShareButton";
 
@@ -48,6 +49,7 @@ export function PostCard({ post, viewer }: { post: PostDto; viewer: Viewer }) {
             <span className="tw-name">{post.author.displayName}</span>
           )}
           {post.author.handle ? <span className="tw-handle">@{post.author.handle}</span> : null}
+          <RoadBadge value={post.author.roadUser} />
           <span className="tw-time">
             ·{" "}
             <time dateTime={post.createdAt} suppressHydrationWarning>
@@ -62,6 +64,7 @@ export function PostCard({ post, viewer }: { post: PostDto; viewer: Viewer }) {
             signedIn={viewer.signedIn}
           />
         </div>
+        <WithPassengers passengers={post.passengers} showPending={isMine} />
         <StatusBadge post={post} isMine={isMine} />
         <Link href={href}>
           <p className="tw-text" id={`post-${post.id}-title`}>
