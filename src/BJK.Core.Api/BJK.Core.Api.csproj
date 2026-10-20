@@ -33,7 +33,7 @@
 
   <!-- See nswag.json. Writes src/web/src/lib/generated/api.ts. -->
   <Target Name="GenerateApiClient" AfterTargets="Build" Condition="'$(GenerateApiClient)' == 'true'">
-    <Exec WorkingDirectory="$(MSBuildProjectDirectory)" EnvironmentVariables="ASPNETCORE_ENVIRONMENT=Development" Command="$(NSwagExe_Net100) run nswag.json /variables:Configuration=$(Configuration)" />
+    <Exec WorkingDirectory="$(MSBuildProjectDirectory)" EnvironmentVariables="ASPNETCORE_ENVIRONMENT=Development;GeneratingApiClient=true" Command="$(NSwagExe_Net100) run nswag.json /variables:Configuration=$(Configuration)" />
   </Target>
 
 </Project>
