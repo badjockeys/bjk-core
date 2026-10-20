@@ -354,7 +354,7 @@ If you add a setting, add it to `user-secrets.template.json` (or `.env.local.exa
 
 On your machine nothing needs a supplier account: S3Mock stands in for R2, email and texts go to the console (`Provider: Log`), the CAPTCHA uses Cloudflare's test keys, and maps use OpenStreetMap's public tiles. These are what a deployed environment must change. Secrets are container secrets; everything else is a container setting (Terraform). Nothing needs a cloud-specific service such as Key Vault. Nested keys become environment variables with `__`, e.g. `Email__SendGrid__ApiKey`. The identity server's list is in its README.
 
-**`Log` isn't chosen by environment.** `Email:Provider` and `SMS:Provider` default to `Log` everywhere, so a deployed app without `SendGrid` or `Twilio` set quietly sends nothing (it logs that each message was dropped).
+**Outside Development the apps refuse to start** until every required setting below is set to a live value (no `Log` providers, test keys, http addresses or `<...>` placeholders), listing everything that's missing at once. `--check-settings` runs the same check without starting: e.g. `dotnet BJK.Core.Api.dll --check-settings` with an environment's settings exits 1 and lists the problems. The deploy pipeline runs it before deploying.
 
 **API and media worker** (they share their settings):
 
@@ -385,6 +385,9 @@ On your machine nothing needs a supplier account: S3Mock stands in for R2, email
 | `Notifications:AppUrl`, `Posts:AppUrl` | The web app, e.g. `https://badjockeys.com` | The live domain |
 | `Posts:ReportsInbox` (from bjk-modules #30) | `support@badjockeys.com` (the default) | The mailbox must exist |
 | `Heatmap:VehicleMinCellCount`, `Heatmap:ModelFilterMinSpanKm` | Optional: defaults 5 and 10 | |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Grafana Cloud's OTLP address (https) | **A Grafana Cloud stack** |
+| `OTEL_EXPORTER_OTLP_PROTOCOL` | `http/protobuf` | |
+| `OTEL_EXPORTER_OTLP_HEADERS` (secret) | `Authorization=Basic <base64 of instance id:token>`, from the stack's OpenTelemetry page | **A Grafana Cloud stack** |
 
 The API also needs outbound HTTPS to `api.postcodes.io` (place names; no key).
 
@@ -401,6 +404,7 @@ The API also needs outbound HTTPS to `api.postcodes.io` (place names; no key).
 | `TURNSTILE_SITE_KEY` | The real Turnstile widget's site key | A Cloudflare account |
 | `MEDIA_ORIGINS`, `UPLOAD_ORIGINS` | The public media domain, and `https://<account id>.r2.cloudflarestorage.com` | A Cloudflare account |
 | `MAP_TILE_URL`, `MAP_ATTRIBUTION` | A tile provider's URL and attribution (OpenStreetMap's public tiles aren't allowed for heavy use) | **A map tile provider** |
+| `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL`, `OTEL_EXPORTER_OTLP_HEADERS` (secret) | The same as the API's | **A Grafana Cloud stack** |
 
 ## 7. Run the back end
 
