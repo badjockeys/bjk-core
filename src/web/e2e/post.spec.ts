@@ -39,6 +39,18 @@ test.describe("posting", () => {
     await page.getByRole("button", { name: "Use this place" }).click();
     await expect(page.getByRole("button", { name: "Where: Kirkstall Road, Leeds. Change" })).toBeVisible();
 
+    // The vehicle, from lists, and whether it was reported.
+    await page.getByRole("button", { name: "Add the vehicle" }).click();
+    await page.getByLabel("Car", { exact: true }).check();
+    await page.getByLabel("Make").selectOption("BMW");
+    await page.getByLabel("Model").selectOption("3 Series");
+    await page.getByLabel("Black").check();
+    await page.getByRole("button", { name: "Done" }).click();
+    await expect(
+      page.getByRole("button", { name: "Vehicle: Black BMW 3 Series (car). Change" }),
+    ).toBeVisible();
+    await page.getByRole("radio", { name: "Yes" }).click();
+
     await expect(page.getByText("Still needed: confirm you took them")).toBeVisible();
     await page.getByLabel(/I took these photos/).check();
 
@@ -49,6 +61,7 @@ test.describe("posting", () => {
     await expect(page.getByText("Posted. Thanks for sharing.")).toBeVisible();
     const tags = page.getByRole("list", { name: "Types of bad driving" }).first();
     await expect(tags.getByRole("link")).toHaveText(["Bad parking", "Other"]);
+    await expect(page.getByText("Black BMW 3 Series (car)").first()).toBeVisible();
     await expect(page.getByText(/Processing your photos/)).toBeVisible();
 
     // The mock finishes processing after a couple of seconds; the page checks again by itself.

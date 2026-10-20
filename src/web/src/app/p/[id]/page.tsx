@@ -26,6 +26,7 @@ import { joinPath, postPath, profilePath, signInPath } from "@/lib/paths";
 import { earliestExpiry } from "@/lib/links";
 import { loadPost, postCount } from "@/lib/posts";
 import type { CommentDto, PagedResult, PostDto } from "@/lib/types";
+import { describeVehicle } from "@/lib/vehicles";
 import { participationBlocker, type Viewer } from "@/lib/viewer";
 
 type Props = {
@@ -165,6 +166,18 @@ export default async function PostPage({ params, searchParams }: Props) {
             <span className="small muted">When</span>
             <span>{dateTime(post.incidentAt)}</span>
           </div>
+          {post.vehicle ? (
+            <div className="fact">
+              <span className="small muted">Vehicle</span>
+              <span>{describeVehicle(post.vehicle)}</span>
+            </div>
+          ) : null}
+          {post.reportedToPolice !== null && post.reportedToPolice !== undefined ? (
+            <div className="fact">
+              <span className="small muted">Reported to police</span>
+              <span>{post.reportedToPolice ? "Yes" : "No"}</span>
+            </div>
+          ) : null}
           <div className="fact">
             <span className="small muted">What</span>
             <ul className="type-tags" aria-label="Types of bad driving">

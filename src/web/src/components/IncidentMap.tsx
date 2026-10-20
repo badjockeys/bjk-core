@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { loadAreaStats, loadHeatmap } from "@/actions/heatmap";
+import { getVehicleCatalogue } from "@/actions/vehicles";
 import { CATEGORIES, categoryLabel } from "@/lib/categories";
 import {
   changeLabel,
@@ -14,6 +15,7 @@ import {
   DEFAULT_FILTERS,
   heatmapQuery,
   hourBand,
+  moreFilterCount,
   PERIODS,
   periodLabel,
   planLabel,
@@ -23,7 +25,8 @@ import {
   type MapFilters,
   type Period,
 } from "@/lib/heatmap";
-import type { AreaStatsDto, HeatmapCell, HeatmapDays, HeatmapDto, IncidentCategory } from "@/lib/types";
+import type { AreaStatsDto, HeatmapCell, HeatmapDays, HeatmapDto, VehicleCatalogue } from "@/lib/types";
+import { COLOUR_SWATCHES, vehicleTypeLabel } from "@/lib/vehicles";
 
 const UK_CENTRE: L.LatLngExpression = [54.4, -2.9];
 
@@ -54,6 +57,7 @@ export default function IncidentMap({ tileUrl, attribution }: { tileUrl: string;
     null,
   );
   const [area, setArea] = useState<Area | null>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   const query = useMemo(() => (view ? heatmapQuery(view.bbox, view.zoom, filters) : null), [view, filters]);
   const key = query ? JSON.stringify(query) : "";
@@ -161,16 +165,20 @@ export default function IncidentMap({ tileUrl, attribution }: { tileUrl: string;
           {access ? <span className="plan-badge">{planLabel(access.plan)}</span> : null}
         </span>
         <div className="chips hm-filters" role="group" aria-label="Filters">
-          <FilterSelect
-            label="Category"
-            value={filters.category}
+          <button
+            type="button"
+            className={`chip${filters.categories.length > 0 ? " chip-on" : ""}`}
+            aria-label="Types of bad driving"
+            aria-expanded={moreOpen}
             disabled={locked}
-            onChange={(v) => set("category", v as IncidentCategory | "")}
-            options={[
-              { value: "", label: "All categories" },
-              ...CATEGORIES.map((c) => ({ value: c.value, label: c.label })),
-            ]}
-          />
+            onClick={() => setMoreOpen((o) => !o)}
+          >
+            {filters.categories.length === 0
+              ? "All types"
+              : filters.categories.length === 1
+                ? categoryLabel(filters.categories[0]!)
+                : `${filters.categories.length} types`}
+          </button>
           <FilterSelect
             label="Period"
             value={locked ? "7d" : filters.period}
@@ -192,9 +200,34 @@ export default function IncidentMap({ tileUrl, attribution }: { tileUrl: string;
             onChange={(v) => set("days", v as HeatmapDays)}
             options={DAY_CHOICES}
           />
+          <button
+            type="button"
+            className={`chip${moreFilterCount(filters) > 0 ? " chip-on" : ""}`}
+            aria-expanded={moreOpen}
+            aria-controls="hm-more"
+            disabled={locked}
+            onClick={() => setMoreOpen((o) => !o)}
+          >
+            More filters{moreFilterCount(filters) > 0 ? ` (${moreFilterCount(filters)})` : ""}
+          </button>
           {locked ? <span className="plan-badge">Premium</span> : null}
         </div>
       </header>
+
+      {moreOpen && !locked ? (
+        <MoreFilters
+          filters={filters}
+          modelIgnored={Boolean(access?.modelFilterIgnored)}
+          onChange={(change) => {
+            setFilters((f) => ({ ...f, ...change }));
+            setArea(null);
+          }}
+          onClear={() => {
+            setFilters((f) => ({ ...DEFAULT_FILTERS, period: f.period }));
+            setArea(null);
+          }}
+        />
+      ) : null}
 
       <div className="hm-body">
         <div className="hm-map-wrap">
@@ -230,12 +263,13 @@ export default function IncidentMap({ tileUrl, attribution }: { tileUrl: string;
           ) : (
             <p className="muted small">Select a square on the map to see that area.</p>
           )}
-          <button type="button" className="btn btn-block" disabled>
-            Set an alert for this area (coming soon)
-          </button>
+          <Link href="/account/notifications" className="btn btn-block">
+            Set up alerts for your area
+          </Link>
           <p className="small muted" style={{ margin: 0 }}>
-            Built from rounded locations. Areas with fewer than 3 incidents are hidden so no single incident
-            can be pinpointed.
+            Built from rounded locations. Areas with fewer than {shown?.minCellCount ?? 3} incidents are
+            hidden so no single incident can be pinpointed
+            {(shown?.minCellCount ?? 3) > 3 ? " (5 when filtering by vehicle)" : ""}.
           </p>
           {access && access.plan !== "PremiumPlus" ? (
             <div className="notice small">
@@ -245,6 +279,217 @@ export default function IncidentMap({ tileUrl, attribution }: { tileUrl: string;
         </div>
       </div>
     </div>
+  );
+}
+
+/** The Premium filters beyond the top row: types, dates, vehicle, light, school run, reported, video. */
+function MoreFilters({
+  filters,
+  modelIgnored,
+  onChange,
+  onClear,
+}: {
+  filters: MapFilters;
+  modelIgnored: boolean;
+  onChange: (change: Partial<MapFilters>) => void;
+  onClear: () => void;
+}) {
+  const [catalogue, setCatalogue] = useState<VehicleCatalogue | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void getVehicleCatalogue().then((result) => {
+      if (!cancelled && result.ok) setCatalogue(result.data);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const toggle = <T,>(list: T[], value: T, on: boolean): T[] =>
+    on ? [...list.filter((v) => v !== value), value] : list.filter((v) => v !== value);
+  const models = catalogue?.makes.find((m) => m.name === filters.make)?.models ?? [];
+
+  return (
+    <section id="hm-more" className="hm-more" aria-label="More filters">
+      <fieldset className="hm-group">
+        <legend className="label">Types of bad driving</legend>
+        <div className="row row-wrap" style={{ gap: 6 }}>
+          {CATEGORIES.map((c) => (
+            <label
+              key={c.value}
+              className={`pill-choice${filters.categories.includes(c.value) ? " pill-on" : ""}`}
+            >
+              <input
+                type="checkbox"
+                checked={filters.categories.includes(c.value)}
+                onChange={(e) =>
+                  onChange({ categories: toggle(filters.categories, c.value, e.target.checked) })
+                }
+              />
+              {c.label}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
+      <fieldset className="hm-group">
+        <legend className="label">Dates (instead of the period)</legend>
+        <div className="row row-wrap" style={{ gap: 8 }}>
+          <label className="field">
+            <span className="small muted">From</span>
+            <input
+              className="input"
+              type="date"
+              value={filters.from}
+              onChange={(e) => onChange({ from: e.target.value })}
+            />
+          </label>
+          <label className="field">
+            <span className="small muted">To</span>
+            <input
+              className="input"
+              type="date"
+              value={filters.to}
+              onChange={(e) => onChange({ to: e.target.value })}
+            />
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset className="hm-group">
+        <legend className="label">Vehicle</legend>
+        {catalogue ? (
+          <>
+            <div className="row row-wrap" style={{ gap: 6 }}>
+              {catalogue.types.map((type) => (
+                <label
+                  key={type}
+                  className={`pill-choice${filters.vehicleTypes.includes(type) ? " pill-on" : ""}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={filters.vehicleTypes.includes(type)}
+                    onChange={(e) =>
+                      onChange({ vehicleTypes: toggle(filters.vehicleTypes, type, e.target.checked) })
+                    }
+                  />
+                  {vehicleTypeLabel(type)}
+                </label>
+              ))}
+            </div>
+            <div className="row row-wrap" style={{ gap: 8 }}>
+              <label className="field">
+                <span className="small muted">Make</span>
+                <select
+                  className="input"
+                  value={filters.make}
+                  onChange={(e) => onChange({ make: e.target.value, model: "" })}
+                >
+                  <option value="">Any make</option>
+                  {catalogue.makes.map((m) => (
+                    <option key={m.name} value={m.name}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span className="small muted">Model</span>
+                <select
+                  className="input"
+                  value={filters.model}
+                  disabled={!filters.make}
+                  onChange={(e) => onChange({ model: e.target.value })}
+                >
+                  <option value="">Any model</option>
+                  {models.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            {filters.model && modelIgnored ? (
+              <p className="help">Zoom out to a town or wider to filter by model.</p>
+            ) : null}
+            <div className="row row-wrap" style={{ gap: 6 }} role="group" aria-label="Colours">
+              {catalogue.colours.map((colour) => (
+                <label
+                  key={colour}
+                  className={`pill-choice${filters.colours.includes(colour) ? " pill-on" : ""}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={filters.colours.includes(colour)}
+                    onChange={(e) => onChange({ colours: toggle(filters.colours, colour, e.target.checked) })}
+                  />
+                  <span
+                    className="swatch"
+                    style={{ background: COLOUR_SWATCHES[colour] }}
+                    aria-hidden="true"
+                  />
+                  {colour}
+                </label>
+              ))}
+            </div>
+          </>
+        ) : (
+          <span className="help">Loading…</span>
+        )}
+      </fieldset>
+
+      <fieldset className="hm-group">
+        <legend className="label">Conditions</legend>
+        <div className="row row-wrap" style={{ gap: 6 }}>
+          {(
+            [
+              ["", "Day or night"],
+              ["Daylight", "Daylight"],
+              ["Dark", "After dark"],
+            ] as const
+          ).map(([value, label]) => (
+            <label key={label} className={`pill-choice${filters.light === value ? " pill-on" : ""}`}>
+              <input
+                type="radio"
+                name="light"
+                checked={filters.light === value}
+                onChange={() => onChange({ light: value })}
+              />
+              {label}
+            </label>
+          ))}
+        </div>
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={filters.schoolRun}
+            onChange={(e) => onChange({ schoolRun: e.target.checked })}
+          />
+          <span>School run (weekdays 8–9:15am and 2:45–4pm)</span>
+        </label>
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={filters.reported}
+            onChange={(e) => onChange({ reported: e.target.checked })}
+          />
+          <span>Reported to the police</span>
+        </label>
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={filters.videoOnly}
+            onChange={(e) => onChange({ videoOnly: e.target.checked })}
+          />
+          <span>Videos only</span>
+        </label>
+      </fieldset>
+
+      <button type="button" className="link" onClick={onClear}>
+        Clear filters
+      </button>
+    </section>
   );
 }
 

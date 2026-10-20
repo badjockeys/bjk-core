@@ -6,12 +6,14 @@ import { useCallback, useEffect, useRef, useState, useTransition, type ReactNode
 
 import { discardMedia, getMedia } from "@/actions/media";
 import { findPassenger } from "@/actions/passengers";
+import { getVehicleCatalogue } from "@/actions/vehicles";
 import { createPost } from "@/actions/posts";
 import { followBlocker } from "@/lib/blockers";
 import { categoryLabel, CATEGORY_CHOICES, DESCRIPTION_MAX } from "@/lib/categories";
 import { duration, plural, ukLocalToIso, whenLabel } from "@/lib/format";
 import { shrinkPhoto } from "@/lib/image-resize";
-import type { AuthorDto, IncidentCategory } from "@/lib/types";
+import type { AuthorDto, IncidentCategory, VehicleCatalogue, VehicleDto } from "@/lib/types";
+import { COLOUR_SWATCHES, describeVehicle, vehicleTypeLabel } from "@/lib/vehicles";
 import {
   contentTypeOf,
   kindOf,
@@ -48,7 +50,7 @@ const MapPicker = dynamic(() => import("./MapPicker"), {
 });
 
 /** The composer, or one of the panels it opens in place (trimming a video, choosing types, when, where). */
-type View = "compose" | "trim" | "types" | "when" | "where";
+type View = "compose" | "trim" | "types" | "when" | "where" | "vehicle";
 
 interface Item {
   key: string;
@@ -75,6 +77,10 @@ interface Fields {
   owned: boolean;
   /** People in the author's vehicle (driving incidents only, up to 4). */
   passengers: AuthorDto[];
+  /** The vehicle driven badly, from lists (never the registration). */
+  vehicle: VehicleDto | null;
+  /** Reported to the police: yes, no, or not said. */
+  reportedToPolice: boolean | null;
 }
 
 const MAX_PASSENGERS = 4;
@@ -150,6 +156,8 @@ export function PostComposer({
     sensitive: false,
     owned: false,
     passengers: [],
+    vehicle: null,
+    reportedToPolice: null,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -398,6 +406,11 @@ export function PostComposer({
         description: fields.description || null,
         types: fields.types,
         passengers: onTheRoad ? fields.passengers.map((p) => p.handle!) : [],
+        vehicleType: fields.vehicle?.type ?? null,
+        vehicleMake: fields.vehicle?.make ?? null,
+        vehicleModel: fields.vehicle?.model ?? null,
+        vehicleColour: fields.vehicle?.colour ?? null,
+        reportedToPolice: fields.reportedToPolice,
         incidentAt: ukLocalToIso(fields.date, fields.time)!,
         latitude: round6(fields.pin!.lat),
         longitude: round6(fields.pin!.lng),
@@ -505,6 +518,17 @@ export function PostComposer({
         onDone={(date, time) => {
           setFields((current) => ({ ...current, date, time }));
           setErrors((current) => ({ ...current, when: "" }));
+          setView("compose");
+        }}
+        onBack={() => setView("compose")}
+      />
+    );
+  } else if (view === "vehicle") {
+    body = (
+      <VehiclePanel
+        vehicle={fields.vehicle}
+        onDone={(vehicle) => {
+          setFields((current) => ({ ...current, vehicle }));
           setView("compose");
         }}
         onBack={() => setView("compose")}
@@ -702,6 +726,52 @@ export function PostComposer({
               <span className="error">{errors.placeName || errors.pin}</span>
             ) : null}
 
+            <div className="cmp-row">
+              <span className="cmp-row-label">
+                Vehicle <span className="small">(optional)</span>
+              </span>
+              {fields.vehicle ? (
+                <button
+                  type="button"
+                  className="cmp-chip cmp-chip-on"
+                  aria-label={`Vehicle: ${describeVehicle(fields.vehicle)}. Change`}
+                  onClick={() => setView("vehicle")}
+                >
+                  {describeVehicle(fields.vehicle)}
+                </button>
+              ) : (
+                <button type="button" className="cmp-chip" onClick={() => setView("vehicle")}>
+                  <PlusIcon size={14} />
+                  Add the vehicle
+                </button>
+              )}
+            </div>
+
+            <div className="cmp-row">
+              <span className="cmp-row-label" id="police-label">
+                Reported to police?
+              </span>
+              <div className="cmp-chips" role="radiogroup" aria-labelledby="police-label">
+                {(
+                  [
+                    [true, "Yes"],
+                    [false, "No"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={label}
+                    type="button"
+                    role="radio"
+                    aria-checked={fields.reportedToPolice === value}
+                    className={`cmp-chip${fields.reportedToPolice === value ? " cmp-chip-on" : ""}`}
+                    onClick={() => set("reportedToPolice", fields.reportedToPolice === value ? null : value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {onTheRoad ? (
               <PassengersRow
                 passengers={fields.passengers}
@@ -839,6 +909,147 @@ function stillNeeded(fields: Fields, media: number, failed: boolean): string[] {
   if (!fields.placeName.trim() || !fields.pin) needed.push("where it happened");
   if (!fields.owned) needed.push("confirm you took them");
   return needed;
+}
+
+/**
+ * What was driven badly: type (needed once anything else is chosen), make, model and colour, all from lists. Never
+ * the registration: number plates are blurred and must never be typed.
+ */
+function VehiclePanel({
+  vehicle,
+  onDone,
+  onBack,
+}: {
+  vehicle: VehicleDto | null;
+  onDone: (vehicle: VehicleDto | null) => void;
+  onBack: () => void;
+}) {
+  const [catalogue, setCatalogue] = useState<VehicleCatalogue | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [draft, setDraft] = useState<Partial<VehicleDto>>(vehicle ?? {});
+
+  useEffect(() => {
+    let cancelled = false;
+    void getVehicleCatalogue().then((result) => {
+      if (cancelled) return;
+      if (result.ok) setCatalogue(result.data);
+      else setError(result.error);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const models = catalogue?.makes.find((m) => m.name === draft.make)?.models ?? [];
+  const needsType = !draft.type && Boolean(draft.make || draft.model || draft.colour);
+
+  return (
+    <div className="cmp-panel">
+      <PanelHead title="What was being driven?" onBack={onBack} />
+      <div className="cmp-scroll cmp-panel-body">
+        <p className="small muted">
+          All optional. Choose from the lists: never type a number plate, it&apos;s blurred for a reason.
+        </p>
+        {error ? <span className="error">{error}</span> : null}
+        {!catalogue && !error ? <span className="help">Loading the lists…</span> : null}
+        {catalogue ? (
+          <>
+            <fieldset className="field road-user">
+              <legend className="label">Type</legend>
+              <div className="row row-wrap" style={{ gap: 8 }}>
+                {catalogue.types.map((type) => (
+                  <label key={type} className={`pill-choice${draft.type === type ? " pill-on" : ""}`}>
+                    <input
+                      type="radio"
+                      name="vehicle-type"
+                      checked={draft.type === type}
+                      onChange={() => setDraft((d) => ({ ...d, type }))}
+                    />
+                    {vehicleTypeLabel(type)}
+                  </label>
+                ))}
+              </div>
+              {needsType ? <span className="error">Choose the type of vehicle.</span> : null}
+            </fieldset>
+            <div className="facts">
+              <label className="field">
+                <span className="label">Make</span>
+                <select
+                  className="input"
+                  value={draft.make ?? ""}
+                  onChange={(e) => setDraft((d) => ({ ...d, make: e.target.value || null, model: null }))}
+                >
+                  <option value="">Not sure</option>
+                  {catalogue.makes.map((m) => (
+                    <option key={m.name} value={m.name}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span className="label">Model</span>
+                <select
+                  className="input"
+                  value={draft.model ?? ""}
+                  disabled={!draft.make}
+                  onChange={(e) => setDraft((d) => ({ ...d, model: e.target.value || null }))}
+                >
+                  <option value="">Not sure</option>
+                  {models.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <fieldset className="field road-user">
+              <legend className="label">Colour</legend>
+              <div className="row row-wrap" style={{ gap: 8 }}>
+                {catalogue.colours.map((colour) => (
+                  <label key={colour} className={`pill-choice${draft.colour === colour ? " pill-on" : ""}`}>
+                    <input
+                      type="radio"
+                      name="vehicle-colour"
+                      checked={draft.colour === colour}
+                      onChange={() => setDraft((d) => ({ ...d, colour }))}
+                    />
+                    <span
+                      className="swatch"
+                      style={{ background: COLOUR_SWATCHES[colour] }}
+                      aria-hidden="true"
+                    />
+                    {colour}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          </>
+        ) : null}
+      </div>
+      <div className="cmp-panel-foot row">
+        <button type="button" className="btn" onClick={() => onDone(null)}>
+          {vehicle ? "Remove" : "Skip"}
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary btn-block"
+          disabled={!draft.type}
+          onClick={() =>
+            onDone({
+              type: draft.type!,
+              make: draft.make ?? null,
+              model: draft.model ?? null,
+              colour: draft.colour ?? null,
+            })
+          }
+        >
+          Done
+        </button>
+      </div>
+    </div>
+  );
 }
 
 /** Tag up to four people who were in your vehicle. Each is asked to accept before their name shows. */

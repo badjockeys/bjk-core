@@ -20,6 +20,14 @@ function clean(q: HeatmapQuery): HeatmapQuery | null {
     categories: q.categories || undefined,
     hours: q.hours || undefined,
     days: q.days === "Weekdays" || q.days === "Weekends" ? q.days : undefined,
+    vehicleTypes: q.vehicleTypes || undefined,
+    make: q.make || undefined,
+    model: q.model || undefined,
+    colours: q.colours || undefined,
+    light: q.light === "Daylight" || q.light === "Dark" ? q.light : undefined,
+    schoolRun: q.schoolRun ? true : undefined,
+    reported: q.reported ? true : undefined,
+    videoOnly: q.videoOnly ? true : undefined,
   };
 }
 

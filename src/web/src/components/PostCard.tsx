@@ -4,6 +4,7 @@ import { categoryHref, categoryLabel, postTypes } from "@/lib/categories";
 import { timeAgo } from "@/lib/format";
 import { postPath, profilePath } from "@/lib/paths";
 import type { PostDto } from "@/lib/types";
+import { describeVehicle } from "@/lib/vehicles";
 import type { Viewer } from "@/lib/viewer";
 
 import { Avatar } from "./Avatar";
@@ -84,6 +85,8 @@ export function PostCard({ post, viewer }: { post: PostDto; viewer: Viewer }) {
               {post.location.placeName}
             </span>
           ) : null}
+          {post.vehicle ? <span>{describeVehicle(post.vehicle)}</span> : null}
+          {post.reportedToPolice ? <span>Reported to police</span> : null}
           {post.isSensitive ? <span>Sensitive</span> : null}
         </div>
         <ul className="type-tags" aria-label="Types of bad driving">

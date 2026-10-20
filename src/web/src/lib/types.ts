@@ -53,6 +53,50 @@ export interface AuthorDto {
 
 export type RoadUser = "Driver" | "Cyclist" | "Both";
 
+export type VehicleType =
+  | "Car"
+  | "Van"
+  | "Lorry"
+  | "Bus"
+  | "Coach"
+  | "Taxi"
+  | "Motorbike"
+  | "Bicycle"
+  | "EScooter"
+  | "Tractor"
+  | "Other";
+
+export type VehicleColour =
+  | "Black"
+  | "White"
+  | "Silver"
+  | "Grey"
+  | "Blue"
+  | "Red"
+  | "Green"
+  | "Yellow"
+  | "Orange"
+  | "Brown"
+  | "Beige"
+  | "Purple"
+  | "Gold"
+  | "Other";
+
+/** The vehicle driven badly (from lists; never the registration). */
+export interface VehicleDto {
+  type: VehicleType;
+  make: string | null;
+  model: string | null;
+  colour: VehicleColour | null;
+}
+
+/** GET /api/vehicles: the lists vehicle details are chosen from. */
+export interface VehicleCatalogue {
+  types: VehicleType[];
+  colours: VehicleColour[];
+  makes: { name: string; models: string[] }[];
+}
+
 export type NotificationType =
   | "PassengerTagged"
   | "PassengerAccepted"
@@ -152,6 +196,9 @@ export interface PostDto {
   types?: IncidentCategory[];
   /** Passengers (bjk-modules feature/passenger-tags). Absent from older API versions. */
   passengers?: PassengerDto[];
+  /** Vehicle details (bjk-modules feature/vehicle-details); absent or null when not given. */
+  vehicle?: VehicleDto | null;
+  reportedToPolice?: boolean | null;
   incidentAt: string;
   location: LocationDto;
   status: PostStatus;
@@ -206,6 +253,8 @@ export interface HeatmapAccess {
   to: string;
   historyCapped: boolean;
   filtersIgnored: boolean;
+  /** The model filter was ignored because the map is zoomed in closer than a town. */
+  modelFilterIgnored?: boolean;
 }
 
 export interface HeatmapCell {
@@ -252,6 +301,14 @@ export interface HeatmapQuery {
   categories?: string;
   hours?: string;
   days?: HeatmapDays;
+  vehicleTypes?: string;
+  make?: string;
+  model?: string;
+  colours?: string;
+  light?: "Daylight" | "Dark";
+  schoolRun?: boolean;
+  reported?: boolean;
+  videoOnly?: boolean;
 }
 
 export interface CommentDto {
@@ -353,6 +410,11 @@ export interface CreatePostRequest {
   isSensitive: boolean;
   /** @handles of passengers (driving incidents only, up to 4). Each is asked to accept. */
   passengers?: string[];
+  vehicleType?: VehicleType | null;
+  vehicleMake?: string | null;
+  vehicleModel?: string | null;
+  vehicleColour?: VehicleColour | null;
+  reportedToPolice?: boolean | null;
 }
 
 export interface PublicReportRequest {

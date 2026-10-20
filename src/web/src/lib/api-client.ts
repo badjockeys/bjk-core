@@ -30,6 +30,7 @@ import type {
   ReportReason,
   ReportReceipt,
   RoadUser,
+  VehicleCatalogue,
   RequestUploadResult,
 } from "./types";
 
@@ -340,6 +341,9 @@ export function endpoints(api: ApiClient) {
     me: {
       /** Everything core holds about the user (profile, posts, comments, reactions, reports, media). */
       dataExport: (token: string) => api.request<unknown>("GET", "/api/me/data-export", { token }),
+    },
+    vehicles: {
+      catalogue: () => api.request<VehicleCatalogue>("GET", "/api/vehicles", { revalidate: 86_400 }),
     },
     places: {
       search: (token: string, q: string) =>

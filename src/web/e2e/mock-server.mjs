@@ -250,6 +250,8 @@ function post(id, authorId, title, category, mediaIds, createdAt, extra = {}) {
     category,
     types: extra.types ?? [category],
     passengers: extra.passengers ?? [],
+    vehicle: extra.vehicle ?? null,
+    reportedToPolice: extra.reportedToPolice ?? null,
     incidentAt: createdAt,
     latitude: 53.81,
     longitude: -1.6,
@@ -319,6 +321,8 @@ function postDto(p, viewer) {
     category: p.category,
     types: p.types,
     passengers: passengersFor(p, viewer),
+    vehicle: p.vehicle,
+    reportedToPolice: p.reportedToPolice,
     incidentAt: p.incidentAt,
     location: { latitude: p.latitude, longitude: p.longitude, placeName: p.placeName },
     status: p.status,
@@ -763,6 +767,10 @@ async function api(req, res, url) {
       page(items, url, (p) => postDto(p, me)),
     );
   }
+  // Vehicle lists
+  if (path === "/api/vehicles" && method === "GET") {
+    return send(res, 200, VEHICLES);
+  }
   // Places and home areas
   if (path === "/api/places" && method === "GET") {
     if (!requireUser()) return;
@@ -916,6 +924,15 @@ async function api(req, res, url) {
         description: body.description,
         types,
         passengers,
+        vehicle: body.vehicleType
+          ? {
+              type: body.vehicleType,
+              make: body.vehicleMake ?? null,
+              model: body.vehicleModel ?? null,
+              colour: body.vehicleColour ?? null,
+            }
+          : null,
+        reportedToPolice: body.reportedToPolice ?? null,
         placeName: body.placeName,
         isSensitive: body.isSensitive,
         mediaState: pending ? "Pending" : "Ready",
@@ -1240,6 +1257,27 @@ async function api(req, res, url) {
   return false;
 }
 
+const VEHICLES = {
+  types: [
+    "Car",
+    "Van",
+    "Lorry",
+    "Bus",
+    "Coach",
+    "Taxi",
+    "Motorbike",
+    "Bicycle",
+    "EScooter",
+    "Tractor",
+    "Other",
+  ],
+  colours: ["Black", "White", "Silver", "Grey", "Blue", "Red", "Other"],
+  makes: [
+    { name: "BMW", models: ["1 Series", "3 Series", "X5", "Other"] },
+    { name: "Ford", models: ["Fiesta", "Focus", "Transit", "Other"] },
+    { name: "Other", models: ["Other"] },
+  ],
+};
 const PLACES = [
   { name: "Rainhill", detail: "St. Helens, North West", latitude: 53.42, longitude: -2.77 },
   { name: "Rainford", detail: "St. Helens, North West", latitude: 53.5, longitude: -2.79 },
