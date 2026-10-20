@@ -63,8 +63,9 @@ test.describe("posting", () => {
     await signIn(page, "/");
     await page.getByRole("link", { name: /Seen some bad driving/ }).click();
 
-    const dialog = page.getByRole("dialog", { name: "Create post" });
-    await expect(dialog).toBeVisible();
+    // The pop-up is named after what it shows: "Create post", or the panel open in it.
+    const dialog = page.getByRole("dialog");
+    await expect(page.getByRole("dialog", { name: "Create post" })).toBeVisible();
     await expect(page).toHaveURL(/\/post\/new$/);
 
     // Closing an untouched composer goes straight back to the feed.
