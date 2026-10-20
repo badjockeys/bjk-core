@@ -1,0 +1,38 @@
+# The two databases, read through the read-only bjk_reporting login, which can only see the `reporting` views
+# (scripts/sql/reporting). The password comes from BJK_REPORTING_PASSWORD in bjk-core/.env locally, and from a
+# container secret when deployed. Locally the SQL Server container is "sql" on the Docker network.
+# tlsSkipVerify is for the local and CI SQL Server containers, which have self-signed certificates; a deployed Grafana
+# gets its own data source file that checks the certificate.
+apiVersion: 1
+datasources:
+  - name: Bad Jockeys app
+    uid: bjk-app
+    type: mssql
+    access: proxy
+    url: ${BJK_REPORTING_SQL_SERVER}
+    user: bjk_reporting
+    isDefault: true
+    editable: false
+    jsonData:
+      database: badjockeys
+      encrypt: "true"
+      tlsSkipVerify: true
+      maxOpenConns: 5
+      connMaxLifetime: 14400
+    secureJsonData:
+      password: ${BJK_REPORTING_PASSWORD}
+  - name: Identity server
+    uid: bjk-idsrv
+    type: mssql
+    access: proxy
+    url: ${BJK_REPORTING_SQL_SERVER}
+    user: bjk_reporting
+    editable: false
+    jsonData:
+      database: idsrv
+      encrypt: "true"
+      tlsSkipVerify: true
+      maxOpenConns: 5
+      connMaxLifetime: 14400
+    secureJsonData:
+      password: ${BJK_REPORTING_PASSWORD}

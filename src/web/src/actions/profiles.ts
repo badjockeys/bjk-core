@@ -2,7 +2,7 @@
 
 import { api } from "@/lib/api";
 import type { ActionResult } from "@/lib/action-result";
-import { IN_APP_REASONS, isReason } from "@/lib/reasons";
+import { isReason, PROFILE_REASONS } from "@/lib/reasons";
 import type { HandleAvailability, ProfileDto, ReportReason, RoadUser } from "@/lib/types";
 
 import { asUser, run } from "./run";
@@ -89,7 +89,7 @@ export async function reportProfile(
   reason: ReportReason,
   details: string,
 ): Promise<ActionResult> {
-  if (!isReason(reason, IN_APP_REASONS)) {
+  if (!isReason(reason, PROFILE_REASONS)) {
     return { ok: false, error: "Choose a reason." };
   }
   return asUser((t) => api().reports.profile(t, handle, reason, details.trim() || null));

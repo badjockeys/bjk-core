@@ -26,6 +26,8 @@ Going live: see [Going live](docs/local-development.md#going-live) for every set
 
 On your machine, SQL Server and file storage (S3Mock, standing in for Cloudflare R2, so no Cloudflare account is needed) run in Docker from this repo's `docker-compose.yml`, as one group called `bad-jockeys` (`docker compose up -d --wait`).
 
+Reports: Grafana runs in the same Docker group at http://localhost:3300, with an **Identity server** and a **Bad Jockeys** dashboard built from counts-only `reporting` views, read through a read-only login (see [Reports](docs/local-development.md#reports)).
+
 Jobs and events between the API, the media workers and the identity server go through durable queues stored in SQL Server (the `messaging` schema of `badjockeys`), not a separate broker: see [docs/messaging.md](docs/messaging.md), which also has the media worker's scaling rule.
 
 ## The web app

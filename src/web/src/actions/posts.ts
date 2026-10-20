@@ -5,6 +5,7 @@ import { getAccessToken } from "@/lib/auth";
 import { CATEGORIES } from "@/lib/categories";
 import type { ActionResult } from "@/lib/action-result";
 import type {
+  CommentSetting,
   CreatePostRequest,
   IncidentCategory,
   PagedResult,
@@ -61,6 +62,14 @@ export async function reportPost(
 
 export async function deletePost(postId: string): Promise<ActionResult> {
   return asUser((t) => api().posts.remove(t, postId));
+}
+
+/** On your own post: turn comments off (existing ones stay) or back on. */
+export async function setCommentSetting(postId: string, setting: CommentSetting): Promise<ActionResult> {
+  if (setting !== "Everyone" && setting !== "Off") {
+    return { ok: false, error: "Choose who can comment." };
+  }
+  return asUser((t) => api().posts.setCommentSetting(t, postId, setting));
 }
 
 export async function appealPost(

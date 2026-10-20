@@ -20,6 +20,7 @@ import {
 } from "./generated/api";
 import type {
   AreaAlertMode,
+  CommentSetting,
   HeatmapQuery,
   IncidentCategory,
   NotificationSettingDto,
@@ -198,6 +199,9 @@ export function endpoints(api: ApiClient) {
           q.pageSize ?? 20,
         ),
       mine: (token: string, page = 1, pageSize = 20) => posts(token).posts_ListMine(page, pageSize),
+      /** One person's comments and replies, with the post each is on (their profile's Replies tab). */
+      replies: (token: string, handle: string, page = 1, pageSize = 20) =>
+        posts(token).posts_ListProfileReplies(handle, page, pageSize),
       get: (token: string | null, postId: string) => posts(token).posts_Get(postId),
       create: (token: string, body: CreatePostRequest) => posts(token).posts_Create(body),
       remove: (token: string, postId: string) => posts(token).posts_Delete(postId),
@@ -213,6 +217,9 @@ export function endpoints(api: ApiClient) {
       respondToTag: (token: string, postId: string, accept: boolean) =>
         posts(token).posts_RespondToTag(postId, { accept }),
       removeMyTag: (token: string, postId: string) => posts(token).posts_RemoveMyTag(postId),
+      /** On your own post: who can comment (everyone, or nobody). */
+      setCommentSetting: (token: string, postId: string, setting: CommentSetting) =>
+        posts(token).posts_SetCommentSetting(postId, { setting }),
     },
     drafts: {
       list: (token: string) => client(DraftsClient, { token }).drafts_List(),
@@ -230,8 +237,16 @@ export function endpoints(api: ApiClient) {
       add: (token: string, postId: string, body: string) => posts(token).posts_AddComment(postId, { body }),
       reply: (token: string, postId: string, commentId: string, body: string) =>
         posts(token).posts_Reply(postId, commentId, { body }),
+      edit: (token: string, postId: string, commentId: string, body: string) =>
+        posts(token).posts_EditComment(postId, commentId, { body }),
       remove: (token: string, postId: string, commentId: string) =>
         posts(token).posts_DeleteComment(postId, commentId),
+      /** The text now and before each edit, newest first. */
+      history: (token: string, postId: string, commentId: string) =>
+        posts(token).posts_GetCommentHistory(postId, commentId),
+      /** On your own post: hide someone's comment from everyone else, or show it again. */
+      setHidden: (token: string, postId: string, commentId: string, hidden: boolean) =>
+        posts(token).posts_SetCommentHidden(postId, commentId, { hidden }),
       react: (token: string, postId: string, commentId: string, type: ReactionType) =>
         posts(token).posts_ReactToComment(postId, commentId, { type }),
       unreact: (token: string, postId: string, commentId: string) =>

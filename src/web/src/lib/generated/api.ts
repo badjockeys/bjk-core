@@ -2936,6 +2936,65 @@ export class PostsClient {
     }
 
     /**
+     * One person's comments and replies, newest first, with the post each is on: the Replies tab on their profile.
+    Only comments on posts everyone can see.
+     * @param author (optional) The profile's @handle.
+     * @param page (optional) Page number, from 1.
+     * @param pageSize (optional) Comments per page, up to 50.
+     */
+    posts_ListProfileReplies(author?: string | undefined, page?: number | undefined, pageSize?: number | undefined, signal?: AbortSignal): Promise<PagedResultOfProfileReplyDto> {
+        let url_ = this.baseUrl + "/api/posts/replies?";
+        if (author === null)
+            throw new globalThis.Error("The parameter 'author' cannot be null.");
+        else if (author !== undefined)
+            url_ += "author=" + encodeURIComponent("" + author) + "&";
+        if (page === null)
+            throw new globalThis.Error("The parameter 'page' cannot be null.");
+        else if (page !== undefined)
+            url_ += "page=" + encodeURIComponent("" + page) + "&";
+        if (pageSize === null)
+            throw new globalThis.Error("The parameter 'pageSize' cannot be null.");
+        else if (pageSize !== undefined)
+            url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPosts_ListProfileReplies(_response);
+        });
+    }
+
+    protected processPosts_ListProfileReplies(response: Response): Promise<PagedResultOfProfileReplyDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PagedResultOfProfileReplyDto;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PagedResultOfProfileReplyDto>(null as any);
+    }
+
+    /**
      * One post. Anyone can call this; sensitive posts are 404 for logged-out callers.
      */
     posts_Get(id: string, signal?: AbortSignal): Promise<PostDto> {
@@ -3586,6 +3645,180 @@ export class PostsClient {
         if (status === 204) {
             return response.text().then((_responseText) => {
             return;
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    /**
+     * A comment's text now and before each edit, newest first ("Edited").
+     */
+    posts_GetCommentHistory(id: string, commentId: string, signal?: AbortSignal): Promise<CommentVersionDto[]> {
+        let url_ = this.baseUrl + "/api/posts/{id}/comments/{commentId}/history";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        if (commentId === undefined || commentId === null)
+            throw new globalThis.Error("The parameter 'commentId' must be defined.");
+        url_ = url_.replace("{commentId}", encodeURIComponent("" + commentId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPosts_GetCommentHistory(_response);
+        });
+    }
+
+    protected processPosts_GetCommentHistory(response: Response): Promise<CommentVersionDto[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as CommentVersionDto[];
+            return result200;
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<CommentVersionDto[]>(null as any);
+    }
+
+    /**
+     * On your own post: hide someone's comment or reply from everyone else (they still see it, marked hidden), or
+    show it again. A hidden comment's replies are hidden too.
+     */
+    posts_SetCommentHidden(id: string, commentId: string, request: HideCommentRequest, signal?: AbortSignal): Promise<CommentDto> {
+        let url_ = this.baseUrl + "/api/posts/{id}/comments/{commentId}/hidden";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        if (commentId === undefined || commentId === null)
+            throw new globalThis.Error("The parameter 'commentId' must be defined.");
+        url_ = url_.replace("{commentId}", encodeURIComponent("" + commentId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPosts_SetCommentHidden(_response);
+        });
+    }
+
+    protected processPosts_SetCommentHidden(response: Response): Promise<CommentDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as CommentDto;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<CommentDto>(null as any);
+    }
+
+    /**
+     * On your own post: who can comment (everyone, or nobody). Comments already there stay.
+     */
+    posts_SetCommentSetting(id: string, request: CommentSettingRequest, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/posts/{id}/comment-setting";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPosts_SetCommentSetting(_response);
+        });
+    }
+
+    protected processPosts_SetCommentSetting(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
             });
         } else if (status === 403) {
             return response.text().then((_responseText) => {
@@ -5099,7 +5332,7 @@ export interface ReportDto {
 
 export type ReportTargetType = "Post" | "Comment" | "Profile";
 
-export type ReportReason = "DangerousOrIllegal" | "PersonalInformation" | "HarassmentOrHate" | "Spam" | "NotADrivingIncident" | "Other" | "IllegalContent" | "Threat" | "InThisClip" | "Copyright";
+export type ReportReason = "DangerousOrIllegal" | "PersonalInformation" | "HarassmentOrHate" | "Spam" | "NotADrivingIncident" | "Other" | "IllegalContent" | "Threat" | "InThisClip" | "Copyright" | "Impersonation" | "UnderThirteen";
 
 /** How quickly a report needs a decision; see UrgentResponseTime. */
 export type ReportPriority = "Normal" | "Urgent";
@@ -5193,6 +5426,7 @@ export interface PostDto {
     passengers: PassengerDto[] | null;
     vehicle: VehicleDto | null;
     reportedToPolice: boolean | null;
+    commentSetting: CommentSetting;
     /** True while the post waits for its photos or video: the app shows a "processing" indicator. */
     isProcessing: boolean;
 }
@@ -5264,6 +5498,9 @@ export type VehicleType = "Car" | "Van" | "Lorry" | "Bus" | "Coach" | "Taxi" | "
 /** The vehicle's main colour. Stored by name. */
 export type VehicleColour = "Black" | "White" | "Silver" | "Grey" | "Blue" | "Red" | "Green" | "Yellow" | "Orange" | "Brown" | "Beige" | "Purple" | "Gold" | "Other";
 
+/** Who can comment on a post, chosen by its author. Stored by name. */
+export type CommentSetting = "Everyone" | "Off";
+
 /** The content screening queues moderators work through. */
 export type ScreeningQueue = "Held" | "Flagged";
 
@@ -5290,7 +5527,7 @@ export interface ScreenedCommentDto {
     screeningLabels: string | null;
 }
 
-/** A comment or reply. Status is HeldForReview only for its author, while a moderator reviews it. IsRemoved marks a top-level comment that was hidden or deleted but still has visible replies: it's shown as a "comment removed" placeholder, with no author and an empty body. Top-level comments in a list carry their ReplyCount and the first few Replies; the rest come from the replies endpoint. */
+/** A comment or reply. Status is HeldForReview only for its author, while a moderator reviews it. IsRemoved marks a top-level comment that was hidden or deleted but still has visible replies: it's shown as a "comment removed" placeholder, with no author and an empty body. Top-level comments in a list carry their ReplyCount and the first few Replies; the rest come from the replies endpoint. EditedAt is set once its author has changed the text (the earlier versions come from the history endpoint). IsHiddenByPostAuthor: the post's author hid it. Everyone else gets it with no author, an empty body and no replies, shown as a "Hidden by the post's author" placeholder; the commenter and the post's author get it in full. */
 export interface CommentDto {
     id: string;
     postId: string;
@@ -5305,6 +5542,8 @@ export interface CommentDto {
     myReaction: ReactionType | null;
     replyCount: number;
     replies: CommentDto[] | null;
+    editedAt: string | null;
+    isHiddenByPostAuthor: boolean;
 }
 
 export type CommentStatus = "Visible" | "Hidden" | "Deleted" | "HeldForReview";
@@ -5540,6 +5779,33 @@ export interface TagResponseRequest {
     accept: boolean;
 }
 
+export interface PagedResultOfProfileReplyDto {
+    items: ProfileReplyDto[];
+    page: number;
+    pageSize: number;
+    totalCount: number;
+}
+
+/** A comment on someone's profile Replies tab, with the post it's on. */
+export interface ProfileReplyDto {
+    /** The comment or reply. */
+    comment: CommentDto;
+    /** The post it's on. */
+    post: ReplyPostDto;
+    /** For a reply: the @handle of the comment it answers (null if that person's profile is gone). */
+    replyingTo: string | null;
+}
+
+/** The post a profile reply is on. */
+export interface ReplyPostDto {
+    /** The post's id. */
+    id: string;
+    /** Its title. */
+    title: string;
+    /** Who posted it. */
+    author: AuthorDto;
+}
+
 /** Creates a post with 1 to 10 photos or one video, uploaded through /api/media first. They don't have to have finished processing: if any is still Processing (or waiting for a moderator's review), the post is saved as Pending, seen only by its author (in "my posts") and moderators, and is published automatically once they're all Ready, or marked Failed (and the author emailed) if one fails. If they're all Ready already, it's visible to everyone straight away. Either way content screening can hold it for review. The author needs a confirmed email and a profile (and a passed age check if Safety:RequireAgeVerification is on). IsSensitive marks graphic content: the post shows to everyone, its media blurred except for age-verified adults, and the media are kept privately. If automatic detection already flagged any of the media, the post is tagged sensitive automatically (and queued for a moderator) whatever IsSensitive says. Types are the types of bad driving (at least one; the first is the main one); older clients can send one Category instead. Passengers are @handles of people in the author's vehicle (driving incidents only, up to 4, adults only): each is asked to accept before their name shows on the post. DraftId publishes one of the author's drafts: the draft is deleted once the post is saved (its photos and videos stay, in the post). */
 export interface CreatePostCommand {
     title: string;
@@ -5593,6 +5859,26 @@ export interface PagedResultOfCommentDto {
 
 export interface CommentRequest {
     body: string;
+}
+
+/** A version of a comment's text, for its edit history. */
+export interface CommentVersionDto {
+    /** The text. */
+    body: string;
+    /** When this version was written. */
+    writtenAt: string;
+    /** True for the text as it is now. */
+    isCurrent: boolean;
+}
+
+/** Hide a comment on your post from everyone else (true), or show it again (false). */
+export interface HideCommentRequest {
+    hidden: boolean;
+}
+
+/** Who can comment on your post. */
+export interface CommentSettingRequest {
+    setting: CommentSetting;
 }
 
 export interface ReportRequest {

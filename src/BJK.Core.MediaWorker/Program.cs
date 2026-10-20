@@ -1,4 +1,5 @@
 using BJK.Modules.Media;
+using BJK.Modules.Shared.Configuration;
 
 // The media processing worker: takes jobs off the media.process queue, converts each upload with ffmpeg
 // (720p H.264 video or WebP photos, plus a thumbnail, with metadata such as GPS stripped), publishes the results
@@ -13,4 +14,12 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddMediaProcessing(builder.Configuration, ConnectionStringName);
 
 var host = builder.Build();
+
+// --check-settings: run every startup settings check and exit (0 when ready, 1 with every problem listed).
+if (SettingsCheck.Requested(args))
+{
+    return SettingsCheck.Run(host.Services);
+}
+
 await host.RunAsync();
+return 0;

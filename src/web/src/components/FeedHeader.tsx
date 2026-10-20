@@ -1,8 +1,10 @@
 import Link from "next/link";
 
+import { inlineComposerProps } from "@/app/post/new/composer-props";
 import type { Viewer } from "@/lib/viewer";
 
 import { Avatar } from "./Avatar";
+import { InlineComposer } from "./InlineComposer";
 import { LogoMark, PhotoIcon } from "./icons";
 import { NotificationBell } from "./NotificationBell";
 
@@ -30,8 +32,15 @@ export function FeedHeader({ viewer, title = "Home" }: { viewer: Viewer; title?:
   );
 }
 
-/** Desktop: "Seen some bad driving?", which opens the new post composer as a pop-up over the feed. */
+/**
+ * Desktop: "Seen some bad driving?" at the top of the feed, which opens the composer in place. Members without a
+ * profile yet get a link to /post/new, which asks them to make one first.
+ */
 export function Composer({ viewer }: { viewer: Viewer }) {
+  const data = inlineComposerProps(viewer);
+  if (data) {
+    return <InlineComposer {...data} />;
+  }
   return (
     <Link href="/post/new" className="feed-composer d-only">
       <Avatar name={viewer.displayName ?? viewer.email} url={viewer.avatarUrl} />

@@ -764,6 +764,24 @@ p {
   overflow-wrap: anywhere;
 }
 
+/* "Edited": a comment's versions, newest first. */
+.comment-history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.comment-version {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
 .replies {
   margin-left: 42px;
   display: flex;
@@ -1322,28 +1340,10 @@ p {
   background: var(--soft);
 }
 
-.nav-on,
-.nav-on:hover {
-  font-weight: 600;
-  background: var(--brand);
-  color: #ffffff;
-  padding-right: 24px;
-}
-
-.nav-on svg [fill="#111111"] {
-  fill: #ffffff;
-}
-
-.nav-on svg [stroke="#111111"] {
-  stroke: #ffffff;
-}
-
-.x-post {
-  height: 52px;
-  border-radius: 26px;
-  margin-top: 14px;
-  width: 100%;
-  font-size: 17px;
+/* The page you're on: bold black with the filled icon, like X (no coloured pill). */
+.nav-on {
+  font-weight: 700;
+  color: var(--ink);
 }
 
 .x-me {
@@ -1408,9 +1408,16 @@ p {
   color: var(--ink);
 }
 
-/* The "Seen some bad driving?" box at the top of the feed (not the composer pop-up, which is .composer). */
+/* "Seen some bad driving?" at the top of the feed; clicking it opens the composer in place (.composer-inline). */
 .feed-composer {
   display: flex;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
   gap: 12px;
   padding: 12px 16px;
   border-bottom: 1px solid var(--line);
@@ -1761,7 +1768,7 @@ dialog.lightbox {
 
 /* --- New post composer (approved mock-ups, 20 Oct 2026) --- */
 
-/* Phones: fills the screen. From 640px: a pop-up card over the page (see Responsive). */
+/* Phones: fills the screen. From 640px: a card (see Responsive). Its panels open as a pop-up (dialog.composer-dialog). */
 .composer {
   display: flex;
   flex-direction: column;
@@ -1787,6 +1794,38 @@ dialog.composer-dialog::backdrop {
 .composer-page {
   display: flex;
   justify-content: center;
+}
+
+/* Desktop: the composer in place at the top of the feed, like X. Beats the card styles below (two classes). */
+.composer.composer-inline {
+  width: 100%;
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  border-radius: 0;
+  box-shadow: none;
+  border-bottom: 1px solid var(--line);
+}
+
+.composer-inline .cmp-scroll {
+  overflow: visible;
+}
+
+/* Post stays in reach while the details are filled in. */
+.composer-inline .cmp-foot {
+  gap: 8px;
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  background: #ffffff;
+}
+
+.composer-posted {
+  margin: 12px 16px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
 }
 
 .cmp-head {
@@ -3201,4 +3240,23 @@ dialog.composer-dialog::backdrop {
     border-left: 1px solid var(--line);
     padding: 18px;
   }
+}
+
+/* The Replies tab on a profile. */
+.profile-replies {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.profile-reply {
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.profile-reply-post {
+  color: var(--ink);
+  font-weight: 600;
 }

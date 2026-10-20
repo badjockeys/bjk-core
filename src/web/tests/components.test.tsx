@@ -78,6 +78,7 @@ const post: PostDto = {
   passengers: null,
   vehicle: null,
   reportedToPolice: null,
+  commentSetting: "Everyone",
   isProcessing: false,
 };
 

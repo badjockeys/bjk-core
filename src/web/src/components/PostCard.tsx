@@ -63,6 +63,7 @@ export function PostCard({ post, viewer }: { post: PostDto; viewer: Viewer }) {
             authorHandle={post.author.handle}
             isMine={isMine}
             signedIn={viewer.signedIn}
+            commentSetting={post.commentSetting}
           />
         </div>
         <WithPassengers passengers={post.passengers} showPending={isMine} />

@@ -1,26 +1,30 @@
 "use client";
 
-import { useId, useState, useTransition } from "react";
+import { useEffect, useId, useState, useTransition } from "react";
 
 import {
   addComment,
   appealComment,
+  commentHistory,
   deleteComment,
+  editComment,
   loadComments,
   loadReplies,
   reactToComment,
   replyToComment,
   reportComment,
+  setCommentHidden,
 } from "@/actions/comments";
 import { followBlocker } from "@/lib/blockers";
 import { plural, timeAgo } from "@/lib/format";
-import type { CommentDto, PagedResult } from "@/lib/types";
+import type { CommentDto, CommentVersionDto, PagedResult } from "@/lib/types";
 import type { Blocker, Viewer } from "@/lib/viewer";
 
 import { AppealButton } from "./AppealDialog";
 import { Avatar } from "./Avatar";
 import { MoreIcon, ThumbIcon } from "./icons";
 import { Menu, type MenuItem } from "./Menu";
+import { Modal } from "./Modal";
 import { ReportDialog } from "./ReportDialog";
 import { toast } from "./toast";
 
@@ -30,7 +34,8 @@ function reactionTotal(c: CommentDto): number {
 
 /**
  * Comments on a post (screens 04/05), for signed-in members: newest at the bottom, replies one level deep under the
- * comment they answer, and a reaction on each.
+ * comment they answer, and a reaction on each. The post's author can hide comments on their post, and turn comments
+ * off (from the post's ⋯ menu).
  */
 export function Comments({
   postId,
@@ -38,12 +43,18 @@ export function Comments({
   initial,
   totalCount,
   blockerNotice,
+  postAuthorId,
+  commentsOff = false,
 }: {
   postId: string;
   viewer: Viewer;
   initial: PagedResult<CommentDto> | null;
   /** The post's comment count, replies included. */
   totalCount: number;
+  /** Who posted it: they can hide comments, and still comment when comments are off. */
+  postAuthorId: string;
+  /** The author turned comments off: nobody else can comment or reply. */
+  commentsOff?: boolean;
   /** Shown instead of the comment box when the viewer can't comment yet (age check, profile, email). */
   blockerNotice: React.ReactNode;
 }) {
@@ -57,6 +68,8 @@ export function Comments({
   const [pending, startTransition] = useTransition();
 
   const remaining = Math.max(0, topLevelTotal - comments.length);
+  const isPostAuthor = viewer.userId === postAuthorId;
+  const closed = commentsOff && !isPostAuthor;
 
   const showMore = () =>
     startTransition(async () => {
@@ -102,25 +115,32 @@ export function Comments({
         {plural(count, "comment")}
       </h2>
 
-      {blockerNotice ?? (
-        <CommentBox
-          viewer={viewer}
-          label="Add a comment"
-          button="Comment"
-          onSubmit={async (body) => {
-            const result = await addComment(postId, body);
-            if (result.ok) {
-              setComments((current) => [...current, { ...result.data, replies: [], replyCount: 0 }]);
-              setTopLevelTotal((n) => n + 1);
-              setCount((n) => n + 1);
-              if (result.data.status === "HeldForReview") {
-                toast("Thanks. A moderator will check your comment before others see it.");
-              }
-            }
-            return result;
-          }}
-        />
-      )}
+      {closed ? (
+        <p className="notice" role="note">
+          The author has turned comments off on this post.
+        </p>
+      ) : null}
+      {closed
+        ? null
+        : (blockerNotice ?? (
+            <CommentBox
+              viewer={viewer}
+              label="Add a comment"
+              button="Comment"
+              onSubmit={async (body) => {
+                const result = await addComment(postId, body);
+                if (result.ok) {
+                  setComments((current) => [...current, { ...result.data, replies: [], replyCount: 0 }]);
+                  setTopLevelTotal((n) => n + 1);
+                  setCount((n) => n + 1);
+                  if (result.data.status === "HeldForReview") {
+                    toast("Thanks. A moderator will check your comment before others see it.");
+                  }
+                }
+                return result;
+              }}
+            />
+          ))}
 
       {comments.map((comment) => (
         <CommentThread
@@ -128,7 +148,8 @@ export function Comments({
           postId={postId}
           comment={comment}
           viewer={viewer}
-          canReply={blockerNotice === null}
+          isPostAuthor={isPostAuthor}
+          canReply={blockerNotice === null && !closed}
           onChange={update}
           onRemoved={remove}
           onReplied={(reply) => {
@@ -172,6 +193,7 @@ function CommentThread({
   postId,
   comment,
   viewer,
+  isPostAuthor,
   canReply,
   onChange,
   onRemoved,
@@ -181,6 +203,7 @@ function CommentThread({
   postId: string;
   comment: CommentDto;
   viewer: Viewer;
+  isPostAuthor: boolean;
   canReply: boolean;
   onChange: (id: string, change: (c: CommentDto) => CommentDto) => void;
   onRemoved: (id: string) => void;
@@ -211,7 +234,12 @@ function CommentThread({
         postId={postId}
         comment={comment}
         viewer={viewer}
-        onReply={canReply && !comment.isRemoved ? () => setReplying((v) => !v) : undefined}
+        isPostAuthor={isPostAuthor}
+        onReply={
+          canReply && !comment.isRemoved && comment.author && (!comment.isHiddenByPostAuthor || isPostAuthor)
+            ? () => setReplying((v) => !v)
+            : undefined
+        }
         onChange={onChange}
         onRemoved={onRemoved}
       />
@@ -223,6 +251,7 @@ function CommentThread({
               postId={postId}
               comment={reply}
               viewer={viewer}
+              isPostAuthor={isPostAuthor}
               replyingTo={comment.author?.handle ?? null}
               onChange={onChange}
               onRemoved={onRemoved}
@@ -265,6 +294,7 @@ function CommentItem({
   postId,
   comment,
   viewer,
+  isPostAuthor,
   replyingTo,
   onReply,
   onChange,
@@ -273,20 +303,26 @@ function CommentItem({
   postId: string;
   comment: CommentDto;
   viewer: Viewer;
+  isPostAuthor: boolean;
   replyingTo?: string | null;
   onReply?: () => void;
   onChange: (id: string, change: (c: CommentDto) => CommentDto) => void;
   onRemoved: (id: string) => void;
 }) {
   const [reporting, setReporting] = useState(false);
+  const [history, setHistory] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(comment.body);
+  const [editError, setEditError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [saving, startSaving] = useTransition();
 
   if (comment.isRemoved || !comment.author) {
     return (
       <div className="comment">
         <span className="avatar avatar-sm" aria-hidden="true" />
         <p className="muted small" style={{ alignSelf: "center" }}>
-          Comment removed
+          {comment.isHiddenByPostAuthor ? "Hidden by the post's author" : "Comment removed"}
         </p>
       </div>
     );
@@ -322,8 +358,36 @@ function CommentItem({
     });
   };
 
+  const saveEdit = () =>
+    startSaving(async () => {
+      setEditError(null);
+      const result = await editComment(postId, comment.id, draft);
+      if (!result.ok) {
+        if (!followBlocker(result.blocker)) setEditError(result.error);
+        return;
+      }
+      onChange(comment.id, (c) => ({
+        ...c,
+        body: result.data.body,
+        updatedAt: result.data.updatedAt,
+        editedAt: result.data.editedAt,
+      }));
+      setEditing(false);
+    });
+
   const items: MenuItem[] = [];
+  if (onReply) {
+    items.push({ label: "Reply", onSelect: onReply });
+  }
   if (isMine) {
+    items.push({
+      label: "Edit comment",
+      onSelect: () => {
+        setDraft(comment.body);
+        setEditError(null);
+        setEditing(true);
+      },
+    });
     items.push({
       label: "Delete comment",
       danger: true,
@@ -340,6 +404,21 @@ function CommentItem({
       },
     });
   } else {
+    if (isPostAuthor) {
+      const hidden = Boolean(comment.isHiddenByPostAuthor);
+      items.push({
+        label: hidden ? "Show comment" : "Hide comment",
+        onSelect: async () => {
+          const result = await setCommentHidden(postId, comment.id, !hidden);
+          if (!result.ok) {
+            toast(result.error);
+            return;
+          }
+          onChange(comment.id, (c) => ({ ...c, isHiddenByPostAuthor: result.data.isHiddenByPostAuthor }));
+          toast(hidden ? "Comment shown again" : "Hidden from everyone else, with its replies");
+        },
+      });
+    }
     items.push({ label: "Report comment", onSelect: () => setReporting(true) });
   }
 
@@ -355,10 +434,76 @@ function CommentItem({
               {timeAgo(comment.createdAt)}
             </time>
           </span>
+          {comment.editedAt ? (
+            <>
+              <span className="muted"> · </span>
+              <button
+                type="button"
+                className="link muted small"
+                aria-label="Edited: see earlier versions"
+                onClick={() => setHistory(true)}
+              >
+                Edited
+              </button>
+            </>
+          ) : null}
         </span>
-        <span className="comment-text">{comment.body}</span>
+        {editing ? (
+          <form
+            className="stack"
+            style={{ gap: 6 }}
+            onSubmit={(event) => {
+              event.preventDefault();
+              saveEdit();
+            }}
+          >
+            <label className="sr-only" htmlFor={`edit-${comment.id}`}>
+              Edit your comment
+            </label>
+            <textarea
+              id={`edit-${comment.id}`}
+              className="textarea"
+              rows={2}
+              maxLength={2000}
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+            />
+            <span className="row" style={{ gap: 6 }}>
+              <button
+                type="submit"
+                className="btn btn-primary btn-sm"
+                disabled={saving || !draft.trim() || draft.trim() === comment.body}
+              >
+                {saving ? "Saving…" : "Save"}
+              </button>
+              <button
+                type="button"
+                className="btn btn-sm"
+                disabled={saving}
+                onClick={() => setEditing(false)}
+              >
+                Cancel
+              </button>
+            </span>
+            {editError ? (
+              <p className="error" role="alert">
+                {editError}
+              </p>
+            ) : null}
+          </form>
+        ) : (
+          <span className="comment-text">{comment.body}</span>
+        )}
         {comment.status === "HeldForReview" ? (
           <span className="help">Only you can see this until a moderator checks it.</span>
+        ) : null}
+        {comment.isHiddenByPostAuthor ? (
+          <span className="help">
+            {isMine
+              ? "The post's author hid this. Only you and they can see it."
+              : "You hid this. Nobody else can see it or its replies."}
+          </span>
         ) : null}
         {comment.status === "Hidden" && isMine ? (
           <span className="row row-wrap">
@@ -386,11 +531,23 @@ function CommentItem({
               Reply
             </button>
           ) : null}
-          <Menu label="More: report or delete" items={items} buttonClassName="tw-act">
+          <Menu
+            label={`More options for this comment by @${author.handle ?? author.displayName}`}
+            items={items}
+            buttonClassName="tw-act"
+          >
             <MoreIcon />
           </Menu>
         </div>
       </div>
+      {comment.editedAt ? (
+        <CommentHistory
+          postId={postId}
+          commentId={comment.id}
+          open={history}
+          onClose={() => setHistory(false)}
+        />
+      ) : null}
       {!isMine ? (
         <ReportDialog
           open={reporting}
@@ -400,6 +557,75 @@ function CommentItem({
         />
       ) : null}
     </div>
+  );
+}
+
+/** "Edited": the comment's text now and before each edit, newest first. Anyone who can see the comment can look. */
+function CommentHistory({
+  postId,
+  commentId,
+  open,
+  onClose,
+}: {
+  postId: string;
+  commentId: string;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const titleId = useId();
+  const [versions, setVersions] = useState<CommentVersionDto[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  // Fetched each time it opens, so a fresh edit shows.
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    let live = true;
+    void commentHistory(postId, commentId).then((result) => {
+      if (!live) return;
+      if (result.ok) {
+        setVersions(result.data);
+        setError(null);
+      } else {
+        setError(result.error);
+      }
+    });
+    return () => {
+      live = false;
+    };
+  }, [open, postId, commentId]);
+
+  return (
+    <Modal open={open} onClose={onClose} title="Edit history" titleId={titleId}>
+      <div className="stack">
+        {!versions && !error ? <p className="muted">Loading…</p> : null}
+        {error ? (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        ) : null}
+        {versions ? (
+          <ol className="comment-history" aria-label="Versions, newest first">
+            {versions.map((v, i) => (
+              <li key={`${v.writtenAt}-${i}`} className="comment-version">
+                <span className="small muted">
+                  {v.isCurrent ? "Now · " : ""}
+                  <time dateTime={v.writtenAt} suppressHydrationWarning>
+                    {timeAgo(v.writtenAt)}
+                  </time>
+                </span>
+                <span className="comment-text">{v.body}</span>
+              </li>
+            ))}
+          </ol>
+        ) : null}
+        <div className="row">
+          <button type="button" className="btn" onClick={onClose}>
+            Close
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 

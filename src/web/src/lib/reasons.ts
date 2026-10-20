@@ -15,6 +15,14 @@ export const IN_APP_REASONS: readonly ReasonChoice[] = [
   { value: "Other", label: "Something else" },
 ];
 
+/** Reporting an account: everything above, plus the two reasons only accounts can be reported for. */
+export const PROFILE_REASONS: readonly ReasonChoice[] = [
+  ...IN_APP_REASONS.slice(0, -1),
+  { value: "Impersonation", label: "Pretending to be someone else" },
+  { value: "UnderThirteen", label: "Belongs to someone under 13" },
+  IN_APP_REASONS[IN_APP_REASONS.length - 1]!,
+];
+
 /** The public "Report content" form (screen 23). The API accepts only these reasons from it. */
 export const PUBLIC_REASONS: readonly ReasonChoice[] = [
   { value: "InThisClip", label: "I'm in this clip and want it blurred or removed" },

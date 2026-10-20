@@ -1,7 +1,7 @@
 # The services Bad Jockeys needs on your machine, in one Docker group called "bad-jockeys". The apps themselves
 # (identity server, API, media worker, web app) run outside Docker; see docs/local-development.md.
 #
-#   docker compose up -d --wait   starts both and waits until SQL Server is healthy
+#   docker compose up -d --wait   starts them and waits until SQL Server is healthy
 #   docker compose stop           stops them and keeps the data
 #   docker compose down -v        removes them and ALL local data (databases, queues, uploaded files)
 #
@@ -48,6 +48,35 @@ services:
     volumes:
       - s3-data:/data
 
+  # Grafana: the reports (src/reporting). It reads only the reporting views in both databases, through the read-only
+  # bjk_reporting login (scripts/sql/reporting/apply.mjs creates both). http://localhost:3300: anyone on this
+  # computer can view; admin / admin to edit (edits aren't kept: change the JSON in src/reporting instead).
+  grafana:
+    image: grafana/grafana-oss:13.0.2
+    container_name: bad-jockeys-grafana
+    ports:
+      - "3300:3000"
+    environment:
+      BJK_REPORTING_SQL_SERVER: sql:1433
+      BJK_REPORTING_PASSWORD: ${BJK_REPORTING_PASSWORD:-not-set-run-the-setup}
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/bad-jockeys.json
+      GF_USERS_DEFAULT_THEME: light
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+    volumes:
+      - ./src/reporting/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./src/reporting/grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - sql
+    restart: unless-stopped
+
 volumes:
   sql-data:
   s3-data:
+  grafana-data:

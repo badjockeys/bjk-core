@@ -72,49 +72,61 @@ test.describe("posting", () => {
     await expect(page.getByText("Parked on the zigzags outside the school")).toBeVisible();
   });
 
-  test("the composer opens as a pop-up over the feed and closes after posting", async ({ page }) => {
+  test("the composer opens in place at the top of the feed and folds away after posting", async ({
+    page,
+  }) => {
     await signIn(page, "/");
-    await page.getByRole("link", { name: /Seen some bad driving/ }).click();
+    const open = page.getByRole("button", { name: /Seen some bad driving/ });
+    await open.click();
 
-    // The pop-up is named after what it shows: "Create post", or the panel open in it.
-    const dialog = page.getByRole("dialog");
-    await expect(page.getByRole("dialog", { name: "Create post" })).toBeVisible();
-    await expect(page).toHaveURL(/\/post\/new$/);
-
-    // Closing an untouched composer goes straight back to the feed.
-    await dialog.getByRole("button", { name: "Close" }).click();
-    await expect(dialog).toBeHidden();
+    // Not a pop-up: the composer opens in the feed, and its panels open as small pop-ups over it.
+    const composer = page.getByRole("region", { name: "Create post" });
+    const panel = page.getByRole("dialog");
+    await expect(composer).toBeVisible();
+    await expect(composer.getByLabel("Title")).toBeFocused();
     await expect(page).toHaveURL(/\/$/);
 
-    await page.getByRole("link", { name: /Seen some bad driving/ }).click();
-    await dialog
+    // Cancelling an untouched composer folds it away.
+    await composer.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect(composer).toBeHidden();
+
+    await open.click();
+    await composer
       .getByTestId("photo-input")
       .setInputFiles({ name: "tailgate.png", mimeType: "image/png", buffer: PNG });
-    await dialog.getByLabel("Title").fill("Tailgated for two miles on the A57");
-    await dialog.getByRole("button", { name: "What kind of bad driving?" }).click();
-    await dialog.getByLabel("Tailgating").check();
-    await dialog.getByRole("button", { name: "Done · 1 chosen" }).click();
-    await dialog.getByRole("button", { name: "Add where it happened" }).click();
-    await dialog.getByLabel("Road and town").fill("A57 Warrington Road, Rainhill");
-    await dialog.getByRole("button", { name: "Use my location" }).click();
-    await dialog.getByRole("button", { name: "Use this place" }).click();
+    await composer.getByLabel("Title").fill("Tailgated for two miles on the A57");
+    await composer.getByRole("button", { name: "What kind of bad driving?" }).click();
+    await expect(page.getByRole("dialog", { name: "What kind of bad driving?" })).toBeVisible();
+    await panel.getByLabel("Tailgating").check();
+    await panel.getByRole("button", { name: "Done · 1 chosen" }).click();
+    await expect(panel).toBeHidden();
+    await composer.getByRole("button", { name: "Add where it happened" }).click();
+    await panel.getByLabel("Road and town").fill("A57 Warrington Road, Rainhill");
+    await panel.getByRole("button", { name: "Use my location" }).click();
+    await panel.getByRole("button", { name: "Use this place" }).click();
+    await expect(
+      composer.getByRole("button", { name: "Where: A57 Warrington Road, Rainhill. Change" }),
+    ).toBeVisible();
 
     // Driving incidents can have passengers: they're asked to accept before their name shows.
-    await dialog.getByRole("button", { name: "Tag a passenger" }).click();
+    await composer.getByRole("button", { name: "Tag a passenger" }).click();
     // Not yourself: the author can't be their own passenger.
-    await dialog.getByLabel("Passenger's username").fill("@roadhog");
-    await dialog.getByRole("button", { name: "Add", exact: true }).click();
-    await expect(dialog.getByText("You can't tag yourself.")).toBeVisible();
-    await dialog.getByLabel("Passenger's username").fill("@lane_one_larry");
-    await dialog.getByRole("button", { name: "Add", exact: true }).click();
-    await expect(dialog.getByRole("button", { name: "Remove @lane_one_larry" })).toBeVisible();
+    await composer.getByLabel("Passenger's username").fill("@roadhog");
+    await composer.getByRole("button", { name: "Add", exact: true }).click();
+    await expect(composer.getByText("You can't tag yourself.")).toBeVisible();
+    await composer.getByLabel("Passenger's username").fill("@lane_one_larry");
+    await composer.getByRole("button", { name: "Add", exact: true }).click();
+    await expect(composer.getByRole("button", { name: "Remove @lane_one_larry" })).toBeVisible();
 
-    await dialog.getByLabel(/I took these photos/).check();
-    await dialog.getByRole("button", { name: "Post", exact: true }).click();
+    await composer.getByLabel(/I took these photos/).check();
+    await composer.getByRole("button", { name: "Post", exact: true }).click();
 
+    // Posted: still on the feed, the composer folded away, with a link to the post.
+    await expect(page.getByText(/Posted\. Thanks for sharing\./)).toBeVisible();
+    await expect(composer).toBeHidden();
+    await expect(page).toHaveURL(/\/$/);
+    await page.getByRole("link", { name: "View post" }).click();
     await expect(page).toHaveURL(/\/p\/[0-9a-f-]{36}/);
-    await expect(dialog).toBeHidden();
-    await expect(page.getByText("Posted. Thanks for sharing.")).toBeVisible();
     await expect(page.getByText("Waiting for @lane_one_larry to accept")).toBeVisible();
   });
 
@@ -122,54 +134,54 @@ test.describe("posting", () => {
     page,
   }) => {
     await signIn(page, "/");
-    await page.getByRole("link", { name: /Seen some bad driving/ }).click();
-    const dialog = page.getByRole("dialog");
-    await dialog
+    const open = page.getByRole("button", { name: /Seen some bad driving/ });
+    const composer = page.getByRole("region", { name: "Create post" });
+    const panel = page.getByRole("dialog");
+    await open.click();
+    await composer
       .getByTestId("photo-input")
       .setInputFiles({ name: "parked.png", mimeType: "image/png", buffer: PNG });
-    await dialog.getByLabel("Title").fill("Parked across the dropped kerb");
-    await expect(dialog.getByText("Uploading…")).toBeHidden();
+    await composer.getByLabel("Title").fill("Parked across the dropped kerb");
+    await expect(composer.getByText("Uploading…")).toBeHidden();
 
-    // Closing asks: save it as a draft, throw it away, or keep going.
-    await dialog.getByRole("button", { name: "Close" }).click();
+    // Cancelling asks: save it as a draft, throw it away, or keep going.
+    await composer.getByRole("button", { name: "Cancel", exact: true }).click();
     await expect(page.getByRole("dialog", { name: "Save this post as a draft?" })).toBeVisible();
-    await dialog.getByRole("button", { name: "Save draft" }).click();
-    await expect(dialog).toBeHidden();
-    await expect(page).toHaveURL(/\/$/);
+    await panel.getByRole("button", { name: "Save draft" }).click();
+    await expect(composer).toBeHidden();
 
     // Next time, the composer offers the draft; opening it brings everything back.
-    await page.getByRole("link", { name: /Seen some bad driving/ }).click();
-    await dialog.getByRole("button", { name: /You have 1 draft saved/ }).click();
+    await open.click();
+    await composer.getByRole("button", { name: /You have 1 draft saved/ }).click();
     await expect(page.getByRole("dialog", { name: "Drafts" })).toBeVisible();
-    await expect(dialog.getByText("1 of 5 drafts")).toBeVisible();
-    await dialog.getByRole("button", { name: "Open Parked across the dropped kerb" }).click();
-    await expect(dialog.getByLabel("Title")).toHaveValue("Parked across the dropped kerb");
+    await expect(panel.getByText("1 of 5 drafts")).toBeVisible();
+    await panel.getByRole("button", { name: "Open Parked across the dropped kerb" }).click();
+    await expect(composer.getByLabel("Title")).toHaveValue("Parked across the dropped kerb");
 
     // Leaving an opened draft asks about the changes; discarding them keeps the draft as it was.
-    await dialog.getByRole("button", { name: "Close" }).click();
+    await composer.getByRole("button", { name: "Cancel", exact: true }).click();
     await expect(page.getByRole("dialog", { name: "Save your changes?" })).toBeVisible();
-    await dialog.getByRole("button", { name: "Discard changes" }).click();
-    await expect(dialog).toBeHidden();
+    await panel.getByRole("button", { name: "Discard changes" }).click();
+    await expect(composer).toBeHidden();
 
     // Finish it and post: the draft goes.
-    await page.getByRole("link", { name: /Seen some bad driving/ }).click();
-    await dialog.getByRole("button", { name: /You have 1 draft saved/ }).click();
-    await dialog.getByRole("button", { name: "Open Parked across the dropped kerb" }).click();
-    await dialog.getByRole("button", { name: "What kind of bad driving?" }).click();
-    await dialog.getByLabel("Bad parking").check();
-    await dialog.getByRole("button", { name: "Done · 1 chosen" }).click();
-    await dialog.getByRole("button", { name: "Add where it happened" }).click();
-    await dialog.getByLabel("Road and town").fill("The Headrow, Leeds");
-    await dialog.getByRole("button", { name: "Use my location" }).click();
-    await dialog.getByRole("button", { name: "Use this place" }).click();
-    await dialog.getByLabel(/I took these photos/).check();
-    await dialog.getByRole("button", { name: "Post", exact: true }).click();
-    await expect(page).toHaveURL(/\/p\/[0-9a-f-]{36}/);
+    await open.click();
+    await composer.getByRole("button", { name: /You have 1 draft saved/ }).click();
+    await panel.getByRole("button", { name: "Open Parked across the dropped kerb" }).click();
+    await composer.getByRole("button", { name: "What kind of bad driving?" }).click();
+    await panel.getByLabel("Bad parking").check();
+    await panel.getByRole("button", { name: "Done · 1 chosen" }).click();
+    await composer.getByRole("button", { name: "Add where it happened" }).click();
+    await panel.getByLabel("Road and town").fill("The Headrow, Leeds");
+    await panel.getByRole("button", { name: "Use my location" }).click();
+    await panel.getByRole("button", { name: "Use this place" }).click();
+    await composer.getByLabel(/I took these photos/).check();
+    await composer.getByRole("button", { name: "Post", exact: true }).click();
+    await expect(page.getByText(/Posted\. Thanks for sharing\./)).toBeVisible();
 
-    await page.goto("/");
-    await page.getByRole("link", { name: /Seen some bad driving/ }).click();
-    await expect(page.getByRole("dialog", { name: "Create post" })).toBeVisible();
-    await expect(dialog.getByRole("button", { name: /draft saved/ })).toBeHidden();
+    await open.click();
+    await expect(composer).toBeVisible();
+    await expect(composer.getByRole("button", { name: /draft saved/ })).toBeHidden();
   });
 
   test("a passenger approves their tag from the account page", async ({ page }) => {
@@ -183,6 +195,31 @@ test.describe("posting", () => {
     await expect(page.getByText("You're shown on this post as a passenger.")).toBeVisible();
     await expect(page.locator(".with-line").first()).toContainText("with Road Hog");
   });
+});
+
+test("the post's author hides a comment and turns comments off", async ({ page, request }) => {
+  await request.post("http://localhost:4010/__next-user", { data: "dave" });
+  await signIn(page, `/p/${SEED.photoPost}`);
+
+  const larry = page.locator(".comment", { hasText: "Report it to the store too" });
+  await larry.getByRole("button", { name: /More options for this comment/ }).click();
+  await page.getByRole("menuitem", { name: "Hide comment" }).click();
+  await expect(larry.getByText("You hid this. Nobody else can see it or its replies.")).toBeVisible();
+
+  await page.getByRole("button", { name: "Edit or delete your post" }).click();
+  await page.getByRole("menuitem", { name: "Turn off comments" }).click();
+  await expect(page.getByText("Comments are off. The ones already there stay.")).toBeVisible();
+  // The author can still comment.
+  await expect(page.getByPlaceholder("Add a comment")).toBeVisible();
+
+  // Everyone else sees a placeholder, and can't comment.
+  await page.context().clearCookies();
+  await request.post("http://localhost:4010/__next-user", { data: "roadhog" });
+  await signIn(page, `/p/${SEED.photoPost}`);
+  await expect(page.getByText("Hidden by the post's author")).toBeVisible();
+  await expect(page.getByText("Report it to the store too")).toHaveCount(0);
+  await expect(page.getByText("The author has turned comments off on this post.")).toBeVisible();
+  await expect(page.getByPlaceholder("Add a comment")).toHaveCount(0);
 });
 
 test("comment, reply and react", async ({ page }) => {
@@ -209,8 +246,45 @@ test("comment, reply and react", async ({ page }) => {
   await expect(page.getByText("Already done, they said they'd look into it.")).toBeVisible();
   await expect(page.getByText("· replying to @lane_one_larry")).toBeVisible();
 
+  // Your own comment's ⋯ menu edits it; it then shows as edited.
+  const mine = page.locator(".comment", { hasText: "Same car was outside the school yesterday." });
+  await mine.getByRole("button", { name: /More options for this comment/ }).click();
+  await page.getByRole("menuitem", { name: "Edit comment" }).click();
+  // While editing, the comment's text is in the box, so find the box and Save on the page.
+  await page.getByLabel("Edit your comment").fill("Same car was outside the school on Monday.");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  const edited = page.locator(".comment", { hasText: "Same car was outside the school on Monday." });
+  await expect(edited).toBeVisible();
+
+  // "Edited" shows every version, newest first.
+  await edited.getByRole("button", { name: "Edited: see earlier versions" }).click();
+  const history = page.getByRole("dialog", { name: "Edit history" });
+  await expect(history.getByRole("listitem")).toHaveCount(2);
+  await expect(history.getByRole("listitem").first()).toContainText(
+    "Same car was outside the school on Monday.",
+  );
+  await expect(history.getByRole("listitem").last()).toContainText(
+    "Same car was outside the school yesterday.",
+  );
+  await history.getByRole("button", { name: "Close" }).last().click();
+  await expect(history).toBeHidden();
+
+  // Reply is in someone else's ⋯ menu too, with Report.
+  await larry.getByRole("button", { name: /More options for this comment/ }).click();
+  await expect(page.getByRole("menuitem", { name: "Report comment" })).toBeVisible();
+  await page.getByRole("menuitem", { name: "Reply" }).click();
+  await expect(page.getByPlaceholder("Reply to @lane_one_larry")).toBeVisible();
+
   await larry.getByRole("button", { name: /^0 reactions/ }).click();
   await expect(larry.getByRole("button", { name: /^1 reactions/ })).toHaveAttribute("aria-pressed", "true");
+
+  // Your replies show on your profile's Replies tab, with the post they're on.
+  await page.goto("/u/roadhog?tab=replies");
+  await expect(page.getByRole("link", { name: "Replies" })).toHaveAttribute("aria-current", "page");
+  const replies = page.getByRole("region", { name: "Replies" });
+  await expect(replies.getByText("Already done, they said they'd look into it.")).toBeVisible();
+  await expect(replies.getByText("Replying to @lane_one_larry on")).toBeVisible();
+  await page.goBack();
 
   // Everything was saved.
   await page.reload();
