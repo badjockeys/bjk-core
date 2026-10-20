@@ -196,6 +196,9 @@ function seed() {
     reports: [],
     publicReports: [],
     blocks: new Map(),
+    // UI step 6: "follower>followee" pairs, and custom timelines.
+    follows: new Set(),
+    timelines: [],
     appeals: [],
     reelPlays: new Map(),
     // Per user: the bell, and settings that differ from the defaults.
@@ -882,6 +885,86 @@ async function api(req, res, url) {
     });
   }
 
+  // Home timelines (UI step 6). For you is the public feed, newest first here.
+  const visibleTo = (p) => isPublic(p) && canSee(p, me);
+  const planLimit = () => (viewer.plan === "premium_plus" ? 10 : viewer.plan === "premium" ? 5 : 1);
+  const planName = () =>
+    viewer.plan === "premium_plus" ? "PremiumPlus" : viewer.plan === "premium" ? "Premium" : "Free";
+  const mine = () => db.timelines.filter((t) => t.userId === me).sort((a, b) => a.position - b.position);
+  const timelineDto = (t) => ({
+    id: t.id,
+    name: t.name,
+    types: t.types,
+    placeName: t.placeName ?? null,
+    latitude: t.latitude ?? null,
+    longitude: t.longitude ?? null,
+    radiusKm: t.radiusKm ?? null,
+    position: t.position,
+  });
+  if (path === "/api/timelines/for-you" && method === "GET") {
+    return send(
+      res,
+      200,
+      page(db.posts.filter(visibleTo), url, (p) => postDto(p, me)),
+    );
+  }
+  if (path === "/api/timelines/following" && method === "GET") {
+    if (!requireUser()) return;
+    const items = db.posts.filter((p) => visibleTo(p) && (p.authorId === me || follows(me, p.authorId)));
+    return send(
+      res,
+      200,
+      page(items, url, (p) => postDto(p, me)),
+    );
+  }
+  if (path === "/api/timelines" && method === "GET") {
+    if (!requireUser()) return;
+    return send(res, 200, { timelines: mine().map(timelineDto), limit: planLimit(), plan: planName() });
+  }
+  if (path === "/api/timelines" && method === "POST") {
+    if (!requireUser()) return;
+    const body = await json();
+    if (mine().length >= planLimit())
+      return invalid(
+        res,
+        "Timelines",
+        `Your plan allows ${planLimit()} custom timeline. Delete one, or upgrade for more.`,
+      );
+    if (!body.name?.trim()) return invalid(res, "Name", "Give the timeline a name.");
+    if (!body.types?.length) return invalid(res, "Types", "Choose at least one type of bad driving.");
+    const t = { ...body, id: randomUUID(), userId: me, position: mine().length };
+    db.timelines.push(t);
+    return send(res, 201, timelineDto(t));
+  }
+  if (path === "/api/timelines/order" && method === "PUT") {
+    if (!requireUser()) return;
+    const { ids } = await json();
+    ids.forEach((id, i) => {
+      const t = db.timelines.find((x) => x.id === id && x.userId === me);
+      if (t) t.position = i;
+    });
+    return send(res, 200, { timelines: mine().map(timelineDto), limit: planLimit(), plan: planName() });
+  }
+  if ((m = path.match(/^\/api\/timelines\/([0-9a-f-]{36})(\/posts)?$/))) {
+    if (!requireUser()) return;
+    const t = db.timelines.find((x) => x.id === m[1] && x.userId === me);
+    if (method === "DELETE") {
+      db.timelines = db.timelines.filter((x) => x !== t);
+      return send(res, 204);
+    }
+    if (!t) return problem(res, 404, "Timeline not found.");
+    if (method === "PUT") {
+      Object.assign(t, await json());
+      return send(res, 200, timelineDto(t));
+    }
+    const items = db.posts.filter((p) => visibleTo(p) && p.types.some((x) => t.types.includes(x)));
+    return send(
+      res,
+      200,
+      page(items, url, (p) => postDto(p, me)),
+    );
+  }
+
   // Posts
   if (path === "/api/posts" && method === "GET") {
     const category = url.searchParams.get("type") ?? url.searchParams.get("category");
@@ -1469,9 +1552,62 @@ async function api(req, res, url) {
       reason: taken ? "That handle is taken." : reserved ? "That handle is reserved." : null,
     });
   }
+  // Following (UI step 6)
+  const byHandle = (h) =>
+    [...db.profiles.values()].find((p) => p.handle === h.replace(/^@/, "").toLowerCase() || p.id === h);
+  const follows = (a, b) => db.follows.has(`${a}>${b}`);
+  const followerCount = (id) => [...db.follows].filter((f) => f.endsWith(`>${id}`)).length;
+  const followProfile = (p) => ({
+    id: p.id,
+    handle: p.handle,
+    displayName: p.displayName,
+    avatarUrl: null,
+    bio: p.bio ?? null,
+    isFollowing: me && me !== p.id ? follows(me, p.id) : null,
+  });
+  if ((m = path.match(/^\/api\/profiles\/me\/following\/(.+)$/))) {
+    if (!requireUser()) return;
+    const target = byHandle(decodeURIComponent(m[1]));
+    if (!target) return problem(res, 404, "Profile not found.");
+    if (method === "PUT") {
+      if (target.id === me) return invalid(res, "User", "You can't follow yourself.");
+      if (!db.profiles.has(me))
+        return invalid(res, "Profile", "Create your profile before following people.");
+      db.follows.add(`${me}>${target.id}`);
+      return send(res, 200, { userId: target.id, following: true, followerCount: followerCount(target.id) });
+    }
+    db.follows.delete(`${me}>${target.id}`);
+    return send(res, 200, { userId: target.id, following: false, followerCount: followerCount(target.id) });
+  }
+  if (path === "/api/profiles/me/suggestions" && method === "GET") {
+    if (!requireUser()) return;
+    // Everyone with a profile you don't follow stands in for "people near your home area".
+    const people = [...db.profiles.values()]
+      .filter((p) => p.id !== me && !follows(me, p.id))
+      .slice(0, Number(url.searchParams.get("limit") ?? 3))
+      .map(followProfile);
+    return send(res, 200, { people, hasHomeArea: true });
+  }
+  if ((m = path.match(/^\/api\/profiles\/([A-Za-z0-9_]+)\/(followers|following)$/)) && method === "GET") {
+    const owner = byHandle(m[1]);
+    if (!owner) return problem(res, 404, "Profile not found.");
+    const ids = [...db.follows]
+      .map((f) => f.split(">"))
+      .filter(([a, b]) => (m[2] === "followers" ? b === owner.id : a === owner.id))
+      .map(([a, b]) => (m[2] === "followers" ? a : b));
+    const people = ids.map((id) => db.profiles.get(id)).filter(Boolean);
+    return send(res, 200, page(people, url, followProfile));
+  }
   if ((m = path.match(/^\/api\/profiles\/([A-Za-z0-9_]+)$/)) && method === "GET") {
     const found = [...db.profiles.values()].find((p) => p.handle === m[1].toLowerCase());
-    return found ? send(res, 200, profileDto(found)) : problem(res, 404, "Profile not found.");
+    if (!found) return problem(res, 404, "Profile not found.");
+    return send(res, 200, {
+      ...profileDto(found),
+      followerCount: followerCount(found.id),
+      followingCount: [...db.follows].filter((f) => f.startsWith(`${found.id}>`)).length,
+      isFollowing: me && me !== found.id ? follows(me, found.id) : null,
+      followsYou: me && me !== found.id ? follows(found.id, me) : null,
+    });
   }
 
   // Media

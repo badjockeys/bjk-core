@@ -8,6 +8,7 @@ import { Avatar } from "@/components/Avatar";
 import { BackButton } from "@/components/BackButton";
 import { TrendsPanel } from "@/components/TrendsPanel";
 import { Feed } from "@/components/Feed";
+import { FollowButton } from "@/components/FollowButton";
 import { AccountIcon, CalendarIcon, PinIcon } from "@/components/icons";
 import { RoadBadge } from "@/components/PostPeople";
 import { ProfileMoreMenu } from "@/components/ProfileMoreMenu";
@@ -130,7 +131,16 @@ export default async function ProfilePage({ params, searchParams }: Props) {
               </Link>
             </div>
           ) : (
-            <ProfileMoreMenu handle={profile.handle} signedIn={viewer.signedIn} blocked={blocked} />
+            <div className="row" style={{ gap: 8 }}>
+              <ProfileMoreMenu handle={profile.handle} signedIn={viewer.signedIn} blocked={blocked} />
+              {blocked ? null : (
+                <FollowButton
+                  handle={profile.handle}
+                  following={profile.isFollowing === true}
+                  signedIn={viewer.signedIn}
+                />
+              )}
+            </div>
           )}
         </div>
         <div className="col" style={{ gap: 0 }}>
@@ -139,6 +149,7 @@ export default async function ProfilePage({ params, searchParams }: Props) {
           </h1>
           <span className="muted">
             @{profile.handle} <RoadBadge value={profile.roadUser} />
+            {profile.followsYou ? <span className="follows-you">Follows you</span> : null}
           </span>
         </div>
         {profile.bio ? <p className="post-text">{profile.bio}</p> : null}
@@ -153,6 +164,15 @@ export default async function ProfilePage({ params, searchParams }: Props) {
             <CalendarIcon />
             Joined {joined(profile.createdAt)}
           </span>
+        </div>
+        <div className="row small" style={{ gap: 16 }}>
+          <Link href={`${here}/following`} className="follow-count">
+            <b>{profile.followingCount.toLocaleString("en-GB")}</b> <span className="muted">Following</span>
+          </Link>
+          <Link href={`${here}/followers`} className="follow-count">
+            <b>{profile.followerCount.toLocaleString("en-GB")}</b>{" "}
+            <span className="muted">{profile.followerCount === 1 ? "Follower" : "Followers"}</span>
+          </Link>
         </div>
         {blocked ? (
           <p className="notice">

@@ -125,11 +125,11 @@ test("hashtags in posts link to the tag's page, and Trending shows tags and plac
   await expect(page.getByRole("heading", { name: "No posts with #nothinghere yet" })).toBeVisible();
 });
 
-test("category tabs filter the feed, with an empty state", async ({ page }) => {
+test("category pages filter the feed, from Category trends, with an empty state", async ({ page }) => {
   await page.goto("/");
   await page
-    .getByRole("navigation", { name: "Categories" })
-    .getByRole("link", { name: "Bad parking" })
+    .locator(".trends")
+    .getByRole("link", { name: /Bad parking/ })
     .click();
   await expect(page).toHaveURL(/\/c\/bad-parking$/);
   await expect(page.getByText("Parked across two disabled bays, again")).toBeVisible();
@@ -173,4 +173,41 @@ test("members can sign out", async ({ page }) => {
   await page.goto("/account");
   await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page.getByText("Caught a bad driver on camera?")).toBeVisible();
+});
+
+test("members switch between For you, Following and a custom timeline, and follow people", async ({
+  page,
+}) => {
+  await signIn(page, "/");
+  const tabs = page.getByRole("navigation", { name: "Timelines" });
+  await expect(tabs.getByRole("link", { name: "For you" })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByText("Undertaking a lorry on the M62")).toBeVisible();
+
+  // Following starts empty: only your own posts and people you follow.
+  await tabs.getByRole("link", { name: "Following" }).click();
+  await expect(page).toHaveURL(/\/following$/);
+  await expect(page.getByRole("heading", { name: "Nothing from people you follow yet" })).toBeVisible();
+
+  // Follow from Who to follow, then their posts show in Following.
+  const who = page.locator(".card", { has: page.getByRole("heading", { name: "Who to follow" }) });
+  await who.getByRole("button", { name: "Follow @dashcam_dave" }).click();
+  await expect(page.getByText("Undertaking a lorry on the M62")).toBeVisible();
+
+  // The profile shows the follow and the counts.
+  await page.goto("/u/dashcam_dave");
+  await expect(page.getByRole("button", { name: "Unfollow @dashcam_dave" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /1 Follower/ })).toBeVisible();
+
+  // Free members get one custom timeline.
+  await page.goto("/timelines");
+  await page.getByLabel("Name").fill("Parking");
+  await page.getByRole("group", { name: "Types of bad driving" }).getByLabel("Bad parking").check();
+  await page.getByRole("button", { name: "Add timeline" }).click();
+  await expect(page.getByRole("link", { name: "Parking" })).toBeVisible();
+  await expect(page.getByText("You have 1 of 1.")).toBeVisible();
+
+  await page.goto("/");
+  await page.getByRole("navigation", { name: "Timelines" }).getByRole("link", { name: "Parking" }).click();
+  await expect(page.getByText("Parked across two disabled bays, again")).toBeVisible();
+  await expect(page.getByText("Undertaking a lorry on the M62")).toHaveCount(0);
 });

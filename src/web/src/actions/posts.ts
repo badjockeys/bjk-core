@@ -24,6 +24,9 @@ export type FeedSource =
   | { kind: "feed"; category?: IncidentCategory }
   | { kind: "author"; handle: string }
   | { kind: "hashtag"; tag: string }
+  | { kind: "for-you" }
+  | { kind: "following" }
+  | { kind: "timeline"; id: string }
   | { kind: "mine" };
 
 /** The next page of a feed, for infinite scrolling. */
@@ -38,6 +41,18 @@ export async function loadPosts(
   }
   if (source.kind === "author") {
     return run(() => api().posts.list(token, { author: source.handle, page: safePage }));
+  }
+  if (source.kind === "for-you") {
+    return run(() => api().timelines.forYou(token, safePage));
+  }
+  if (source.kind === "following") {
+    return asUser((t) => api().timelines.following(t, safePage));
+  }
+  if (source.kind === "timeline") {
+    if (!/^[0-9a-f-]{36}$/i.test(source.id)) {
+      return { ok: false, error: "That timeline doesn't exist." };
+    }
+    return asUser((t) => api().timelines.posts(t, source.id, safePage));
   }
   if (source.kind === "hashtag") {
     const tag = tagFromPath(source.tag);
@@ -75,7 +90,7 @@ export async function deletePost(postId: string): Promise<ActionResult> {
 
 /** On your own post: turn comments off (existing ones stay) or back on. */
 export async function setCommentSetting(postId: string, setting: CommentSetting): Promise<ActionResult> {
-  if (setting !== "Everyone" && setting !== "Off") {
+  if (setting !== "Everyone" && setting !== "Off" && setting !== "Following") {
     return { ok: false, error: "Choose who can comment." };
   }
   return asUser((t) => api().posts.setCommentSetting(t, postId, setting));

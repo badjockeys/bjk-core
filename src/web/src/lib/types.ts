@@ -18,6 +18,8 @@ export type {
   CommentVersionDto,
   DraftDto,
   DraftMediaDto,
+  FollowProfileDto,
+  FollowStateDto,
   HandleAvailability,
   HashtagDto,
   HashtagSuggestionDto,
@@ -51,11 +53,15 @@ export type {
   RoadUser,
   SignedUpload,
   SubscriptionPlan,
+  TimelineDto,
+  TimelineRequest,
+  TimelinesDto,
   TrendingDto,
   TrendPeriod,
   VehicleColour,
   VehicleDto,
   VehicleType,
+  WhoToFollowDto,
 } from "./generated/api";
 
 export type {

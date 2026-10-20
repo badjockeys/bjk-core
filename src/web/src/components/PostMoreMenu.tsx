@@ -45,19 +45,34 @@ export function PostMoreMenu({
 
   const items: MenuItem[] = [{ label: "Copy link", onSelect: () => void copyLink(link()) }];
   if (isMine && commentSetting) {
-    const off = commentSetting === "Off";
-    items.push({
-      label: off ? "Turn on comments" : "Turn off comments",
-      onSelect: async () => {
-        const result = await setCommentSetting(postId, off ? "Everyone" : "Off");
-        if (!result.ok) {
-          toast(result.error);
-          return;
-        }
-        toast(off ? "Comments are on" : "Comments are off. The ones already there stay.");
-        router.refresh();
-      },
-    });
+    // Who can comment: everyone, only people you follow, or nobody. The ones already there always stay.
+    const change = (setting: CommentSetting, done: string) => async () => {
+      const result = await setCommentSetting(postId, setting);
+      if (!result.ok) {
+        toast(result.error);
+        return;
+      }
+      toast(done);
+      router.refresh();
+    };
+    if (commentSetting !== "Everyone") {
+      items.push({
+        label: commentSetting === "Off" ? "Turn on comments" : "Let everyone comment",
+        onSelect: change("Everyone", "Everyone can comment"),
+      });
+    }
+    if (commentSetting !== "Following") {
+      items.push({
+        label: "Only people I follow can comment",
+        onSelect: change("Following", "Only people you follow can comment now"),
+      });
+    }
+    if (commentSetting !== "Off") {
+      items.push({
+        label: "Turn off comments",
+        onSelect: change("Off", "Comments are off. The ones already there stay."),
+      });
+    }
   }
   if (isMine) {
     items.push({

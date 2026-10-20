@@ -17,6 +17,7 @@ import {
   ProfilesClient,
   ReelsClient,
   ReportsClient,
+  TimelinesClient,
   TrendsClient,
   VehiclesClient,
 } from "./generated/api";
@@ -32,6 +33,7 @@ import type {
   ReactionType,
   SaveDraftRequest,
   ReportReason,
+  TimelineRequest,
   RoadUser,
 } from "./types";
 import type { CreatePostRequest } from "./types";
@@ -292,6 +294,31 @@ export function endpoints(api: ApiClient) {
       blocks: (token: string) => profiles(token).profiles_ListBlocks(),
       block: (token: string, user: string) => profiles(token).profiles_Block(user),
       unblock: (token: string, user: string) => profiles(token).profiles_Unblock(user),
+      follow: (token: string, user: string) => profiles(token).profiles_Follow(user),
+      unfollow: (token: string, user: string) => profiles(token).profiles_Unfollow(user),
+      /** Who to follow: adults whose home area is near yours. */
+      suggestions: (token: string, limit = 3) => profiles(token).profiles_Suggestions(limit),
+      followers: (token: string | null, handle: string, page = 1) =>
+        profiles(token).profiles_Followers(handle, page, 20),
+      following: (token: string | null, handle: string, page = 1) =>
+        profiles(token).profiles_Following(handle, page, 20),
+    },
+    timelines: {
+      /** For you: anyone; ranked, and boosted near the signed-in user's home area. */
+      forYou: (token: string | null, page = 1) =>
+        client(TimelinesClient, { token }).timelines_ForYou(page, 20),
+      following: (token: string, page = 1) =>
+        client(TimelinesClient, { token }).timelines_Following(page, 20),
+      list: (token: string) => client(TimelinesClient, { token }).timelines_List(),
+      create: (token: string, body: TimelineRequest) =>
+        client(TimelinesClient, { token }).timelines_Create(body),
+      update: (token: string, id: string, body: TimelineRequest) =>
+        client(TimelinesClient, { token }).timelines_Update(id, body),
+      remove: (token: string, id: string) => client(TimelinesClient, { token }).timelines_Delete(id),
+      reorder: (token: string, ids: string[]) =>
+        client(TimelinesClient, { token }).timelines_Reorder({ ids }),
+      posts: (token: string, id: string, page = 1) =>
+        client(TimelinesClient, { token }).timelines_Posts(id, page, 20),
     },
     media: {
       requestUpload: (token: string, body: { fileName: string; contentType: string; sizeBytes: number }) =>

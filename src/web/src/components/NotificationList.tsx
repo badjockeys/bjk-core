@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 
 import { loadNotifications } from "@/actions/notifications";
 import { timeAgo } from "@/lib/format";
-import { postPath } from "@/lib/paths";
+import { postPath, profilePath } from "@/lib/paths";
 import type { NotificationDto, PagedResult } from "@/lib/types";
 
 import { Avatar } from "./Avatar";
@@ -81,8 +81,14 @@ function Item({ notification: n }: { notification: NotificationDto }) {
       {!n.isRead ? <span className="notif-dot" aria-label="New" /> : null}
     </>
   );
-  return n.postId ? (
-    <Link href={postPath(n.postId)} className="notif-link">
+  // A new follower opens their profile; everything else opens the post.
+  const href = n.postId
+    ? postPath(n.postId)
+    : n.type === "NewFollower" && n.actor?.handle
+      ? profilePath(n.actor.handle)
+      : null;
+  return href ? (
+    <Link href={href} className="notif-link">
       {body}
     </Link>
   ) : (

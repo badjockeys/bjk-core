@@ -2,7 +2,7 @@ import "server-only";
 
 import { api, ApiError } from "./api";
 import { getAccessToken } from "./auth";
-import type { IncidentCategory, PagedResult, PostDto } from "./types";
+import type { IncidentCategory, PagedResult, PostDto, TimelinesDto } from "./types";
 
 /** One page of the public feed as the viewer sees it, or null if the API couldn't be reached. */
 export async function feedPage(
@@ -24,4 +24,43 @@ export async function feedPage(
 export function pageNumber(value: string | string[] | undefined): number {
   const n = Number(Array.isArray(value) ? value[0] : value);
   return Number.isInteger(n) && n > 0 && n < 10_000 ? n : 1;
+}
+
+/** A page of a home timeline (For you, Following or a custom one), or null if the API couldn't be reached. */
+export async function homePage(
+  tab: { kind: "for-you" } | { kind: "following" } | { kind: "timeline"; id: string },
+  page: number,
+): Promise<PagedResult<PostDto> | null> {
+  const token = await getAccessToken();
+  try {
+    if (tab.kind === "following") {
+      return token ? await api().timelines.following(token, page) : null;
+    }
+    if (tab.kind === "timeline") {
+      return token ? await api().timelines.posts(token, tab.id, page) : null;
+    }
+    return await api().timelines.forYou(token, page);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401 && token && tab.kind === "for-you") {
+      return api().timelines.forYou(null, page);
+    }
+    if (error instanceof ApiError && error.status === 404) {
+      return null;
+    }
+    console.error("Couldn't load the timeline", error instanceof Error ? error.message : error);
+    return null;
+  }
+}
+
+/** The signed-in member's custom timelines, for the home tabs (none if signed out or the API is down). */
+export async function myTimelines(): Promise<TimelinesDto | null> {
+  const token = await getAccessToken();
+  if (!token) {
+    return null;
+  }
+  try {
+    return await api().timelines.list(token);
+  } catch {
+    return null;
+  }
 }

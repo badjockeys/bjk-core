@@ -7,7 +7,7 @@ const SIGN_IN_PROBLEMS: Record<string, string> = {
   expired: "That sign-in took too long. Please try again.",
 };
 
-/** Screens 01 and 02: the home feed, newest first. */
+/** Screens 01 and 02: home, on the For you timeline. */
 export default async function HomePage({
   searchParams,
 }: {
@@ -19,6 +19,7 @@ export default async function HomePage({
   return (
     <FeedPage
       viewer={viewer}
+      home={{ kind: "for-you" }}
       label={null}
       basePath="/"
       page={pageNumber(params.page)}
