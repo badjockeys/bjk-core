@@ -44,7 +44,7 @@ export function NotificationBell({ label = false, className }: { label?: boolean
     <Link
       href="/notifications"
       className={className ?? "bell"}
-      aria-label={label ? undefined : name}
+      aria-label={name}
       aria-current={here ? "page" : undefined}
     >
       <span className="bell-icon">
@@ -55,12 +55,7 @@ export function NotificationBell({ label = false, className }: { label?: boolean
           </span>
         ) : null}
       </span>
-      {label ? (
-        <>
-          Notifications
-          {shown > 0 ? <span className="sr-only">, {shown} unread</span> : null}
-        </>
-      ) : null}
+      {label ? "Notifications" : null}
     </Link>
   );
 }
