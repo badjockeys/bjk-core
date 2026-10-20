@@ -6,7 +6,7 @@ import { cache } from "react";
 import { AppShell, FooterLinks } from "@/components/AppShell";
 import { Avatar } from "@/components/Avatar";
 import { BackButton } from "@/components/BackButton";
-import { CategoriesPanel } from "@/components/CategoriesPanel";
+import { TrendsPanel } from "@/components/TrendsPanel";
 import { Feed } from "@/components/Feed";
 import { AccountIcon, CalendarIcon, PinIcon } from "@/components/icons";
 import { RoadBadge } from "@/components/PostPeople";
@@ -104,7 +104,7 @@ export default async function ProfilePage({ params, searchParams }: Props) {
       fab
       aside={
         <>
-          <CategoriesPanel />
+          <TrendsPanel />
           <FooterLinks />
         </>
       }

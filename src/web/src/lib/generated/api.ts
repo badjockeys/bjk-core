@@ -4306,6 +4306,72 @@ export class ReportsClient {
     }
 }
 
+export class TrendsClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * Every type of bad driving, busiest first, with a line of incidents per day (per week beyond 92 days, per month
+    beyond two years), its total and the change on the previous period of the same length. Free and signed-out: the
+    last 7 days. Premium: up to 12 months; Premium +: up to 5 years. Everyone sees the whole UK; Premium and Premium +
+    can narrow it to an area with bbox. Types with fewer than 3 incidents are suppressed.
+     * @param from (optional) First UK day (inclusive). Default: as far back as the plan allows.
+     * @param to (optional) Last UK day (inclusive). Default: today.
+     * @param bbox (optional) minLon,minLat,maxLon,maxLat (Premium); ignored for other plans.
+     */
+    trends_Categories(from?: string | null | undefined, to?: string | null | undefined, bbox?: string | null | undefined, signal?: AbortSignal): Promise<CategoryTrendsDto> {
+        let url_ = this.baseUrl + "/api/trends/categories?";
+        if (from !== undefined && from !== null)
+            url_ += "from=" + encodeURIComponent("" + from) + "&";
+        if (to !== undefined && to !== null)
+            url_ += "to=" + encodeURIComponent("" + to) + "&";
+        if (bbox !== undefined && bbox !== null)
+            url_ += "bbox=" + encodeURIComponent("" + bbox) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processTrends_Categories(_response);
+        });
+    }
+
+    protected processTrends_Categories(response: Response): Promise<CategoryTrendsDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as CategoryTrendsDto;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<CategoryTrendsDto>(null as any);
+    }
+}
+
 export class VehiclesClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -5927,6 +5993,31 @@ export interface PublicReportRequest {
     reporterEmail: string;
     consent: boolean;
 }
+
+/** The right panel's category trends: every type of bad driving, busiest first, with a line of incidents per Period (each starting on the date in Periods), over Access.From–Access.To (UK days, inclusive), compared with PreviousFrom–PreviousTo. AreaAllowed is true for Premium and Premium +, who can narrow it to a box; AreaIgnored says a box was sent but the whole UK was used. */
+export interface CategoryTrendsDto {
+    categories: CategoryTrendDto[];
+    period: TrendPeriod;
+    periods: string[];
+    previousFrom: string;
+    previousTo: string;
+    areaAllowed: boolean;
+    areaIgnored: boolean;
+    access: HeatmapAccessDto;
+}
+
+/** One type of bad driving's trend: its incidents in each period (aligned with Periods), the total, the total in the previous period of the same length, and the change as a percentage (null when the previous period had too few to compare). When the total is below Heatmap:MinCellCount the type is Suppressed: no figures at all. */
+export interface CategoryTrendDto {
+    category: IncidentCategory;
+    suppressed: boolean;
+    total: number | null;
+    previousTotal: number | null;
+    changePercent: number | null;
+    points: number[];
+}
+
+/** How the trend lines are bucketed: days up to 92 days, weeks (from Monday) up to two years, then months. */
+export type TrendPeriod = "Day" | "Week" | "Month";
 
 /** The lists a post's vehicle details are chosen from (and the heat map's vehicle filters use). */
 export interface VehicleCatalogueDto {

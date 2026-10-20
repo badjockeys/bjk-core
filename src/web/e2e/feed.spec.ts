@@ -74,6 +74,38 @@ test("members who haven't verified their age are offered the age check for sensi
   await expect(page.locator('img[src$="/media/m-5-feed.png"]').first()).toBeAttached();
 });
 
+test("category trends show each type's line, total and change; Free is the last 7 days", async ({ page }) => {
+  await page.goto("/");
+  const trends = page.locator(".trends");
+  await expect(trends.getByRole("heading", { name: "Category trends" })).toBeVisible();
+  const parking = trends.getByRole("link", { name: /Bad parking/ });
+  await expect(parking).toContainText("48 incidents");
+  await expect(parking).toContainText("▲ 60%");
+  await expect(parking.getByRole("img")).toHaveAttribute(
+    "aria-label",
+    "Bad parking: 48 incidents, counted a day",
+  );
+  await expect(trends.getByRole("link", { name: /Speeding/ })).not.toContainText("%");
+  await expect(
+    trends.getByText("2 other types had fewer than 3 incidents, so they aren't shown."),
+  ).toBeVisible();
+  await expect(trends.getByRole("button", { name: "7 days" })).toHaveAttribute("aria-pressed", "true");
+  await expect(trends.getByRole("button", { name: "30 days" })).toBeDisabled();
+  await expect(trends.getByRole("link", { name: "Premium" })).toHaveAttribute("href", "/premium");
+});
+
+test("Premium members choose a longer range and narrow trends to an area", async ({ page, request }) => {
+  await request.post("http://localhost:4010/__next-user", { data: "dave" });
+  await signIn(page, "/");
+  const trends = page.locator(".trends");
+  await trends.getByRole("button", { name: "30 days" }).click();
+  await expect(trends.getByRole("button", { name: "30 days" })).toHaveAttribute("aria-pressed", "true");
+  await expect(trends.getByRole("link", { name: /Bad parking/ })).toContainText("84 incidents");
+  await expect(trends.getByLabel("Area")).toBeVisible();
+  await trends.getByRole("button", { name: "Custom" }).click();
+  await expect(trends.getByLabel("From")).toBeVisible();
+});
+
 test("category tabs filter the feed, with an empty state", async ({ page }) => {
   await page.goto("/");
   await page

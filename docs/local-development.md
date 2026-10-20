@@ -484,6 +484,11 @@ locally it uses development stand-ins that always pass (`AgeAssurance` in the id
   Sign-in, sign-up, the age check, two-step, password and deactivation pages all belong to the identity server.
 - **Pages** are rendered on the web server, which calls the API with the user's token. Post pages carry Open Graph
   and X card tags (title, area name, category and the blurred thumbnail), so shared links get a preview.
+- **The right panel** (desktop) shows **Category trends**: each type of bad driving with a sparkline, its total and
+  the change on the previous period (`GET /api/trends/categories`), with a date range picker (7 days, 30 days, 90 days,
+  12 months, custom). The ranges follow the heat map's plan limits (Free and visitors: 7 days; Premium: 12 months;
+  Premium +: 5 years), and Premium can narrow it to an area around a place. Signed-out answers are cached for five
+  minutes.
 - **Uploads** go straight from the browser to storage: the web server asks the API for a signed link
   (`POST /api/media/uploads`), the browser `PUT`s the file to S3Mock (or R2) with a progress bar, then the web server
   tells the API it's there. Photos are shrunk in the browser first; videos are trimmed to at most 30 seconds and

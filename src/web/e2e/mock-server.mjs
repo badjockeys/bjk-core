@@ -723,6 +723,66 @@ async function api(req, res, url) {
     });
   }
 
+  // Category trends (UI step 4): anyone. Free and signed out get the last 7 days for the whole UK.
+  if (path === "/api/trends/categories" && method === "GET") {
+    const plan =
+      viewer.plan === "premium_plus" ? "PremiumPlus" : viewer.plan === "premium" ? "Premium" : "Free";
+    const free = plan === "Free";
+    const day = (n) => new Date(Date.now() - n * 86_400_000).toISOString().slice(0, 10);
+    const today = day(0);
+    const to = !free && url.searchParams.get("to") ? url.searchParams.get("to") : today;
+    const from = !free && url.searchParams.get("from") ? url.searchParams.get("from") : day(6);
+    const length = Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000) + 1;
+    const period = length <= 92 ? "Day" : length <= 731 ? "Week" : "Month";
+    const points = Math.min(length, 12);
+    const periods = Array.from({ length: points }, (_, i) => day(points - 1 - i));
+    const wantsArea = Boolean(url.searchParams.get("bbox"));
+    // The area makes the numbers smaller, so the test can see it was applied.
+    const scale = !free && wantsArea ? 0.5 : 1;
+    const line = (base) => periods.map((_, i) => Math.round((base + (i % 3)) * scale));
+    const trend = (category, base, previous) => {
+      const p = line(base);
+      const total = p.reduce((a, b) => a + b, 0);
+      return {
+        category,
+        suppressed: false,
+        total,
+        previousTotal: previous,
+        changePercent: previous ? Math.round(((total - previous) * 100) / previous) : null,
+        points: p,
+      };
+    };
+    const shown = [trend("BadParking", 6, 30), trend("Tailgating", 4, 40), trend("Speeding", 2, null)];
+    const suppressed = ["RoadRage", "ClosePass"].map((category) => ({
+      category,
+      suppressed: true,
+      total: null,
+      previousTotal: null,
+      changePercent: null,
+      points: [],
+    }));
+    return send(res, 200, {
+      categories: [...shown, ...suppressed],
+      period,
+      periods,
+      previousFrom: day(length + 6),
+      previousTo: day(7),
+      areaAllowed: !free,
+      areaIgnored: free && wantsArea,
+      access: {
+        plan,
+        historyDays: free ? 7 : plan === "Premium" ? 365 : 1826,
+        filtersAllowed: !free,
+        exportAllowed: plan === "PremiumPlus",
+        from,
+        to,
+        historyCapped: false,
+        filtersIgnored: false,
+        modelFilterIgnored: false,
+      },
+    });
+  }
+
   // Heat map: a few fixed cells around Leeds and York. Free: last 7 days, filters ignored.
   if ((path === "/api/heatmap" || path === "/api/heatmap/area") && method === "GET") {
     if (!requireUser()) return;
