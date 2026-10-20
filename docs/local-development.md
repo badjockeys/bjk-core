@@ -350,7 +350,7 @@ If you add a setting, add it to `user-secrets.template.json` (or `.env.local.exa
 
 ### Going live
 
-On your machine nothing needs a supplier account: S3Mock stands in for R2, email and texts go to the console (`Provider: Log`), the CAPTCHA uses Cloudflare's test keys, and maps use OpenStreetMap's public tiles. These are what a deployed environment must change. Secrets go in Key Vault; everything else is a container setting (Terraform). Nested keys become environment variables with `__`, e.g. `Email__SendGrid__ApiKey`. The identity server's list is in its README.
+On your machine nothing needs a supplier account: S3Mock stands in for R2, email and texts go to the console (`Provider: Log`), the CAPTCHA uses Cloudflare's test keys, and maps use OpenStreetMap's public tiles. These are what a deployed environment must change. Secrets are container secrets; everything else is a container setting (Terraform). Nothing needs a cloud-specific service such as Key Vault. Nested keys become environment variables with `__`, e.g. `Email__SendGrid__ApiKey`. The identity server's list is in its README.
 
 **`Log` isn't chosen by environment.** `Email:Provider` and `SMS:Provider` default to `Log` everywhere, so a deployed app without `SendGrid` or `Twilio` set quietly sends nothing (it logs that each message was dropped).
 
@@ -358,7 +358,7 @@ On your machine nothing needs a supplier account: S3Mock stands in for R2, email
 
 | Setting | Live value | Still needed |
 |---|---|---|
-| `ConnectionStrings:AppDatabase` | Azure SQL `badjockeys` with the managed identity, `Encrypt=True` | The live server |
+| `ConnectionStrings:AppDatabase` (secret) | Azure SQL `badjockeys` with the API's own SQL login, `Encrypt=True` | The live server |
 | `MediatR:LicenseKey` (secret) | The licence key | Get one |
 | `Authentication:Authority` | The identity server, e.g. `https://auth.badjockeys.com` | The live domain |
 | `Cors:AllowedOrigins` | The web app, e.g. `https://badjockeys.com` | The live domain |
