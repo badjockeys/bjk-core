@@ -146,3 +146,20 @@ function ukOffsetMinutes(utc: number): number {
   const asUtc = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"));
   return Math.round((asUtc - utc) / 60_000);
 }
+
+/** "Today, 08:14", "Yesterday, 22:05" or "Sat 17 Oct, 08:14". */
+export function whenLabel(date: string, time: string, today: string): string {
+  if (date === today) return `Today, ${time}`;
+  const day = new Date(`${date}T12:00:00Z`);
+  if (Number.isNaN(day.getTime())) return time;
+  const yesterday = new Date(`${today}T12:00:00Z`);
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+  if (day.getTime() === yesterday.getTime()) return `Yesterday, ${time}`;
+  const label = new Intl.DateTimeFormat("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  }).format(day);
+  return `${label.replace(",", "")}, ${time}`;
+}

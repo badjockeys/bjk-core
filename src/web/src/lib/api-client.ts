@@ -4,6 +4,8 @@
 
 import type {
   AppealDto,
+  AreaAlertMode,
+  AreaSettingsDto,
   AreaStatsDto,
   BlockDto,
   CommentDto,
@@ -13,7 +15,11 @@ import type {
   HeatmapQuery,
   IncidentCategory,
   MediaDto,
+  NotificationDto,
+  NotificationSettingDto,
   PagedResult,
+  PassengerTagStatus,
+  PlaceDto,
   PostDto,
   ProblemDetails,
   ProfileDto,
@@ -23,6 +29,8 @@ import type {
   ReelsPage,
   ReportReason,
   ReportReceipt,
+  RoadUser,
+  VehicleCatalogue,
   RequestUploadResult,
 } from "./types";
 
@@ -197,6 +205,15 @@ export function endpoints(api: ApiClient) {
         api.request<void>("POST", `/api/posts/${id(postId)}/reports`, { token, body: { reason, details } }),
       appeal: (token: string, postId: string, statement: string) =>
         api.request<AppealDto>("POST", `/api/posts/${id(postId)}/appeal`, { token, body: { statement } }),
+      tagged: (token: string, status: PassengerTagStatus = "Pending", page = 1, pageSize = 20) =>
+        api.request<PagedResult<PostDto>>("GET", "/api/posts/tagged", {
+          token,
+          query: { status, page, pageSize },
+        }),
+      respondToTag: (token: string, postId: string, accept: boolean) =>
+        api.request<PostDto>("PUT", `/api/posts/${id(postId)}/passengers/me`, { token, body: { accept } }),
+      removeMyTag: (token: string, postId: string) =>
+        api.request<void>("DELETE", `/api/posts/${id(postId)}/passengers/me`, { token }),
     },
     comments: {
       list: (token: string, postId: string, page = 1, pageSize = 20) =>
@@ -274,6 +291,8 @@ export function endpoints(api: ApiClient) {
         api.request<ProfileDto>("PUT", "/api/profiles/me", { token, body }),
       changeHandle: (token: string, handle: string) =>
         api.request<ProfileDto>("PUT", "/api/profiles/me/handle", { token, body: { handle } }),
+      setRoadUser: (token: string, roadUser: RoadUser | null, show: boolean) =>
+        api.request<ProfileDto>("PUT", "/api/profiles/me/road-user", { token, body: { roadUser, show } }),
       setAvatar: (token: string, mediaId: string | null) =>
         api.request<ProfileDto>("PUT", "/api/profiles/me/avatar", { token, body: { mediaId } }),
       handleAvailability: (handle: string) =>
@@ -322,6 +341,39 @@ export function endpoints(api: ApiClient) {
     me: {
       /** Everything core holds about the user (profile, posts, comments, reactions, reports, media). */
       dataExport: (token: string) => api.request<unknown>("GET", "/api/me/data-export", { token }),
+    },
+    vehicles: {
+      catalogue: () => api.request<VehicleCatalogue>("GET", "/api/vehicles", { revalidate: 86_400 }),
+    },
+    places: {
+      search: (token: string, q: string) =>
+        api.request<PlaceDto[]>("GET", "/api/places", { token, query: { q } }),
+    },
+    notifications: {
+      list: (token: string, page = 1, pageSize = 20) =>
+        api.request<PagedResult<NotificationDto>>("GET", "/api/notifications", {
+          token,
+          query: { page, pageSize },
+        }),
+      unreadCount: (token: string) =>
+        api.request<{ unread: number }>("GET", "/api/notifications/unread-count", { token }),
+      markRead: (token: string, ids: string[] | null) =>
+        api.request<void>("POST", "/api/notifications/read", { token, body: { ids } }),
+      settings: (token: string) =>
+        api.request<NotificationSettingDto[]>("GET", "/api/notifications/settings", { token }),
+      area: (token: string) => api.request<AreaSettingsDto>("GET", "/api/notifications/area", { token }),
+      setHomeArea: (token: string, place: { placeName: string; latitude: number; longitude: number }) =>
+        api.request<AreaSettingsDto>("PUT", "/api/notifications/area/home", { token, body: place }),
+      setAreaAlerts: (
+        token: string,
+        alerts: { enabled: boolean; radiusKm: number; mode: AreaAlertMode; email: boolean },
+      ) => api.request<AreaSettingsDto>("PUT", "/api/notifications/area/alerts", { token, body: alerts }),
+      clearHomeArea: (token: string) => api.request<void>("DELETE", "/api/notifications/area", { token }),
+      updateSettings: (token: string, settings: NotificationSettingDto[]) =>
+        api.request<NotificationSettingDto[]>("PUT", "/api/notifications/settings", {
+          token,
+          body: { settings: settings.map(({ type, inApp, email }) => ({ type, inApp, email })) },
+        }),
     },
   };
 }

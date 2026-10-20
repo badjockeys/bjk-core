@@ -15,9 +15,10 @@ import {
   ProfileIcon,
   ReelsIcon,
 } from "./icons";
+import { NotificationBell } from "./NotificationBell";
 import { SignOutMenu } from "./SignOutMenu";
 
-export type Section = "home" | "reels" | "map" | "profile" | "account" | null;
+export type Section = "home" | "reels" | "map" | "profile" | "account" | "notifications" | null;
 
 /**
  * The page frame. Desktop (1024 px and up): X-style navigation on the left (Home, Reels, Map, then the member's
@@ -80,6 +81,7 @@ export function AppShell({
           </NavItem>
           {viewer.signedIn ? (
             <>
+              <NotificationBell label className={`nav-i${section === "notifications" ? " nav-on" : ""}`} />
               <NavItem
                 href={myProfile}
                 on={section === "profile"}

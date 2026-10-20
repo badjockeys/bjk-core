@@ -1,7 +1,14 @@
 // Helpers for the incident map (screen 28): colours, dates, labels and filters. No browser or server APIs, so they
 // can be tested on their own.
 
-import type { HeatmapAccess, HeatmapDays, HeatmapQuery, IncidentCategory } from "./types";
+import type {
+  HeatmapAccess,
+  HeatmapDays,
+  HeatmapQuery,
+  IncidentCategory,
+  VehicleColour,
+  VehicleType,
+} from "./types";
 
 /** The brand's cyan scale, from few incidents to many. */
 export const SCALE = ["#E6F7FC", "#00B5E5", "#00607F"] as const;
@@ -58,13 +65,54 @@ export const DAY_CHOICES: readonly { value: HeatmapDays; label: string }[] = [
 ];
 
 export interface MapFilters {
-  category: IncidentCategory | "";
+  /** Any of these types (empty: all). */
+  categories: IncidentCategory[];
   period: Period;
+  /** A chosen date range (yyyy-mm-dd), instead of the period, when set. */
+  from: string;
+  to: string;
   hours: string;
   days: HeatmapDays;
+  vehicleTypes: VehicleType[];
+  make: string;
+  model: string;
+  colours: VehicleColour[];
+  light: "" | "Daylight" | "Dark";
+  schoolRun: boolean;
+  reported: boolean;
+  videoOnly: boolean;
 }
 
-export const DEFAULT_FILTERS: MapFilters = { category: "", period: "12m", hours: "", days: "All" };
+export const DEFAULT_FILTERS: MapFilters = {
+  categories: [],
+  period: "12m",
+  from: "",
+  to: "",
+  hours: "",
+  days: "All",
+  vehicleTypes: [],
+  make: "",
+  model: "",
+  colours: [],
+  light: "",
+  schoolRun: false,
+  reported: false,
+  videoOnly: false,
+};
+
+/** How many of the "More filters" are set (for its badge). */
+export function moreFilterCount(f: MapFilters): number {
+  return [
+    f.from || f.to,
+    f.vehicleTypes.length > 0,
+    f.make,
+    f.colours.length > 0,
+    f.light,
+    f.schoolRun,
+    f.reported,
+    f.videoOnly,
+  ].filter(Boolean).length;
+}
 
 /** Today's date in the UK, as yyyy-mm-dd. */
 export function ukToday(at: Date = new Date()): string {
@@ -94,11 +142,19 @@ export function heatmapQuery(
   return {
     bbox,
     zoom,
-    from: addDays(today, 1 - days),
-    to: today,
-    categories: filters.category || undefined,
+    from: filters.from || addDays(today, 1 - days),
+    to: filters.to || today,
+    categories: filters.categories.length > 0 ? filters.categories.join(",") : undefined,
     hours: filters.hours || undefined,
     days: filters.days === "All" ? undefined : filters.days,
+    vehicleTypes: filters.vehicleTypes.length > 0 ? filters.vehicleTypes.join(",") : undefined,
+    make: filters.make || undefined,
+    model: (filters.make && filters.model) || undefined,
+    colours: filters.colours.length > 0 ? filters.colours.join(",") : undefined,
+    light: filters.light || undefined,
+    schoolRun: filters.schoolRun || undefined,
+    reported: filters.reported || undefined,
+    videoOnly: filters.videoOnly || undefined,
   };
 }
 

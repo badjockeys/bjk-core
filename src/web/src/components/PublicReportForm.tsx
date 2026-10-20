@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 
 import { submitPublicReport } from "@/actions/reports";
@@ -155,7 +156,7 @@ export function PublicReportForm({ siteKey, initialTarget }: { siteKey: string; 
         <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
         <span>
           I confirm this report is true to the best of my knowledge. We&apos;ll use your details only to
-          handle it (<a href="/privacy">privacy notice</a>).
+          handle it (<Link href="/privacy">privacy notice</Link>).
         </span>
       </label>
       {fieldError("consent") ? <span className="error">{fieldError("consent")}</span> : null}

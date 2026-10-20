@@ -11,19 +11,22 @@ import { Gallery } from "@/components/Gallery";
 import { ClockIcon, SpinnerIcon } from "@/components/icons";
 import { LinkExpiryRefresh } from "@/components/LinkExpiryRefresh";
 import { PostMoreMenu } from "@/components/PostMoreMenu";
+import { RoadBadge, WithPassengers } from "@/components/PostPeople";
 import { ProcessingWatcher } from "@/components/ProcessingWatcher";
 import { isBlurred } from "@/components/PostMedia";
 import { ReactionBar } from "@/components/ReactionBar";
 import { SensitiveCover } from "@/components/SensitiveCover";
+import { TagRequest } from "@/components/TagRequest";
 import { appealPost } from "@/actions/posts";
 import { api } from "@/lib/api";
 import { getAccessToken, getViewer } from "@/lib/auth";
-import { categoryHref, categoryLabel } from "@/lib/categories";
+import { categoryHref, categoryLabel, postTypes } from "@/lib/categories";
 import { dateTime, plural, postedAt } from "@/lib/format";
 import { joinPath, postPath, profilePath, signInPath } from "@/lib/paths";
 import { earliestExpiry } from "@/lib/links";
 import { loadPost, postCount } from "@/lib/posts";
 import type { CommentDto, PagedResult, PostDto } from "@/lib/types";
+import { describeVehicle } from "@/lib/vehicles";
 import { participationBlocker, type Viewer } from "@/lib/viewer";
 
 type Props = {
@@ -38,7 +41,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: "Not found", robots: { index: false } };
   }
   const where = post.location.placeName ? ` in ${post.location.placeName}` : "";
-  const summary = `${categoryLabel(post.category)}${where}, ${dateTime(post.incidentAt)}.`;
+  const summary = `${postTypes(post).map(categoryLabel).join(", ")}${where}, ${dateTime(post.incidentAt)}.`;
   const description = post.description ? `${summary} ${post.description.slice(0, 160)}` : summary;
   const first = post.media[0];
   // Thumbnails are made by the media worker after faces and number plates are blurred. Sensitive posts only ever
@@ -76,6 +79,7 @@ export default async function PostPage({ params, searchParams }: Props) {
   const posted = (await searchParams).posted;
   const viewer = await getViewer();
   const isMine = viewer.userId === post.author.id;
+  const myTag = viewer.userId ? post.passengers?.find((p) => p.person.id === viewer.userId) : undefined;
   const processing = post.mediaState === "Pending";
   const here = postPath(post.id);
 
@@ -116,6 +120,7 @@ export default async function PostPage({ params, searchParams }: Props) {
             ) : (
               <span>{post.author.displayName}</span>
             )}
+            <RoadBadge value={post.author.roadUser} />
             <span className="muted small">
               {post.author.handle ? `@${post.author.handle} · ` : ""}
               <time dateTime={post.createdAt} suppressHydrationWarning>
@@ -133,6 +138,10 @@ export default async function PostPage({ params, searchParams }: Props) {
             afterDelete="home"
           />
         </div>
+        <WithPassengers passengers={post.passengers} showPending={isMine} />
+        {myTag ? (
+          <TagRequest postId={post.id} authorName={post.author.displayName} status={myTag.status} />
+        ) : null}
         <h1 id="post-title" className="h1">
           {post.title}
         </h1>
@@ -157,9 +166,29 @@ export default async function PostPage({ params, searchParams }: Props) {
             <span className="small muted">When</span>
             <span>{dateTime(post.incidentAt)}</span>
           </div>
+          {post.vehicle ? (
+            <div className="fact">
+              <span className="small muted">Vehicle</span>
+              <span>{describeVehicle(post.vehicle)}</span>
+            </div>
+          ) : null}
+          {post.reportedToPolice !== null && post.reportedToPolice !== undefined ? (
+            <div className="fact">
+              <span className="small muted">Reported to police</span>
+              <span>{post.reportedToPolice ? "Yes" : "No"}</span>
+            </div>
+          ) : null}
           <div className="fact">
             <span className="small muted">What</span>
-            <Link href={categoryHref(post.category)}>{categoryLabel(post.category)}</Link>
+            <ul className="type-tags" aria-label="Types of bad driving">
+              {postTypes(post).map((type) => (
+                <li key={type}>
+                  <Link href={categoryHref(type)} className="type-tag">
+                    {categoryLabel(type)}
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
 

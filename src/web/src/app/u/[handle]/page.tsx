@@ -9,6 +9,7 @@ import { BackButton } from "@/components/BackButton";
 import { CategoriesPanel } from "@/components/CategoriesPanel";
 import { Feed } from "@/components/Feed";
 import { AccountIcon, CalendarIcon, PinIcon } from "@/components/icons";
+import { RoadBadge } from "@/components/PostPeople";
 import { ProfileMoreMenu } from "@/components/ProfileMoreMenu";
 import type { FeedSource } from "@/actions/posts";
 import { api, ApiError } from "@/lib/api";
@@ -122,7 +123,9 @@ export default async function ProfilePage({ params, searchParams }: Props) {
           <h1 id="profile-name" className="h1">
             {profile.displayName}
           </h1>
-          <span className="muted">@{profile.handle}</span>
+          <span className="muted">
+            @{profile.handle} <RoadBadge value={profile.roadUser} />
+          </span>
         </div>
         {profile.bio ? <p className="post-text">{profile.bio}</p> : null}
         <div className="row row-wrap small muted" style={{ gap: 16 }}>

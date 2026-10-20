@@ -47,6 +47,115 @@ export interface AuthorDto {
   handle: string | null;
   displayName: string;
   avatarUrl: string | null;
+  /** "Driver", "Cyclist" or "Both", only if they chose to show it. */
+  roadUser?: RoadUser | null;
+}
+
+export type RoadUser = "Driver" | "Cyclist" | "Both";
+
+export type VehicleType =
+  | "Car"
+  | "Van"
+  | "Lorry"
+  | "Bus"
+  | "Coach"
+  | "Taxi"
+  | "Motorbike"
+  | "Bicycle"
+  | "EScooter"
+  | "Tractor"
+  | "Other";
+
+export type VehicleColour =
+  | "Black"
+  | "White"
+  | "Silver"
+  | "Grey"
+  | "Blue"
+  | "Red"
+  | "Green"
+  | "Yellow"
+  | "Orange"
+  | "Brown"
+  | "Beige"
+  | "Purple"
+  | "Gold"
+  | "Other";
+
+/** The vehicle driven badly (from lists; never the registration). */
+export interface VehicleDto {
+  type: VehicleType;
+  make: string | null;
+  model: string | null;
+  colour: VehicleColour | null;
+}
+
+/** GET /api/vehicles: the lists vehicle details are chosen from. */
+export interface VehicleCatalogue {
+  types: VehicleType[];
+  colours: VehicleColour[];
+  makes: { name: string; models: string[] }[];
+}
+
+export type NotificationType =
+  | "PassengerTagged"
+  | "PassengerAccepted"
+  | "CommentOnPost"
+  | "ReplyToComment"
+  | "ReactionOnPost"
+  | "AreaPost";
+
+/** One notification for the bell. `text` is ready to show; `at` is when it last changed. */
+export interface NotificationDto {
+  id: string;
+  type: NotificationType;
+  actor: { id: string; handle: string | null; displayName: string; avatarUrl: string | null } | null;
+  postId: string | null;
+  commentId: string | null;
+  postTitle: string | null;
+  count: number;
+  text: string;
+  at: string;
+  isRead: boolean;
+}
+
+/** A UK place from the lookup, position to about 1 km. */
+export interface PlaceDto {
+  name: string;
+  detail: string | null;
+  latitude: number;
+  longitude: number;
+}
+
+export type AreaAlertMode = "Digest" | "Instant";
+
+/** Your home area (private) and Premium area alerts. */
+export interface AreaSettingsDto {
+  placeName: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  enabled: boolean;
+  radiusKm: number;
+  mode: AreaAlertMode;
+  email: boolean;
+  canUseAlerts: boolean;
+  radiuses: number[];
+  instantDailyCap: number;
+}
+
+export interface NotificationSettingDto {
+  type: NotificationType;
+  label: string;
+  inApp: boolean;
+  email: boolean;
+}
+
+export type PassengerTagStatus = "Pending" | "Accepted" | "Declined";
+
+/** Someone tagged as being in the author's vehicle. Others only see Accepted ones. */
+export interface PassengerDto {
+  person: AuthorDto;
+  status: PassengerTagStatus;
 }
 
 export interface LocationDto {
@@ -81,7 +190,15 @@ export interface PostDto {
   author: AuthorDto;
   title: string;
   description: string | null;
+  /** The main type of bad driving (the first of `types`). */
   category: IncidentCategory;
+  /** Every type of bad driving, main first, shown as tags. Absent from older API versions: use `category`. */
+  types?: IncidentCategory[];
+  /** Passengers (bjk-modules feature/passenger-tags). Absent from older API versions. */
+  passengers?: PassengerDto[];
+  /** Vehicle details (bjk-modules feature/vehicle-details); absent or null when not given. */
+  vehicle?: VehicleDto | null;
+  reportedToPolice?: boolean | null;
   incidentAt: string;
   location: LocationDto;
   status: PostStatus;
@@ -136,6 +253,8 @@ export interface HeatmapAccess {
   to: string;
   historyCapped: boolean;
   filtersIgnored: boolean;
+  /** The model filter was ignored because the map is zoomed in closer than a town. */
+  modelFilterIgnored?: boolean;
 }
 
 export interface HeatmapCell {
@@ -182,6 +301,14 @@ export interface HeatmapQuery {
   categories?: string;
   hours?: string;
   days?: HeatmapDays;
+  vehicleTypes?: string;
+  make?: string;
+  model?: string;
+  colours?: string;
+  light?: "Daylight" | "Dark";
+  schoolRun?: boolean;
+  reported?: boolean;
+  videoOnly?: boolean;
 }
 
 export interface CommentDto {
@@ -223,6 +350,10 @@ export interface ProfileDto {
   location: string | null;
   avatarUrl: string | null;
   createdAt: string;
+  /** Shown to others only if they chose to; always to themselves. */
+  roadUser?: RoadUser | null;
+  /** Only for your own profile. */
+  showRoadUser?: boolean | null;
 }
 
 export interface HandleAvailability {
@@ -269,13 +400,21 @@ export interface MediaDto {
 export interface CreatePostRequest {
   title: string;
   description: string | null;
-  category: IncidentCategory;
+  /** Every type of bad driving that applies, the main one first (at least one). */
+  types: IncidentCategory[];
   incidentAt: string;
   latitude: number;
   longitude: number;
   placeName: string | null;
   mediaIds: string[];
   isSensitive: boolean;
+  /** @handles of passengers (driving incidents only, up to 4). Each is asked to accept. */
+  passengers?: string[];
+  vehicleType?: VehicleType | null;
+  vehicleMake?: string | null;
+  vehicleModel?: string | null;
+  vehicleColour?: VehicleColour | null;
+  reportedToPolice?: boolean | null;
 }
 
 export interface PublicReportRequest {

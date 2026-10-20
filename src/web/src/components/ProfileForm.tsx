@@ -3,19 +3,28 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 
+import { setHomeArea } from "@/actions/places";
 import { checkHandle, createProfile, setAvatar, updateProfile } from "@/actions/profiles";
 import { followBlocker } from "@/lib/blockers";
 import { shrinkPhoto } from "@/lib/image-resize";
-import type { ProfileDto } from "@/lib/types";
+import type { PlaceDto, ProfileDto, RoadUser } from "@/lib/types";
 import { contentTypeOf, MAX_PHOTO_BYTES, PHOTO_TYPES, uploadFile, waitUntilReady } from "@/lib/upload";
 
 import { Avatar } from "./Avatar";
 import { TickIcon } from "./icons";
+import { PlaceSearch } from "./PlaceSearch";
 
 const BIO_MAX = 500;
 const HANDLE_RULE = /^[a-z][a-z0-9_]{2,29}$/;
 
 type HandleState = { kind: "idle" | "checking" | "ok" | "error"; message: string };
+
+const ROAD_USER_CHOICES: readonly { value: RoadUser | null; label: string }[] = [
+  { value: "Driver", label: "Driver" },
+  { value: "Cyclist", label: "Cyclist" },
+  { value: "Both", label: "Both" },
+  { value: null, label: "Prefer not to say" },
+];
 
 /** Screens 12 and 13: create or edit your public profile. */
 export function ProfileForm({
@@ -36,6 +45,9 @@ export function ProfileForm({
   const [displayName, setDisplayName] = useState(profile?.displayName ?? suggestedName ?? "");
   const [location, setLocation] = useState(profile?.location ?? "");
   const [bio, setBio] = useState(profile?.bio ?? "");
+  const [roadUser, setRoadUser] = useState<RoadUser | null>(profile?.roadUser ?? null);
+  const [showRoadUser, setShowRoadUser] = useState(profile?.showRoadUser ?? false);
+  const [homePlace, setHomePlace] = useState<PlaceDto | null>(null);
   const [photo, setPhoto] = useState<{ file: File; preview: string } | null>(null);
   const [removePhoto, setRemovePhoto] = useState(false);
   const [handleState, setHandleState] = useState<HandleState>({ kind: "idle", message: "" });
@@ -117,7 +129,7 @@ export function ProfileForm({
     setErrors({});
     setFormError(null);
     startTransition(async () => {
-      const form = { handle: normalised, displayName, bio, location };
+      const form = { handle: normalised, displayName, bio, location, roadUser, showRoadUser };
       const saved =
         mode === "create"
           ? await createProfile(form)
@@ -128,6 +140,11 @@ export function ProfileForm({
           setFormError(saved.error);
         }
         return;
+      }
+
+      if (homePlace) {
+        // Best effort: the profile is saved either way, and the area can be chosen again.
+        await setHomeArea(homePlace);
       }
 
       try {
@@ -244,19 +261,31 @@ export function ProfileForm({
           />
           {fieldError("displayName") ? <span className="error">{fieldError("displayName")}</span> : null}
         </label>
-        <label className="field">
-          <span className="label">
+        <div className="field">
+          <label className="label" htmlFor="profile-area">
             Town or area <span className="muted">(optional)</span>
-          </span>
-          <input
-            className={`input${fieldError("location") ? " input-error" : ""}`}
-            type="text"
-            maxLength={100}
+          </label>
+          <PlaceSearch
+            id="profile-area"
             value={location}
-            onChange={(e) => setLocation(e.target.value)}
+            invalid={Boolean(fieldError("location"))}
+            placeholder="Start typing a town or postcode"
+            onText={(text) => {
+              setLocation(text);
+              setHomePlace(null);
+            }}
+            onPick={(place) => {
+              setLocation(place.name);
+              setHomePlace(place);
+            }}
           />
-          {fieldError("location") ? <span className="error">{fieldError("location")}</span> : null}
-        </label>
+          <span className={fieldError("location") ? "error" : "help"}>
+            {fieldError("location") ??
+              (homePlace
+                ? "Your home area, for area alerts. Only the name shows on your profile."
+                : "Choose from the list to use it as your home area for alerts.")}
+          </span>
+        </div>
       </div>
 
       <label className="field">
@@ -274,6 +303,41 @@ export function ProfileForm({
           {fieldError("bio") ?? `${bio.length} / ${BIO_MAX}`}
         </span>
       </label>
+
+      <fieldset className="field road-user">
+        <legend className="label">
+          How do you use the road? <span className="muted">(optional)</span>
+        </legend>
+        <div className="row row-wrap" style={{ gap: 8 }}>
+          {ROAD_USER_CHOICES.map((choice) => (
+            <label key={choice.label} className={`pill-choice${roadUser === choice.value ? " pill-on" : ""}`}>
+              <input
+                type="radio"
+                name="road-user"
+                checked={roadUser === choice.value}
+                onChange={() => {
+                  setRoadUser(choice.value);
+                  if (choice.value === null) setShowRoadUser(false);
+                }}
+              />
+              {choice.label}
+            </label>
+          ))}
+        </div>
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={showRoadUser}
+            disabled={roadUser === null}
+            onChange={(e) => setShowRoadUser(e.target.checked)}
+          />
+          <span>Show this on my profile and posts</span>
+        </label>
+        <span className="help">
+          Private unless you show it. We use it to put the types of bad driving you&apos;ll see most first,
+          and in totals on the incident map.
+        </span>
+      </fieldset>
 
       {formError ? (
         <p className="error" role="alert">
