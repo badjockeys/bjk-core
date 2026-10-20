@@ -120,6 +120,15 @@ jobs:
           Logging__Console__FormatterOptions__ColorBehavior: Disabled
         run: bash pipelines/scripts/smoke-test.sh
 
+      # The API reference NSwag generated from this build's controllers, to download or import into Postman.
+      - name: Upload the OpenAPI document
+        if: ${{ !cancelled() && hashFiles('openapi.json') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi
+          path: openapi.json
+          if-no-files-found: ignore
+
   # The web app (src/web): lint, types, unit tests, build, container image, then end-to-end tests in a browser against
   # e2e/mock-server.mjs, which stands in for the identity server and the API. Each check runs even if an earlier one
   # failed, so one run shows every problem; failures are copied into annotations (pipelines/scripts/ci-step.sh).

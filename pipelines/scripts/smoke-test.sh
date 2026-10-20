@@ -499,6 +499,22 @@ start_app
 pass "all three schemas up to date on restart"
 request GET /api/profiles/dashcam_dave
 expect 200 "data survives the restart"
+
+# ---------- API reference (NSwag, served in Development) ----------
+
+curl -fs "$BASE_URL/openapi/v1.json" -o "${OPENAPI_FILE:-openapi.json}" || fail "The OpenAPI document isn't served at /openapi/v1.json."
+python3 - "${OPENAPI_FILE:-openapi.json}" <<'PY' || fail "The OpenAPI document is missing endpoints."
+import json, sys
+doc = json.load(open(sys.argv[1]))
+paths = doc.get("paths", {})
+for needed in ("/api/posts", "/api/profiles/me", "/api/notifications"):
+    if not any(p == needed or p.startswith(needed + "/") for p in paths):
+        sys.exit(f"missing {needed}")
+print(f"{len(paths)} paths")
+PY
+pass "OpenAPI document lists the posts, profiles and notifications endpoints"
+curl -fs "$BASE_URL/api-docs/index.html" | grep -qi swagger || fail "Swagger UI isn't served at /api-docs."
+pass "Swagger UI is served at /api-docs"
 stop_app
 
 # ---------- summary ----------

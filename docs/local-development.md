@@ -373,6 +373,15 @@ To check they're running:
 - Identity server: https://localhost:5001/.well-known/openid-configuration returns JSON.
 - API: https://localhost:5101/health returns `Healthy`.
 
+### API reference
+
+The API reference isn't a document anyone writes: NSwag generates it from the controllers and their XML comments every time the API starts, so it always matches the code. In Development:
+
+- **Swagger UI:** https://localhost:5101/api-docs, to browse every endpoint and try calls. Use **Authorize** with an access token from the identity server.
+- **OpenAPI document:** https://localhost:5101/openapi/v1.json, to import into Postman or generate a client.
+
+Each CI run also attaches the document as the `openapi` artifact. In other environments it's off unless `ApiDocs:Enabled` is `true`.
+
 ## 8. Run the web app
 
 You need Node.js 24 (step 1). The first time:
