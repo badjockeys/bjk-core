@@ -118,6 +118,60 @@ test.describe("posting", () => {
     await expect(page.getByText("Waiting for @lane_one_larry to accept")).toBeVisible();
   });
 
+  test("closing a started post offers to keep it as a draft, which reopens later and posts", async ({
+    page,
+  }) => {
+    await signIn(page, "/");
+    await page.getByRole("link", { name: /Seen some bad driving/ }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog
+      .getByTestId("photo-input")
+      .setInputFiles({ name: "parked.png", mimeType: "image/png", buffer: PNG });
+    await dialog.getByLabel("Title").fill("Parked across the dropped kerb");
+    await expect(dialog.getByText("Uploading…")).toBeHidden();
+
+    // Closing asks: save it as a draft, throw it away, or keep going.
+    await dialog.getByRole("button", { name: "Close" }).click();
+    await expect(page.getByRole("dialog", { name: "Save this post as a draft?" })).toBeVisible();
+    await dialog.getByRole("button", { name: "Save draft" }).click();
+    await expect(dialog).toBeHidden();
+    await expect(page).toHaveURL(/\/$/);
+
+    // Next time, the composer offers the draft; opening it brings everything back.
+    await page.getByRole("link", { name: /Seen some bad driving/ }).click();
+    await dialog.getByRole("button", { name: /You have 1 draft saved/ }).click();
+    await expect(page.getByRole("dialog", { name: "Drafts" })).toBeVisible();
+    await expect(dialog.getByText("1 of 5 drafts")).toBeVisible();
+    await dialog.getByRole("button", { name: "Open Parked across the dropped kerb" }).click();
+    await expect(dialog.getByLabel("Title")).toHaveValue("Parked across the dropped kerb");
+
+    // Leaving an opened draft asks about the changes; discarding them keeps the draft as it was.
+    await dialog.getByRole("button", { name: "Close" }).click();
+    await expect(page.getByRole("dialog", { name: "Save your changes?" })).toBeVisible();
+    await dialog.getByRole("button", { name: "Discard changes" }).click();
+    await expect(dialog).toBeHidden();
+
+    // Finish it and post: the draft goes.
+    await page.getByRole("link", { name: /Seen some bad driving/ }).click();
+    await dialog.getByRole("button", { name: /You have 1 draft saved/ }).click();
+    await dialog.getByRole("button", { name: "Open Parked across the dropped kerb" }).click();
+    await dialog.getByRole("button", { name: "What kind of bad driving?" }).click();
+    await dialog.getByLabel("Bad parking").check();
+    await dialog.getByRole("button", { name: "Done · 1 chosen" }).click();
+    await dialog.getByRole("button", { name: "Add where it happened" }).click();
+    await dialog.getByLabel("Road and town").fill("The Headrow, Leeds");
+    await dialog.getByRole("button", { name: "Use my location" }).click();
+    await dialog.getByRole("button", { name: "Use this place" }).click();
+    await dialog.getByLabel(/I took these photos/).check();
+    await dialog.getByRole("button", { name: "Post", exact: true }).click();
+    await expect(page).toHaveURL(/\/p\/[0-9a-f-]{36}/);
+
+    await page.goto("/");
+    await page.getByRole("link", { name: /Seen some bad driving/ }).click();
+    await expect(page.getByRole("dialog", { name: "Create post" })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: /draft saved/ })).toBeHidden();
+  });
+
   test("a passenger approves their tag from the account page", async ({ page }) => {
     await signIn(page, "/account");
     const requests = page.getByRole("region", { name: "Approve tags" });

@@ -2039,6 +2039,288 @@ export class AdminPostsClient {
     }
 }
 
+export class DraftsClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * Your drafts, last saved first.
+     */
+    drafts_List(signal?: AbortSignal): Promise<DraftDto[]> {
+        let url_ = this.baseUrl + "/api/posts/drafts";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processDrafts_List(_response);
+        });
+    }
+
+    protected processDrafts_List(response: Response): Promise<DraftDto[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as DraftDto[];
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<DraftDto[]>(null as any);
+    }
+
+    /**
+     * Save a new draft. You can keep up to 5.
+     * @param command What's in it so far. Everything is optional, but it can't be empty.
+     */
+    drafts_Create(command: SaveDraftCommand, signal?: AbortSignal): Promise<DraftDto> {
+        let url_ = this.baseUrl + "/api/posts/drafts";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(command);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processDrafts_Create(_response);
+        });
+    }
+
+    protected processDrafts_Create(response: Response): Promise<DraftDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 201) {
+            return response.text().then((_responseText) => {
+            let result201: any = null;
+            result201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as DraftDto;
+            return result201;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<DraftDto>(null as any);
+    }
+
+    /**
+     * One of your drafts.
+     * @param id The draft's id.
+     */
+    drafts_Get(id: string, signal?: AbortSignal): Promise<DraftDto> {
+        let url_ = this.baseUrl + "/api/posts/drafts/{id}";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processDrafts_Get(_response);
+        });
+    }
+
+    protected processDrafts_Get(response: Response): Promise<DraftDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as DraftDto;
+            return result200;
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<DraftDto>(null as any);
+    }
+
+    /**
+     * Save over one of your drafts (replaces everything in it, and restarts its 30 days).
+     * @param id The draft's id.
+     * @param command What's in it now.
+     */
+    drafts_Update(id: string, command: SaveDraftCommand, signal?: AbortSignal): Promise<DraftDto> {
+        let url_ = this.baseUrl + "/api/posts/drafts/{id}";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(command);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processDrafts_Update(_response);
+        });
+    }
+
+    protected processDrafts_Update(response: Response): Promise<DraftDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as DraftDto;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<DraftDto>(null as any);
+    }
+
+    /**
+     * Delete one of your drafts, with its photos and videos.
+     * @param id The draft's id.
+     */
+    drafts_Delete(id: string, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/posts/drafts/{id}";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            signal,
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processDrafts_Delete(_response);
+        });
+    }
+
+    protected processDrafts_Delete(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    /**
+     * How many drafts each person can keep, and for how long. For the composer to explain the limits.
+     */
+    drafts_Limits(signal?: AbortSignal): Promise<DraftLimitsDto> {
+        let url_ = this.baseUrl + "/api/posts/drafts/limits";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processDrafts_Limits(_response);
+        });
+    }
+
+    protected processDrafts_Limits(response: Response): Promise<DraftLimitsDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as DraftLimitsDto;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<DraftLimitsDto>(null as any);
+    }
+}
+
 export class HeatmapClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -5084,6 +5366,97 @@ export interface AuditEntryDto {
     after: string | null;
 }
 
+/** A saved draft, to reopen in the composer. */
+export interface DraftDto {
+    /** The draft's id. */
+    id: string;
+    /** The title so far. */
+    title: string | null;
+    /** "What happened?" so far. */
+    description: string | null;
+    /** Types of bad driving chosen, the main one first. */
+    types: IncidentCategory[];
+    /** When it happened. */
+    incidentAt: string | null;
+    /** Where it happened. */
+    latitude: number | null;
+    /** Where it happened. */
+    longitude: number | null;
+    /** The road and town. */
+    placeName: string | null;
+    /** Marked as graphic. */
+    isSensitive: boolean;
+    /** Passengers' @handles, as typed (checked when the post is published). */
+    passengers: string[];
+    /** The vehicle driven badly. */
+    vehicleType: VehicleType | null;
+    /** Its make. */
+    vehicleMake: string | null;
+    /** Its model. */
+    vehicleModel: string | null;
+    /** Its colour. */
+    vehicleColour: VehicleColour | null;
+    /** Whether it was reported to the police. */
+    reportedToPolice: boolean | null;
+    /** The photos or video, in order. Ones deleted since are left out. */
+    media: DraftMediaDto[];
+    /** When the draft was first saved. */
+    createdAt: string;
+    /** When it was last saved. */
+    updatedAt: string;
+    /** When it's deleted unless saved again. */
+    expiresAt: string;
+}
+
+/** A photo or video in a draft. */
+export interface DraftMediaDto {
+    /** The upload's id. */
+    mediaId: string;
+    /** Photo or video. */
+    mediaType: MediaType;
+    /** Ready, still Processing, and so on. */
+    status: MediaStatus;
+    /** A small picture of it, once processed. */
+    thumbnailUrl: string | null;
+    /** The photo or video itself, once processed. */
+    playbackUrl: string | null;
+    /** Videos: how long it is. */
+    durationSeconds: number | null;
+    /** Width in pixels, once processed. */
+    width: number | null;
+    /** Height in pixels, once processed. */
+    height: number | null;
+    /** Why processing failed, if it did. */
+    failureReason: string | null;
+}
+
+/** Saves a draft: a new one when DraftId is null (up to MaxPerAuthor per author), or replaces what's in an existing one. Everything is optional, but a draft can't be empty. The photos and videos must be the caller's own uploads and not already in a post. Saving restarts the 30 days before it expires. */
+export interface SaveDraftCommand {
+    title: string | null;
+    description: string | null;
+    types: IncidentCategory[] | null;
+    incidentAt: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    placeName: string | null;
+    isSensitive: boolean;
+    passengers: string[] | null;
+    vehicleType: VehicleType | null;
+    vehicleMake: string | null;
+    vehicleModel: string | null;
+    vehicleColour: VehicleColour | null;
+    reportedToPolice: boolean | null;
+    mediaIds: string[] | null;
+}
+
+/** The draft limits. */
+export interface DraftLimitsDto {
+    /** How many drafts each person can keep. */
+    maxDrafts: number;
+    /** Days a draft is kept after it was last saved. */
+    keptForDays: number;
+}
+
 /** The heat map: cells with counts, the cell size in degrees, the suppression threshold, the busiest cell's count (for shading), whether cells were cut off at Heatmap:MaxCells, and what the plan allowed. */
 export interface HeatmapDto {
     cells: HeatmapCellDto[];
@@ -5167,7 +5540,7 @@ export interface TagResponseRequest {
     accept: boolean;
 }
 
-/** Creates a post with 1 to 10 photos or one video, uploaded through /api/media first. They don't have to have finished processing: if any is still Processing (or waiting for a moderator's review), the post is saved as Pending, seen only by its author (in "my posts") and moderators, and is published automatically once they're all Ready, or marked Failed (and the author emailed) if one fails. If they're all Ready already, it's visible to everyone straight away. Either way content screening can hold it for review. The author needs a confirmed email and a profile (and a passed age check if Safety:RequireAgeVerification is on). IsSensitive marks graphic content: the post shows to everyone, its media blurred except for age-verified adults, and the media are kept privately. If automatic detection already flagged any of the media, the post is tagged sensitive automatically (and queued for a moderator) whatever IsSensitive says. Types are the types of bad driving (at least one; the first is the main one); older clients can send one Category instead. Passengers are @handles of people in the author's vehicle (driving incidents only, up to 4, adults only): each is asked to accept before their name shows on the post. */
+/** Creates a post with 1 to 10 photos or one video, uploaded through /api/media first. They don't have to have finished processing: if any is still Processing (or waiting for a moderator's review), the post is saved as Pending, seen only by its author (in "my posts") and moderators, and is published automatically once they're all Ready, or marked Failed (and the author emailed) if one fails. If they're all Ready already, it's visible to everyone straight away. Either way content screening can hold it for review. The author needs a confirmed email and a profile (and a passed age check if Safety:RequireAgeVerification is on). IsSensitive marks graphic content: the post shows to everyone, its media blurred except for age-verified adults, and the media are kept privately. If automatic detection already flagged any of the media, the post is tagged sensitive automatically (and queued for a moderator) whatever IsSensitive says. Types are the types of bad driving (at least one; the first is the main one); older clients can send one Category instead. Passengers are @handles of people in the author's vehicle (driving incidents only, up to 4, adults only): each is asked to accept before their name shows on the post. DraftId publishes one of the author's drafts: the draft is deleted once the post is saved (its photos and videos stay, in the post). */
 export interface CreatePostCommand {
     title: string;
     description: string | null;
@@ -5185,6 +5558,7 @@ export interface CreatePostCommand {
     vehicleModel: string | null;
     vehicleColour: VehicleColour | null;
     reportedToPolice: boolean | null;
+    draftId: string | null;
 }
 
 /** A post's new details. Send Types (the first is the main one), or one Category. Passengers (@handles) replaces the tagged passengers; leave it out to keep them. */

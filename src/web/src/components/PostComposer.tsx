@@ -4,15 +4,23 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 
+import { deleteDraft, listDrafts, saveDraft } from "@/actions/drafts";
 import { discardMedia, getMedia } from "@/actions/media";
 import { findPassenger } from "@/actions/passengers";
 import { getVehicleCatalogue } from "@/actions/vehicles";
 import { createPost } from "@/actions/posts";
 import { followBlocker } from "@/lib/blockers";
 import { categoryLabel, CATEGORY_CHOICES, DESCRIPTION_MAX } from "@/lib/categories";
-import { duration, plural, ukLocalToIso, whenLabel } from "@/lib/format";
+import { duration, plural, timeAgo, ukDateAndTime, ukLocalToIso, whenLabel } from "@/lib/format";
 import { shrinkPhoto } from "@/lib/image-resize";
-import type { AuthorDto, IncidentCategory, VehicleCatalogue, VehicleDto } from "@/lib/types";
+import type {
+  AuthorDto,
+  DraftDto,
+  IncidentCategory,
+  SaveDraftRequest,
+  VehicleCatalogue,
+  VehicleDto,
+} from "@/lib/types";
 import { COLOUR_SWATCHES, describeVehicle, vehicleTypeLabel } from "@/lib/vehicles";
 import {
   contentTypeOf,
@@ -30,6 +38,7 @@ import {
 import { Avatar } from "./Avatar";
 import {
   ArrowBackIcon,
+  ChevronIcon,
   ClockIcon,
   CloseIcon,
   PhotoIcon,
@@ -50,7 +59,10 @@ const MapPicker = dynamic(() => import("./MapPicker"), {
 });
 
 /** The composer, or one of the panels it opens in place (trimming a video, choosing types, when, where). */
-type View = "compose" | "trim" | "types" | "when" | "where" | "vehicle";
+type View = "compose" | "trim" | "types" | "when" | "where" | "vehicle" | "leave" | "drafts";
+
+/** How many drafts each person can keep (the API's limit, GET /api/posts/drafts/limits). */
+const MAX_DRAFTS = 5;
 
 interface Item {
   key: string;
@@ -163,6 +175,12 @@ export function PostComposer({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  // Drafts: the one being edited (if any), the media already saved in it, and the list to open one from.
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [savedMedia, setSavedMedia] = useState<ReadonlySet<string>>(new Set());
+  const [drafts, setDrafts] = useState<DraftDto[] | null>(null);
+  const [draftError, setDraftError] = useState<string | null>(null);
+  const [savingDraft, startSavingDraft] = useTransition();
   const photoInput = useRef<HTMLInputElement>(null);
   const videoInput = useRef<HTMLInputElement>(null);
   const dialog = useRef<HTMLDialogElement>(null);
@@ -337,22 +355,154 @@ export function PostComposer({
     }
   };
 
-  const started = items.length > 0 || fields.title.trim() !== "" || fields.description.trim() !== "";
+  const started =
+    draftId !== null ||
+    items.length > 0 ||
+    fields.title.trim() !== "" ||
+    fields.description.trim() !== "" ||
+    fields.types.length > 0 ||
+    fields.placeName.trim() !== "" ||
+    fields.pin !== null ||
+    fields.passengers.length > 0 ||
+    fields.vehicle !== null;
 
-  const cancel = () => {
-    if (started && !window.confirm("Discard this post? Your photos or video won't be kept.")) {
-      return;
-    }
-    for (const item of items) {
-      if (item.mediaId) {
-        void discardMedia(item.mediaId);
-      }
-    }
+  useEffect(() => {
+    let live = true;
+    void listDrafts().then((result) => {
+      if (live && result.ok) setDrafts(result.data);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  const close = () => {
     if (mode === "modal") {
       router.back();
     } else {
       router.push("/");
     }
+  };
+
+  /** Closing with something in the composer asks whether to keep it as a draft. */
+  const cancel = () => {
+    if (!started) {
+      close();
+      return;
+    }
+    setDraftError(null);
+    setView("leave");
+  };
+
+  /** Throw it away: uploads not already saved in a draft are deleted. */
+  const discard = () => {
+    for (const item of items) {
+      if (item.mediaId && !savedMedia.has(item.mediaId)) {
+        void discardMedia(item.mediaId);
+      }
+    }
+    close();
+  };
+
+  const draftRequest = (): SaveDraftRequest => ({
+    title: fields.title,
+    description: fields.description || null,
+    types: fields.types,
+    incidentAt: ukLocalToIso(fields.date, fields.time),
+    latitude: fields.pin ? round6(fields.pin.lat) : null,
+    longitude: fields.pin ? round6(fields.pin.lng) : null,
+    placeName: fields.placeName || null,
+    isSensitive: fields.sensitive,
+    passengers: fields.passengers.map((p) => p.handle!).filter(Boolean),
+    vehicleType: fields.vehicle?.type ?? null,
+    vehicleMake: fields.vehicle?.make ?? null,
+    vehicleModel: fields.vehicle?.model ?? null,
+    vehicleColour: fields.vehicle?.colour ?? null,
+    reportedToPolice: fields.reportedToPolice,
+    mediaIds: items.filter((i) => i.mediaId && i.status !== "failed").map((i) => i.mediaId!),
+  });
+
+  const keepAsDraft = () =>
+    startSavingDraft(async () => {
+      setDraftError(null);
+      const result = await saveDraft(draftId, draftRequest());
+      if (!result.ok) {
+        setDraftError(result.error);
+        return;
+      }
+      // Files that didn't work aren't in the draft, so they aren't kept either.
+      for (const item of items) {
+        if (item.mediaId && item.status === "failed") void discardMedia(item.mediaId);
+      }
+      close();
+    });
+
+  /** Put a saved draft into the composer to carry on with it. */
+  const openDraft = (draft: DraftDto) => {
+    const when = draft.incidentAt ? ukDateAndTime(Date.parse(draft.incidentAt)) : null;
+    setFields((current) => ({
+      ...current,
+      title: draft.title ?? "",
+      description: draft.description ?? "",
+      types: draft.types,
+      placeName: draft.placeName ?? "",
+      pin:
+        draft.latitude !== null && draft.longitude !== null
+          ? { lat: draft.latitude, lng: draft.longitude }
+          : null,
+      date: when?.date ?? current.date,
+      time: when?.time ?? current.time,
+      sensitive: draft.isSensitive,
+      // Checked again when the post goes; the names show as typed until then.
+      passengers: draft.passengers.map((handle) => ({
+        id: `draft:${handle.toLowerCase()}`,
+        handle,
+        displayName: `@${handle}`,
+        avatarUrl: null,
+        roadUser: null,
+      })),
+      vehicle: draft.vehicleType
+        ? {
+            type: draft.vehicleType,
+            make: draft.vehicleMake,
+            model: draft.vehicleModel,
+            colour: draft.vehicleColour,
+          }
+        : null,
+      reportedToPolice: draft.reportedToPolice,
+    }));
+    setItems(
+      draft.media.map((m) => ({
+        key: `draft-${m.mediaId}`,
+        kind: m.mediaType,
+        name: "",
+        preview: m.thumbnailUrl,
+        seconds: m.durationSeconds ?? undefined,
+        progress: 100,
+        status:
+          m.status === "Ready"
+            ? "ready"
+            : m.status === "Failed"
+              ? "failed"
+              : m.status === "Uploading"
+                ? "failed"
+                : "processing",
+        mediaId: m.mediaId,
+        error: m.status === "Failed" ? friendlyFailure(m.failureReason) : undefined,
+      })),
+    );
+    setDraftId(draft.id);
+    setSavedMedia(new Set(draft.media.map((m) => m.mediaId)));
+    setErrors({});
+    setView("compose");
+  };
+
+  const removeDraft = async (draft: DraftDto) => {
+    const result = await deleteDraft(draft.id);
+    if (result.ok) {
+      setDrafts((current) => (current ?? []).filter((d) => d.id !== draft.id));
+    }
+    return result;
   };
 
   // The pop-up opens as a modal dialog: the page behind can't be reached, and Escape asks before discarding.
@@ -419,6 +569,8 @@ export function PostComposer({
         placeName: fields.placeName,
         mediaIds: items.map((i) => i.mediaId!),
         isSensitive: fields.sensitive,
+        // Posting a draft deletes the draft (its photos stay, in the post).
+        draftId,
       };
       let result = await createPost(request);
       // An API without fast posting wants every file Ready first: wait, then try again.
@@ -495,7 +647,29 @@ export function PostComposer({
   );
 
   let body: ReactNode;
-  if (view === "trim" && videoFile) {
+  if (view === "leave") {
+    body = (
+      <LeavePanel
+        editingDraft={draftId !== null}
+        uploading={uploading > 0}
+        saving={savingDraft}
+        atLimit={draftId === null && (drafts?.length ?? 0) >= MAX_DRAFTS}
+        error={draftError}
+        onSave={keepAsDraft}
+        onDiscard={discard}
+        onKeepEditing={() => setView("compose")}
+      />
+    );
+  } else if (view === "drafts") {
+    body = (
+      <DraftsPanel
+        drafts={drafts ?? []}
+        onOpen={openDraft}
+        onDelete={removeDraft}
+        onBack={() => setView("compose")}
+      />
+    );
+  } else if (view === "trim" && videoFile) {
     body = (
       <div className="cmp-panel cmp-scroll">
         <TrimVideo
@@ -572,6 +746,15 @@ export function PostComposer({
         </header>
 
         <form id="new-post" className="cmp-body cmp-scroll" onSubmit={submit} noValidate>
+          {!started && drafts && drafts.length > 0 ? (
+            <button type="button" className="cmp-drafts-link" onClick={() => setView("drafts")}>
+              <span>
+                You have {plural(drafts.length, "draft")} saved. <strong>Open drafts</strong>
+              </span>
+              <ChevronIcon />
+            </button>
+          ) : null}
+
           {!emailVerified ? (
             <p className="notice notice-warn" role="note">
               Confirm your email address before you post: use the link we emailed you when you joined.
@@ -1148,6 +1331,169 @@ function PassengersRow({
         <span className={problem || error ? "error" : "help"}>
           {problem || error || "They'll be asked to confirm before their name shows on the post."}
         </span>
+      </div>
+    </div>
+  );
+}
+
+/** Leaving with something in the composer: keep it as a draft, throw it away, or go back to it. */
+function LeavePanel({
+  editingDraft,
+  uploading,
+  saving,
+  atLimit,
+  error,
+  onSave,
+  onDiscard,
+  onKeepEditing,
+}: {
+  editingDraft: boolean;
+  uploading: boolean;
+  saving: boolean;
+  atLimit: boolean;
+  error: string | null;
+  onSave: () => void;
+  onDiscard: () => void;
+  onKeepEditing: () => void;
+}) {
+  return (
+    <div className="cmp-panel">
+      <PanelHead
+        title={editingDraft ? "Save your changes?" : "Save this post as a draft?"}
+        onBack={onKeepEditing}
+      />
+      <div className="cmp-scroll cmp-panel-body">
+        <p>
+          {editingDraft
+            ? "Your draft is kept as it was unless you save these changes."
+            : "Keep it to finish later, on any device. Your photos or video stay with it."}
+        </p>
+        <p className="small muted">
+          You can keep up to {MAX_DRAFTS} drafts. Each one is kept for 30 days after you last save it.
+        </p>
+        {atLimit ? (
+          <p className="notice notice-warn" role="note">
+            You already have {MAX_DRAFTS} drafts. Delete one from Drafts to save this one.
+          </p>
+        ) : null}
+        {uploading ? <p className="small">Waiting for your uploads to finish before saving…</p> : null}
+        {error ? (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        ) : null}
+      </div>
+      <div className="cmp-panel-foot cmp-leave-foot">
+        <button
+          type="button"
+          className="btn btn-primary btn-block"
+          disabled={uploading || saving || atLimit}
+          onClick={onSave}
+        >
+          {saving ? "Saving…" : editingDraft ? "Save changes" : "Save draft"}
+        </button>
+        <button type="button" className="btn btn-danger btn-block" disabled={saving} onClick={onDiscard}>
+          {editingDraft ? "Discard changes" : "Discard post"}
+        </button>
+        <button type="button" className="btn btn-block" disabled={saving} onClick={onKeepEditing}>
+          Keep editing
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Your saved drafts: open one to carry on, or delete it. */
+function DraftsPanel({
+  drafts,
+  onOpen,
+  onDelete,
+  onBack,
+}: {
+  drafts: DraftDto[];
+  onOpen: (draft: DraftDto) => void;
+  onDelete: (draft: DraftDto) => Promise<{ ok: boolean; error?: string }>;
+  onBack: () => void;
+}) {
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [deleting, startDeleting] = useTransition();
+
+  return (
+    <div className="cmp-panel">
+      <PanelHead title="Drafts" onBack={onBack} />
+      <div className="cmp-scroll cmp-panel-body">
+        <p className="small muted">
+          {drafts.length} of {MAX_DRAFTS} drafts. Each is kept for 30 days after you last save it.
+        </p>
+        {problem ? (
+          <p className="error" role="alert">
+            {problem}
+          </p>
+        ) : null}
+        {drafts.length === 0 ? <p>No drafts. Close a post you&apos;ve started to save it here.</p> : null}
+        <ul className="cmp-draft-list" aria-label="Your drafts">
+          {drafts.map((draft) => {
+            const thumb = draft.media[0]?.thumbnailUrl ?? null;
+            const label = draft.title?.trim() || "Untitled draft";
+            return (
+              <li key={draft.id} className="cmp-draft">
+                <button
+                  type="button"
+                  className="cmp-draft-open"
+                  onClick={() => onOpen(draft)}
+                  aria-label={`Open ${label}`}
+                >
+                  {thumb ? (
+                    <img src={thumb} alt="" width={56} height={56} className="cmp-draft-thumb" />
+                  ) : (
+                    <span className="cmp-draft-thumb cmp-draft-thumb-empty" aria-hidden="true">
+                      <PhotoIcon size={20} />
+                    </span>
+                  )}
+                  <span className="col" style={{ gap: 2, minWidth: 0 }}>
+                    <strong className="cmp-draft-title">{label}</strong>
+                    <span className="small muted">
+                      Saved {timeAgo(draft.updatedAt)}
+                      {draft.media.length > 0 ? ` · ${plural(draft.media.length, "file")}` : ""}
+                    </span>
+                  </span>
+                </button>
+                {confirming === draft.id ? (
+                  <span className="row" style={{ gap: 6 }}>
+                    <button
+                      type="button"
+                      className="btn btn-danger btn-sm"
+                      disabled={deleting}
+                      onClick={() =>
+                        startDeleting(async () => {
+                          setProblem(null);
+                          const result = await onDelete(draft);
+                          if (!result.ok) setProblem(result.error ?? "That draft couldn't be deleted.");
+                          setConfirming(null);
+                        })
+                      }
+                    >
+                      Delete
+                    </button>
+                    <button type="button" className="btn btn-sm" onClick={() => setConfirming(null)}>
+                      Keep
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    className="link small"
+                    aria-label={`Delete ${label}`}
+                    onClick={() => setConfirming(draft.id)}
+                  >
+                    Delete
+                  </button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
       </div>
     </div>
   );

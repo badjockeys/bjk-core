@@ -12,6 +12,8 @@ export type {
   BlockDto,
   CommentDto,
   CommentStatus,
+  DraftDto,
+  DraftMediaDto,
   HandleAvailability,
   HeatmapDays,
   HeatmapDto,
@@ -49,6 +51,7 @@ export type {
 
 export type {
   CreatePostCommand as CreatePostRequest,
+  SaveDraftCommand as SaveDraftRequest,
   HeatmapAccessDto as HeatmapAccess,
   HeatmapCellDto as HeatmapCell,
   VehicleCatalogueDto as VehicleCatalogue,
