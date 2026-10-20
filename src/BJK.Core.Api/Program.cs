@@ -1,6 +1,7 @@
 using BJK.Core.Api;
 using BJK.Modules.Email;
 using BJK.Modules.Media;
+using BJK.Modules.Notifications;
 using BJK.Modules.Posts;
 using BJK.Modules.Profiles;
 using BJK.Modules.Shared;
@@ -59,6 +60,7 @@ builder.Services.AddBjkModules(
     new MediaModule(ConnectionStringName),
     new ProfilesModule(ConnectionStringName),
     new PostsModule(ConnectionStringName),
+    new NotificationsModule(ConnectionStringName),
     new EmailModule(),
     new SMSModule());
 

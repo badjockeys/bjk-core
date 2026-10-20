@@ -4,12 +4,14 @@ import { categoryHref, categoryLabel, postTypes } from "@/lib/categories";
 import { timeAgo } from "@/lib/format";
 import { postPath, profilePath } from "@/lib/paths";
 import type { PostDto } from "@/lib/types";
+import { describeVehicle } from "@/lib/vehicles";
 import type { Viewer } from "@/lib/viewer";
 
 import { Avatar } from "./Avatar";
 import { CommentIcon, PinIcon, TagIcon } from "./icons";
 import { PostMedia } from "./PostMedia";
 import { PostMoreMenu } from "./PostMoreMenu";
+import { RoadBadge, WithPassengers } from "./PostPeople";
 import { ReactionCount } from "./ReactionCount";
 import { ShareButton } from "./ShareButton";
 
@@ -48,6 +50,7 @@ export function PostCard({ post, viewer }: { post: PostDto; viewer: Viewer }) {
             <span className="tw-name">{post.author.displayName}</span>
           )}
           {post.author.handle ? <span className="tw-handle">@{post.author.handle}</span> : null}
+          <RoadBadge value={post.author.roadUser} />
           <span className="tw-time">
             ·{" "}
             <time dateTime={post.createdAt} suppressHydrationWarning>
@@ -62,6 +65,7 @@ export function PostCard({ post, viewer }: { post: PostDto; viewer: Viewer }) {
             signedIn={viewer.signedIn}
           />
         </div>
+        <WithPassengers passengers={post.passengers} showPending={isMine} />
         <StatusBadge post={post} isMine={isMine} />
         <Link href={href}>
           <p className="tw-text" id={`post-${post.id}-title`}>
@@ -81,6 +85,8 @@ export function PostCard({ post, viewer }: { post: PostDto; viewer: Viewer }) {
               {post.location.placeName}
             </span>
           ) : null}
+          {post.vehicle ? <span>{describeVehicle(post.vehicle)}</span> : null}
+          {post.reportedToPolice ? <span>Reported to police</span> : null}
           {post.isSensitive ? <span>Sensitive</span> : null}
         </div>
         <ul className="type-tags" aria-label="Types of bad driving">

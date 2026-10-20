@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { dateTime, duration, initials, plural, postedAt, timeAgo, ukLocalToIso } from "@/lib/format";
+import {
+  dateTime,
+  duration,
+  initials,
+  plural,
+  postedAt,
+  timeAgo,
+  ukLocalToIso,
+  whenLabel,
+} from "@/lib/format";
 
 const at = Date.parse("2026-10-18T12:00:00Z");
 
@@ -34,5 +43,12 @@ describe("format", () => {
     expect(initials("Road Hog")).toBe("RH");
     expect(initials("dave")).toBe("DA");
     expect(initials("")).toBe("?");
+  });
+
+  it("labels the composer's when chip", () => {
+    expect(whenLabel("2026-10-20", "08:14", "2026-10-20")).toBe("Today, 08:14");
+    expect(whenLabel("2026-10-19", "22:05", "2026-10-20")).toBe("Yesterday, 22:05");
+    expect(whenLabel("2026-10-17", "08:14", "2026-10-20")).toBe("Sat 17 Oct, 08:14");
+    expect(whenLabel("2026-03-01", "07:00", "2026-03-02")).toBe("Yesterday, 07:00");
   });
 });

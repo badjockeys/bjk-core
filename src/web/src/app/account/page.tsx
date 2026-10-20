@@ -6,9 +6,12 @@ import { AppShell } from "@/components/AppShell";
 import { Avatar } from "@/components/Avatar";
 import { BackButton } from "@/components/BackButton";
 import { ChevronIcon, DownloadIcon, ExternalIcon } from "@/components/icons";
-import { getViewer } from "@/lib/auth";
+import { TagRequest } from "@/components/TagRequest";
+import { api } from "@/lib/api";
+import { getAccessToken, getViewer } from "@/lib/auth";
 import { getConfig } from "@/lib/config";
-import { profilePath, signInPath } from "@/lib/paths";
+import { postPath, profilePath, signInPath } from "@/lib/paths";
+import type { PostDto } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Account", robots: { index: false } };
 
@@ -20,6 +23,7 @@ export default async function AccountPage() {
   }
   const security = `${getConfig().authority}/Manage`;
   const me = viewer.handle ? profilePath(viewer.handle) : "/profile/new";
+  const tagRequests = await pendingTags();
 
   return (
     <AppShell viewer={viewer} section="account" returnTo="/account" bottomNav>
@@ -42,6 +46,21 @@ export default async function AccountPage() {
           </span>
         </span>
       </Link>
+      {tagRequests.length > 0 ? (
+        <section className="pad stack" style={{ gap: 10 }} aria-labelledby="tag-requests">
+          <h2 id="tag-requests" className="h2">
+            Approve tags
+          </h2>
+          {tagRequests.map((post) => (
+            <div key={post.id} className="tag-item">
+              <Link href={postPath(post.id)} className="tag-item-title">
+                {post.title}
+              </Link>
+              <TagRequest postId={post.id} authorName={post.author.displayName} status="Pending" compact />
+            </div>
+          ))}
+        </section>
+      ) : null}
       <nav aria-label="Account settings">
         <Link href={viewer.handle ? "/profile/edit" : "/profile/new"} className="list-item">
           <span className="col" style={{ gap: 0 }}>
@@ -54,6 +73,13 @@ export default async function AccountPage() {
           <span className="col" style={{ gap: 0 }}>
             <span>Your posts</span>
             <span className="small muted">Edit or delete what you&apos;ve posted</span>
+          </span>
+          <ChevronIcon />
+        </Link>
+        <Link href="/account/notifications" className="list-item">
+          <span className="col" style={{ gap: 0 }}>
+            <span>Notifications</span>
+            <span className="small muted">What shows in the bell, and what&apos;s emailed</span>
           </span>
           <ChevronIcon />
         </Link>
@@ -98,4 +124,17 @@ export default async function AccountPage() {
       </div>
     </AppShell>
   );
+}
+
+/** Posts you've been tagged on as a passenger and haven't answered. Empty if the API is older or unreachable. */
+async function pendingTags(): Promise<PostDto[]> {
+  const token = await getAccessToken();
+  if (!token) {
+    return [];
+  }
+  try {
+    return (await api().posts.tagged(token, "Pending")).items;
+  } catch {
+    return [];
+  }
 }

@@ -274,11 +274,20 @@ export function TickIcon({ color = INK, ...p }: IconProps) {
   );
 }
 
-export function ClockIcon(p: IconProps) {
+export function ClockIcon({ color = INK, ...p }: IconProps) {
   return (
     <Svg size={20} {...p}>
-      <circle cx="12" cy="12" r="9" fill="none" stroke={INK} strokeWidth="2" />
-      <path d="M12 7v5l3 2" fill="none" stroke={INK} strokeWidth="2" strokeLinecap="round" />
+      <circle cx="12" cy="12" r="9" fill="none" stroke={color} strokeWidth="2" />
+      <path d="M12 7v5l3 2" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+export function VideoIcon({ color = INK, ...p }: IconProps) {
+  return (
+    <Svg size={24} {...p}>
+      <rect x="3" y="6" width="13" height="12" rx="3" fill="none" stroke={color} strokeWidth="2" />
+      <path d="M16 10l5-3v10l-5-3" fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" />
     </Svg>
   );
 }
@@ -365,5 +374,20 @@ export function MapPinSolid({ size = 32 }: { size?: number }) {
       <path d="M12 22s7-6.2 7-12a7 7 0 10-14 0c0 5.8 7 12 7 12z" fill={INK} />
       <circle cx="12" cy="10" r="2.6" fill="#FFFFFF" />
     </svg>
+  );
+}
+
+export function BellIcon({ filled, ...p }: IconProps & { filled?: boolean }) {
+  return (
+    <Svg {...p}>
+      <path
+        d="M6 16V11a6 6 0 0112 0v5l1.5 2h-15L6 16z"
+        fill={filled ? INK : "none"}
+        stroke={INK}
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path d="M10 20.5a2 2 0 004 0" fill="none" stroke={INK} strokeWidth="1.8" strokeLinecap="round" />
+    </Svg>
   );
 }

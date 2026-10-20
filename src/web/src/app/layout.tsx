@@ -31,9 +31,15 @@ export async function generateMetadata(): Promise<Metadata> {
 export const viewport: Viewport = {
   themeColor: "#ffffff",
   colorScheme: "light",
+  // Lets the bottom tab bar sit above the iPhone home indicator (env(safe-area-inset-bottom)).
+  viewportFit: "cover",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+/** `modal` is the pop-up slot (app/@modal): the new post composer opens there over the current page. */
+export default function RootLayout({
+  children,
+  modal,
+}: Readonly<{ children: React.ReactNode; modal: React.ReactNode }>) {
   return (
     <html lang="en-GB" className={poppins.variable}>
       <body>
@@ -41,6 +47,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           Skip to content
         </a>
         {children}
+        {modal}
         <Toaster />
       </body>
     </html>

@@ -19,7 +19,8 @@ test("Free members get the 7-day preview with filters locked, and area figures",
   await signIn(page, "/map");
   await expect(page.getByRole("heading", { name: "Incident map" })).toBeVisible();
   await expect(page.getByText("Free preview", { exact: true })).toBeVisible();
-  await expect(page.getByLabel("Category")).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Types of bad driving" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "More filters" })).toBeDisabled();
   await expect(page.getByLabel("Time of day")).toBeDisabled();
   await expect(
     page.getByText(/Built from rounded locations\. Areas with fewer than 3 incidents are hidden/),
@@ -33,4 +34,20 @@ test("Free members get the 7-day preview with filters locked, and area figures",
   await expect(page.getByText("+12%")).toBeVisible();
   await expect(page.getByText("8–9am")).toBeVisible();
   await expect(page.getByText("Bad parking 36% · Tailgating 29%")).toBeVisible();
+});
+
+test("Premium members filter by vehicle and conditions", async ({ page, request }) => {
+  await request.post("http://localhost:4010/__next-user", { data: "dave" });
+  await signIn(page, "/map");
+  await page.getByRole("button", { name: "More filters" }).click();
+  const more = page.getByRole("region", { name: "More filters" });
+  await more.getByLabel("Van").check();
+  await more.getByLabel("Make").selectOption("Ford");
+  await more.getByLabel("Model").selectOption("Transit");
+  await more.getByLabel("After dark").check();
+  await more.getByLabel("School run (weekdays 8–9:15am and 2:45–4pm)").check();
+  await expect(page.getByRole("button", { name: "More filters (4)" })).toBeVisible();
+
+  await more.getByRole("button", { name: "Clear filters" }).click();
+  await expect(page.getByRole("button", { name: "More filters", exact: true })).toBeVisible();
 });

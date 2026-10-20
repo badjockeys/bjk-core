@@ -110,6 +110,9 @@ function seed() {
           location: "Leeds",
           avatarMediaId: null,
           createdAt: ago(60 * 24 * 10),
+          isMinor: false,
+          roadUser: "Driver",
+          showRoadUser: true,
         },
       ],
       [
@@ -122,6 +125,7 @@ function seed() {
           location: "Leeds",
           avatarMediaId: null,
           createdAt: ago(60 * 24 * 5),
+          isMinor: false,
         },
       ],
     ]),
@@ -152,7 +156,9 @@ function seed() {
       post(SEED.sensitivePost, dave, "Serious crash on the A64", "RoadRage", ["m-5"], ago(30), {
         isSensitive: true,
       }),
-      post(SEED.videoPost, dave, "Undertaking a lorry on the M62", "Undertaking", ["m-4"], ago(300)),
+      post(SEED.videoPost, dave, "Undertaking a lorry on the M62", "Undertaking", ["m-4"], ago(300), {
+        passengers: [{ userId: USERS.roadhog.id, status: "Pending" }],
+      }),
       post(SEED.secondVideo, dave, "Cutting up on the A64", "CuttingUp", ["m-7"], ago(400), {
         placeName: "A64, York",
       }),
@@ -189,6 +195,27 @@ function seed() {
     blocks: new Map(),
     appeals: [],
     reelPlays: new Map(),
+    // Per user: the bell, and settings that differ from the defaults.
+    notifications: new Map([
+      [
+        USERS.roadhog.id,
+        [
+          {
+            id: "9a1e0000-0000-4000-8000-000000000001",
+            type: "PassengerTagged",
+            actorId: dave,
+            postId: SEED.videoPost,
+            commentId: null,
+            postTitle: "Undertaking a lorry on the M62",
+            count: 1,
+            at: ago(20),
+            isRead: false,
+          },
+        ],
+      ],
+    ]),
+    notificationSettings: new Map(),
+    areas: new Map(),
   };
   db.posts.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   addComment(
@@ -206,6 +233,7 @@ function seed() {
     location: null,
     avatarMediaId: null,
     createdAt: ago(60 * 24 * 20),
+    isMinor: false,
   });
   codes = new Map();
   refreshTokens = new Map();
@@ -221,6 +249,9 @@ function post(id, authorId, title, category, mediaIds, createdAt, extra = {}) {
     description: extra.description ?? null,
     category,
     types: extra.types ?? [category],
+    passengers: extra.passengers ?? [],
+    vehicle: extra.vehicle ?? null,
+    reportedToPolice: extra.reportedToPolice ?? null,
     incidentAt: createdAt,
     latitude: 53.81,
     longitude: -1.6,
@@ -246,8 +277,24 @@ seed();
 function author(id) {
   const p = db.profiles.get(id);
   return p
-    ? { id, handle: p.handle, displayName: p.displayName, avatarUrl: avatarUrl(p) }
+    ? {
+        id,
+        handle: p.handle,
+        displayName: p.displayName,
+        avatarUrl: avatarUrl(p),
+        roadUser: p.showRoadUser ? (p.roadUser ?? null) : null,
+      }
     : { id, handle: null, displayName: "Former member", avatarUrl: null };
+}
+// Accepted passengers for everyone; the author also sees pending ones; you always see your own tag.
+function passengersFor(p, viewer) {
+  return p.passengers
+    .filter(
+      (t) =>
+        db.profiles.has(t.userId) &&
+        (t.status === "Accepted" || t.userId === viewer || (t.status === "Pending" && p.authorId === viewer)),
+    )
+    .map((t) => ({ person: author(t.userId), status: t.status }));
 }
 function avatarUrl(profile) {
   const m = profile.avatarMediaId && db.media.get(profile.avatarMediaId);
@@ -273,6 +320,9 @@ function postDto(p, viewer) {
     description: p.description,
     category: p.category,
     types: p.types,
+    passengers: passengersFor(p, viewer),
+    vehicle: p.vehicle,
+    reportedToPolice: p.reportedToPolice,
     incidentAt: p.incidentAt,
     location: { latitude: p.latitude, longitude: p.longitude, placeName: p.placeName },
     status: p.status,
@@ -717,6 +767,103 @@ async function api(req, res, url) {
       page(items, url, (p) => postDto(p, me)),
     );
   }
+  // Vehicle lists
+  if (path === "/api/vehicles" && method === "GET") {
+    return send(res, 200, VEHICLES);
+  }
+  // Places and home areas
+  if (path === "/api/places" && method === "GET") {
+    if (!requireUser()) return;
+    const q = (url.searchParams.get("q") ?? "").toLowerCase();
+    return send(
+      res,
+      200,
+      PLACES.filter((p) => p.name.toLowerCase().startsWith(q)),
+    );
+  }
+  if (path.startsWith("/api/notifications/area")) {
+    if (!requireUser()) return;
+    const premium = viewer.plan === "premium" || viewer.plan === "premium_plus";
+    const area = db.areas.get(me) ?? null;
+    const dto = (a) => ({
+      placeName: a?.placeName ?? null,
+      latitude: a?.latitude ?? null,
+      longitude: a?.longitude ?? null,
+      enabled: !!a?.enabled && premium,
+      radiusKm: a?.radiusKm ?? 5,
+      mode: a?.mode ?? "Digest",
+      email: !!a?.email,
+      canUseAlerts: premium,
+      radiuses: [2, 5, 10, 25],
+      instantDailyCap: 10,
+    });
+    if (path === "/api/notifications/area" && method === "GET") return send(res, 200, dto(area));
+    if (path === "/api/notifications/area" && method === "DELETE") {
+      db.areas.delete(me);
+      return send(res, 204);
+    }
+    if (path === "/api/notifications/area/home" && method === "PUT") {
+      const body = await json();
+      const next = { ...(area ?? {}), ...body };
+      db.areas.set(me, next);
+      return send(res, 200, dto(next));
+    }
+    if (path === "/api/notifications/area/alerts" && method === "PUT") {
+      const body = await json();
+      if (body.enabled && !premium) return problem(res, 403, "Area alerts are part of Premium.");
+      if (!area) return invalid(res, "PlaceName", "Choose your home area first.");
+      Object.assign(area, body);
+      return send(res, 200, dto(area));
+    }
+  }
+  // Notifications
+  if (path === "/api/notifications" && method === "GET") {
+    if (!requireUser()) return;
+    const items = (db.notifications.get(me) ?? []).slice().sort((a, b) => b.at.localeCompare(a.at));
+    return send(res, 200, page(items, url, notificationDto));
+  }
+  if (path === "/api/notifications/unread-count" && method === "GET") {
+    if (!requireUser()) return;
+    return send(res, 200, { unread: (db.notifications.get(me) ?? []).filter((n) => !n.isRead).length });
+  }
+  if (path === "/api/notifications/read" && method === "POST") {
+    if (!requireUser()) return;
+    const { ids } = await json();
+    for (const n of db.notifications.get(me) ?? []) {
+      if (!ids || ids.length === 0 || ids.includes(n.id)) n.isRead = true;
+    }
+    return send(res, 204);
+  }
+  if (path === "/api/notifications/settings") {
+    if (!requireUser()) return;
+    const chosen = db.notificationSettings.get(me) ?? new Map();
+    db.notificationSettings.set(me, chosen);
+    if (method === "PUT") {
+      for (const change of (await json()).settings ?? []) chosen.set(change.type, change);
+    }
+    return send(
+      res,
+      200,
+      NOTIFICATION_TYPES.map(([type, label, inApp, email]) => ({
+        type,
+        label,
+        inApp: chosen.get(type)?.inApp ?? inApp,
+        email: chosen.get(type)?.email ?? email,
+      })),
+    );
+  }
+  if (path === "/api/posts/tagged" && method === "GET") {
+    if (!requireUser()) return;
+    const status = url.searchParams.get("status") ?? "Pending";
+    const items = db.posts.filter(
+      (p) => isPublic(p) && p.passengers.some((t) => t.userId === me && t.status === status),
+    );
+    return send(
+      res,
+      200,
+      page(items, url, (p) => postDto(p, me)),
+    );
+  }
   if (path === "/api/posts/mine" && method === "GET") {
     if (!requireUser()) return;
     return send(
@@ -738,6 +885,22 @@ async function api(req, res, url) {
     const types = [...new Set(sent.filter(Boolean))];
     if (types.length === 0) return invalid(res, "Types", "Choose at least one type of bad driving.");
     if (!types.every((t) => CATEGORIES.has(t))) return invalid(res, "Types", "Choose a type from the list.");
+    const handles = [...new Set((body.passengers ?? []).map((h) => h.replace(/^@/, "").toLowerCase()))];
+    if (handles.length > 0 && types.every((t) => t === "BadParking"))
+      return invalid(
+        res,
+        "Passengers",
+        "Passengers can only be tagged on driving incidents, not bad parking.",
+      );
+    if (handles.length > 4) return invalid(res, "Passengers", "You can tag up to 4 passengers.");
+    const passengers = [];
+    for (const h of handles) {
+      const person = [...db.profiles.values()].find((x) => x.handle === h);
+      if (!person) return invalid(res, "Passengers", `We couldn't find @${h}.`);
+      if (person.id === me) return invalid(res, "Passengers", "You can't tag yourself.");
+      if (person.isMinor !== false) return invalid(res, "Passengers", `You can't tag @${h}.`);
+      passengers.push({ userId: person.id, status: "Pending" });
+    }
     if ((body.description ?? "").trim().length > 500)
       return invalid(res, "Description", "Descriptions are 500 characters or fewer.");
     if (!Array.isArray(body.mediaIds) || body.mediaIds.length === 0)
@@ -760,6 +923,16 @@ async function api(req, res, url) {
       {
         description: body.description,
         types,
+        passengers,
+        vehicle: body.vehicleType
+          ? {
+              type: body.vehicleType,
+              make: body.vehicleMake ?? null,
+              model: body.vehicleModel ?? null,
+              colour: body.vehicleColour ?? null,
+            }
+          : null,
+        reportedToPolice: body.reportedToPolice ?? null,
         placeName: body.placeName,
         isSensitive: body.isSensitive,
         mediaState: pending ? "Pending" : "Ready",
@@ -786,6 +959,18 @@ async function api(req, res, url) {
     if (!requireUser()) return;
     if (!p || !canSee(p, me)) return problem(res, 404, `Post ${m[1]} was not found.`);
     const rest = m[2];
+    if (rest === "passengers/me") {
+      const tag = p.passengers.find((t) => t.userId === me);
+      if (!tag) return problem(res, 404, "Passenger tag not found.");
+      if (method === "DELETE") {
+        p.passengers = p.passengers.filter((t) => t !== tag);
+        return send(res, 204);
+      }
+      const { accept } = await json();
+      if (tag.status === "Declined" && accept) return invalid(res, "Accept", "You declined this tag.");
+      tag.status = accept ? "Accepted" : "Declined";
+      return send(res, 200, postDto(p, me));
+    }
     if (rest === "reaction") {
       const map = db.reactions.get(p.id) ?? new Map();
       db.reactions.set(p.id, map);
@@ -909,7 +1094,7 @@ async function api(req, res, url) {
     if (!requireUser()) return;
     const mine = db.profiles.get(me);
     if (method === "GET")
-      return mine ? send(res, 200, profileDto(mine)) : problem(res, 404, "Profile not found.");
+      return mine ? send(res, 200, profileDto(mine, true)) : problem(res, 404, "Profile not found.");
     if (method === "PUT") {
       if (!mine) return problem(res, 404, "Profile not found.");
       const body = await json();
@@ -937,6 +1122,17 @@ async function api(req, res, url) {
     };
     db.profiles.set(me, created);
     return send(res, 201, profileDto(created));
+  }
+  if (path === "/api/profiles/me/road-user" && method === "PUT") {
+    if (!requireUser()) return;
+    const mine = db.profiles.get(me);
+    if (!mine) return problem(res, 404, "Profile not found.");
+    const body = await json();
+    if (body.roadUser !== null && !["Driver", "Cyclist", "Both"].includes(body.roadUser))
+      return invalid(res, "RoadUser", "Choose driver, cyclist or both.");
+    mine.roadUser = body.roadUser;
+    mine.showRoadUser = body.roadUser !== null && !!body.show;
+    return send(res, 200, profileDto(mine, true));
   }
   if (path === "/api/profiles/me/handle" && method === "PUT") {
     if (!requireUser()) return;
@@ -1061,7 +1257,49 @@ async function api(req, res, url) {
   return false;
 }
 
-function profileDto(p) {
+const VEHICLES = {
+  types: [
+    "Car",
+    "Van",
+    "Lorry",
+    "Bus",
+    "Coach",
+    "Taxi",
+    "Motorbike",
+    "Bicycle",
+    "EScooter",
+    "Tractor",
+    "Other",
+  ],
+  colours: ["Black", "White", "Silver", "Grey", "Blue", "Red", "Other"],
+  makes: [
+    { name: "BMW", models: ["1 Series", "3 Series", "X5", "Other"] },
+    { name: "Ford", models: ["Fiesta", "Focus", "Transit", "Other"] },
+    { name: "Other", models: ["Other"] },
+  ],
+};
+const PLACES = [
+  { name: "Rainhill", detail: "St. Helens, North West", latitude: 53.42, longitude: -2.77 },
+  { name: "Rainford", detail: "St. Helens, North West", latitude: 53.5, longitude: -2.79 },
+  { name: "Kirkstall", detail: "Leeds, Yorkshire and The Humber", latitude: 53.82, longitude: -1.6 },
+];
+const NOTIFICATION_TYPES = [
+  ["PassengerTagged", "Someone tags you as a passenger", true, true],
+  ["PassengerAccepted", "Someone accepts your passenger tag", true, false],
+  ["CommentOnPost", "Comments on your posts", true, false],
+  ["ReplyToComment", "Replies to your comments", true, false],
+  ["ReactionOnPost", "Reactions to your posts", true, false],
+];
+function notificationDto(n) {
+  const actor = n.actorId ? author(n.actorId) : null;
+  const who = actor?.displayName ?? "Someone";
+  const text =
+    n.type === "PassengerTagged"
+      ? `${who} tagged you as a passenger on \u201c${n.postTitle}\u201d. Accept to show your name.`
+      : `${who} commented on your post \u201c${n.postTitle}\u201d.`;
+  return { ...n, actor, text };
+}
+function profileDto(p, owner = false) {
   return {
     id: p.id,
     handle: p.handle,
@@ -1070,6 +1308,8 @@ function profileDto(p) {
     location: p.location ?? null,
     avatarUrl: avatarUrl(p),
     createdAt: p.createdAt,
+    roadUser: owner || p.showRoadUser ? (p.roadUser ?? null) : null,
+    showRoadUser: owner ? !!p.showRoadUser : null,
   };
 }
 

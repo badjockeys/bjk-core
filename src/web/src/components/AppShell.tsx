@@ -15,15 +15,16 @@ import {
   ProfileIcon,
   ReelsIcon,
 } from "./icons";
+import { NotificationBell } from "./NotificationBell";
 import { SignOutMenu } from "./SignOutMenu";
 
-export type Section = "home" | "reels" | "map" | "profile" | "account" | null;
+export type Section = "home" | "reels" | "map" | "profile" | "account" | "notifications" | null;
 
 /**
  * The page frame. Desktop (1024 px and up): X-style navigation on the left (Home, Reels, Map, then the member's
- * links), the page in the middle and a panel on the right. Phones: the page full width, with the bottom navigation
- * (Home, Reels, Map, profile, account) and the + button where the wireframes have them, or the sign-up bar for
- * visitors. `dark` is the reels page: a black page and bottom bar.
+ * links), the page in the middle and a panel on the right. Phones: the page full width, with a floating glass tab
+ * bar at the bottom (Home, Reels, Map, Profile, like Instagram and Facebook; Account is on your profile) and the +
+ * button, or the sign-up bar for visitors. `dark` is the reels page: a black page and a dark glass bar.
  */
 export function AppShell({
   viewer,
@@ -80,6 +81,7 @@ export function AppShell({
           </NavItem>
           {viewer.signedIn ? (
             <>
+              <NotificationBell label className={`nav-i${section === "notifications" ? " nav-on" : ""}`} />
               <NavItem
                 href={myProfile}
                 on={section === "profile"}
@@ -129,29 +131,26 @@ export function AppShell({
 
       {viewer.signedIn && bottomNav ? (
         <nav className={`bnav m-only${dark ? " bnav-dark" : ""}`} aria-label="Main">
-          <Link href="/" aria-label="Home" aria-current={section === "home" ? "page" : undefined}>
-            <HomeIcon size={26} filled={section === "home"} />
-          </Link>
-          <Link href="/reels" aria-label="Reels" aria-current={section === "reels" ? "page" : undefined}>
-            <ReelsIcon size={26} filled={section === "reels"} />
-          </Link>
-          <Link href="/map" aria-label="Incident map" aria-current={section === "map" ? "page" : undefined}>
-            <MapIcon size={26} filled={section === "map"} />
-          </Link>
-          <Link
+          <TabLink href="/" on={section === "home"} icon={<HomeIcon size={24} filled={section === "home"} />}>
+            Home
+          </TabLink>
+          <TabLink
+            href="/reels"
+            on={section === "reels"}
+            icon={<ReelsIcon size={24} filled={section === "reels"} />}
+          >
+            Reels
+          </TabLink>
+          <TabLink href="/map" on={section === "map"} icon={<MapIcon size={24} filled={section === "map"} />}>
+            Map
+          </TabLink>
+          <TabLink
             href={myProfile}
-            aria-label="Your profile"
-            aria-current={section === "profile" ? "page" : undefined}
+            on={section === "profile" || section === "account"}
+            icon={<ProfileIcon size={24} filled={section === "profile" || section === "account"} />}
           >
-            <ProfileIcon size={26} filled={section === "profile"} />
-          </Link>
-          <Link
-            href="/account"
-            aria-label="Account"
-            aria-current={section === "account" ? "page" : undefined}
-          >
-            <AccountIcon size={26} filled={section === "account"} />
-          </Link>
+            Profile
+          </TabLink>
         </nav>
       ) : null}
 
@@ -175,6 +174,26 @@ function NavItem({
     <Link href={href} className={`nav-i${on ? " nav-on" : ""}`} aria-current={on ? "page" : undefined}>
       {icon}
       {children}
+    </Link>
+  );
+}
+
+/** A tab in the phone's bottom bar: icon over a short label, highlighted in cyan when it's the current section. */
+function TabLink({
+  href,
+  on,
+  icon,
+  children,
+}: {
+  href: string;
+  on: boolean;
+  icon: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <Link href={href} className="bnav-tab" aria-current={on ? "page" : undefined}>
+      {icon}
+      <span>{children}</span>
     </Link>
   );
 }
