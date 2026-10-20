@@ -21,8 +21,10 @@ The upload's job is queued in the same database transaction that sets the media 
 The identity server writes user events into `bjk-core.user-events` through its own connection (`ConnectionStrings:Messaging` in the identity server) with a database user in `badjockeys` that may only read `messaging.subscriptions` and add rows to the `messaging` tables. It can't read the queues, delete anything, or touch the app's data. Create it once per environment (the Terraform will do this), after the API has started once:
 
 ```sql
--- In the badjockeys database, as an Entra ID admin. [bjk-identity-server] is the identity server's managed identity.
-CREATE USER [bjk-identity-server] FROM EXTERNAL PROVIDER;
+-- In the master database: a SQL login for the identity server's messaging connection (password as a container secret).
+CREATE LOGIN [bjk-identity-server-messaging] WITH PASSWORD = '<a long random password>';
+-- Then in the badjockeys database:
+CREATE USER [bjk-identity-server] FOR LOGIN [bjk-identity-server-messaging];
 GRANT SELECT ON OBJECT::[messaging].[subscriptions] TO [bjk-identity-server];
 GRANT INSERT ON SCHEMA::[messaging] TO [bjk-identity-server];
 ```
@@ -60,7 +62,7 @@ template {
 }
 ```
 
-- The scaler only needs to read this one table: give it its own database user with `GRANT SELECT ON OBJECT::[messaging].[media.process]`. When the Terraform is written, check whether Container Apps can authenticate the `mssql` rule with a managed identity; if not, use a SQL login for this user, with the connection string in Key Vault.
+- The scaler only needs to read this one table: give it its own database user with `GRANT SELECT ON OBJECT::[messaging].[media.process]`. Use a SQL login for this user, with the connection string as a container secret (no cloud-specific sign-in, so it works the same anywhere).
 - KEDA checks every 30 seconds by default; a shorter polling interval (5-10 seconds) suits fast posting. Keep the default cool-down (300 seconds) so replicas aren't stopped between a video's segment jobs and its join job.
 - Scaling from zero adds a cold start (pulling the image and starting .NET). The always-on replica in busy hours mentioned in the architecture notes removes it.
 
