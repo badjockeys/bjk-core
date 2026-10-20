@@ -24,6 +24,6 @@ jobs:
         run: |
           set -e
           ls -la src/web/src/lib/generated || true
-          git -c user.name=ci -c user.email=ci@example.com add -A src/web/src/lib/generated build.log
+          git add -f build.log; git add -A src/web/src/lib/generated || true
           git -c user.name=ci -c user.email=ci@example.com commit -m "Generated API client" || true
           git push origin HEAD:refs/heads/tmp/generated-api-client --force
