@@ -199,6 +199,7 @@ export function PostComposer({
   const videoInput = useRef<HTMLInputElement>(null);
   const picker = useRef<HTMLDialogElement>(null);
   const title = useRef<HTMLInputElement>(null);
+  const text = useRef<HTMLTextAreaElement>(null);
   const uploads = useRef<UploadQueue | null>(null);
 
   const kind: "Image" | "Video" | null = items[0]?.kind ?? null;
@@ -567,10 +568,11 @@ export function PostComposer({
     onChange: (v) => set("title", v),
     ref: title,
   });
-  const textTags = useHashtagSuggest<HTMLTextAreaElement>({
+  const textTags = useHashtagSuggest({
     id: "post-text",
     value: fields.description,
     onChange: (v) => set("description", v),
+    ref: text,
   });
 
   const toggleType = (type: IncidentCategory, on: boolean) => {
@@ -855,7 +857,7 @@ export function PostComposer({
             </label>
             <textarea
               id="post-text"
-              ref={textTags.ref}
+              ref={text}
               {...textTags.fieldProps}
               className={`cmp-textarea${errors.description ? " input-error" : ""}`}
               rows={3}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from "react";
+import { useEffect, useState, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 
 import { suggestHashtags } from "@/actions/hashtags";
 import { insertTag, tagAtCaret } from "@/lib/hashtags";
@@ -10,22 +10,22 @@ type Field = HTMLInputElement | HTMLTextAreaElement;
 
 /**
  * Suggests hashtags as # is typed in a post's title or description (UI step 5): the most used tags starting with what's
- * been typed, chosen with the arrow keys and Enter (or Tab), or a tap. Spread `fieldProps` on the field, use `ref` as
- * its ref, and render `list` just after it.
+ * been typed, chosen with the arrow keys and Enter (or Tab), or a tap. Pass the field's ref, spread `fieldProps` on
+ * the field, and render `list` just after it.
  */
 export function useHashtagSuggest<T extends Field>({
   id,
   value,
   onChange,
-  ref: given,
+  ref,
 }: {
   /** The field's id, to name the list. */
   id: string;
   value: string;
   onChange: (value: string) => void;
-  ref?: RefObject<T | null>;
-}): {
+  /** The field's ref (the field must use it). */
   ref: RefObject<T | null>;
+}): {
   fieldProps: {
     onSelect: () => void;
     onKeyDown: (e: KeyboardEvent<T>) => void;
@@ -37,8 +37,6 @@ export function useHashtagSuggest<T extends Field>({
   };
   list: ReactNode;
 } {
-  const own = useRef<T | null>(null);
-  const ref = given ?? own;
   const [token, setToken] = useState<{ start: number; caret: number; prefix: string } | null>(null);
   const [found, setFound] = useState<{ prefix: string; items: HashtagSuggestionDto[] }>({
     prefix: "",
@@ -128,7 +126,6 @@ export function useHashtagSuggest<T extends Field>({
   ) : null;
 
   return {
-    ref,
     fieldProps: {
       onSelect: track,
       onKeyDown,
