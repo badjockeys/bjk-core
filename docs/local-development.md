@@ -184,6 +184,10 @@ How an upload works on your machine:
 4. The media worker downloads the original, converts it with ffmpeg, strips metadata such as GPS, writes the results to `bjk-dev-public`, and marks the media `Ready`.
 5. The web app shows the processed file from `http://localhost:9090/bjk-dev-public/...`.
 
+Accepted files: videos in MP4, MOV, M4V, 3GP, WebM, MKV or AVI, and photos in JPEG, PNG, HEIC/HEIF, WebP, AVIF, GIF, TIFF or BMP. An animated GIF becomes a still of its first frame.
+
+The web app uploads a file as soon as it's chosen, so uploads can be left behind (a closed tab, a photo removed before posting). Once an hour the API deletes uploads over `Media:UnusedOriginalRetention` (24 hours) old that aren't in a post, a draft or an avatar: all their files go, and the record is marked `Deleted`. Taking a photo out of a saved draft deletes it straight away, unless a post or another draft uses it.
+
 S3Mock doesn't check keys, so the `local` keys in the template work as they are. Files survive `docker compose stop` and restarts; `docker compose down -v` deletes them, together with the databases, so the two always stay in step.
 
 ### Using Cloudflare R2 instead (later)
@@ -302,7 +306,7 @@ Some settings are optional:
 | `Media:MaxImageBytes` | 25 MB |
 | `Media:MaxVideoDurationSeconds` | 30 |
 | `Media:UploadUrlLifetime` | `00:15:00` |
-| `Media:UnusedOriginalRetention` | `1.00:00:00` (24 hours; originals are deleted once a post is published) |
+| `Media:UnusedOriginalRetention` | `1.00:00:00` (24 hours; originals are deleted once a post is published, and uploads nothing uses are deleted after this long) |
 | `Email:Provider`, `SMS:Provider` | `Log`: emails and texts are written to the console, not sent |
 | `Media:Processing:MaxConcurrentJobs` | 1 |
 | `Media:Redaction:FaceModelPath`, `PlateModelPath` | Unset: blurring can't run, so every upload goes to `NeedsReview`. The setup script downloads the models to `bjk-core/.local/models` and sets these for you. By hand: `pipelines/scripts/download-redaction-models.sh ~/bjk-models` (macOS and Linux), then point these at the two `.onnx` files |
