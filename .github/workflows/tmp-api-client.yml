@@ -17,12 +17,13 @@ jobs:
         with:
           global-json-file: global.json
       - run: dotnet restore BJK.Core.slnx
-      - run: dotnet build src/BJK.Core.Api --configuration Release --no-restore -p:GenerateApiClient=true
+      - run: dotnet build src/BJK.Core.Api --configuration Release --no-restore -p:GenerateApiClient=true 2>&1 | tee build.log
+        continue-on-error: true
       - name: Push the generated client
         if: ${{ always() }}
         run: |
           set -e
           ls -la src/web/src/lib/generated || true
-          git -c user.name=ci -c user.email=ci@example.com add -A src/web/src/lib/generated
+          git -c user.name=ci -c user.email=ci@example.com add -A src/web/src/lib/generated build.log
           git -c user.name=ci -c user.email=ci@example.com commit -m "Generated API client" || true
           git push origin HEAD:refs/heads/tmp/generated-api-client --force
