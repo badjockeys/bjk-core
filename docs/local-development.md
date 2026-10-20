@@ -22,12 +22,12 @@ One SQL Server holds both databases:
 
 ## Quick start: one command
 
-On a new computer, one script installs everything and sets it all up. It only needs the script itself: download it from GitHub (signed in, open the file in bjk-core and use **Download raw file**), or use it from a bjk-core you've already cloned.
+On a new computer, one script installs everything and sets it all up. It only needs the script itself: download it from GitHub (signed in, open `scripts/setup.sh` or `scripts/setup.ps1` in bjk-core and use **Download raw file**), or use it from a bjk-core you've already cloned. The commands below are run from bjk-core; for a downloaded copy, run it from wherever you saved it (`bash setup.sh`, or `powershell -ExecutionPolicy Bypass -File setup.ps1`).
 
 | Computer | Run |
 |---|---|
-| Windows 10 or 11 | `powershell -ExecutionPolicy Bypass -File setup.ps1` |
-| Mac | `bash setup.sh` |
+| Windows 10 or 11 | `powershell -ExecutionPolicy Bypass -File scripts\setup.ps1` |
+| Mac | `bash scripts/setup.sh` |
 
 It's safe to run again, and skips whatever is already done. Each run also pulls the latest code into every repo that's on `master` with no uncommitted changes (repos on another branch, or with work in progress, are left alone and listed), and restarts itself if that brought a newer version of the script. To upgrade the tools to their latest versions too, run it with `--upgrade` (Mac) or `-Upgrade` (Windows); that restarts Docker Desktop, so local SQL Server and S3Mock stop until the setup starts them again.
 
@@ -116,7 +116,7 @@ The default branch is `master`. All work happens on `feature/*` branches and is 
 
 The modules (`BJK.Modules.*`) are private NuGet packages on GitHub Packages, so restoring them needs a GitHub token.
 
-> `setup.ps1`, `setup.sh` and `scripts/setup-local.mjs` do this for you from your GitHub CLI sign-in (`gh auth login --scopes read:packages`). Use the steps below only if you'd rather manage your own token.
+> `scripts/setup.ps1`, `scripts/setup.sh` and `scripts/setup-local.mjs` do this for you from your GitHub CLI sign-in (`gh auth login --scopes read:packages`). Use the steps below only if you'd rather manage your own token.
 
 1. **Create the token.** On GitHub, go to **Settings → Developer settings → Personal access tokens → Tokens (classic) → Generate new token (classic)**. Tick only **`read:packages`**, then copy the token.
 

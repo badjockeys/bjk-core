@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Bad Jockeys: complete local setup on macOS. Safe to run again; it skips whatever is already done.
 #
-#   bash setup.sh             (it can be the only file you have; it fetches the repos itself)
-#   bash setup.sh --upgrade   also upgrades the tools to their latest versions (restarts Docker Desktop)
+#   bash scripts/setup.sh             (from bjk-core; or on its own: it fetches the repos itself)
+#   bash scripts/setup.sh --upgrade   also upgrades the tools to their latest versions (restarts Docker Desktop)
 #
 # Run it again any time: it pulls the latest code into each repo that's on master with no uncommitted
 # changes (others are left alone), and restarts itself if that brought a newer setup.sh.
@@ -180,8 +180,8 @@ done_ "You can see all four repos and the packages"
 # --- Repos -----------------------------------------------------------------------------------------------------------
 step "Getting the code"
 here="$(cd "$(dirname "$0")" && pwd)"
-if [ -f "$here/scripts/setup-local.mjs" ]; then
-  root="$(dirname "$here")"            # this file is in a bjk-core clone: use its folder
+if [ -f "$here/setup-local.mjs" ]; then
+  root="$(dirname "$(dirname "$here")")"   # this file is in a bjk-core clone (bjk-core/scripts): use the folder around it
 else
   root="$HOME/Git/GitHub/badjockeys"
 fi
@@ -211,9 +211,9 @@ core="$root/bjk-core"
 
 # If bjk-core now has a different setup.sh than the one running (it was just updated, or this copy was a
 # download), carry on with that one so the latest steps run. Once only.
-if [ -z "${BJK_SETUP_RESTARTED:-}" ] && [ -f "$core/setup.sh" ] && [ "$(cksum < "$core/setup.sh")" != "$SELF_SUM" ]; then
+if [ -z "${BJK_SETUP_RESTARTED:-}" ] && [ -f "$core/scripts/setup.sh" ] && [ "$(cksum < "$core/scripts/setup.sh")" != "$SELF_SUM" ]; then
   echo "Restarting with the latest setup.sh from bjk-core..."
-  BJK_SETUP_RESTARTED=1 exec bash "$core/setup.sh" "$@"
+  BJK_SETUP_RESTARTED=1 exec bash "$core/scripts/setup.sh" "$@"
 fi
 
 # --- Project setup ---------------------------------------------------------------------------------------------------
