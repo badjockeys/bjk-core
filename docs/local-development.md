@@ -484,7 +484,7 @@ Every person has one id. A user's profile id equals their sign-in account id (th
 
 ## Reports
 
-Two Grafana dashboards, at **http://localhost:3300** (no sign-in needed to view; `admin` / `admin` to edit):
+Two Grafana dashboards, at **http://localhost:3300** (no sign-in needed to view; `admin` / `admin` to edit). F5 ("Bad Jockeys") and the task "Run Bad Jockeys" open them in your browser once Grafana is up, alongside the web app:
 
 - **Identity server:** accounts now (active, deactivated, email confirmed, two-step on, locked out, age-checked, under 18), sign-ups and deactivations per day, age bands, how people sign in (password or Google, Apple, Facebook), age checks, staff roles, and account changes still waiting to reach the app.
 - **Bad Jockeys** (the home page): posts now and per day, people active in the last 30 days, features in use (drafts, area alerts, passenger tags), posts by type, top places, when incidents happen, uploads and processing times, faces and plates blurred, queues and failed jobs, comments, reactions and reel plays, reports (per day, open and overdue, decision times) and moderation actions.
