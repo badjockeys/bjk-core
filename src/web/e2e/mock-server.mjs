@@ -368,7 +368,7 @@ function commentDto(c, viewer, withReplies) {
     author: author(c.authorId),
     body: c.body,
     createdAt: c.createdAt,
-    updatedAt: null,
+    updatedAt: c.updatedAt ?? null,
     status: c.status,
     parentCommentId: c.parentId,
     isRemoved: false,
@@ -866,6 +866,30 @@ async function api(req, res, url) {
       page(items, url, (p) => postDto(p, me)),
     );
   }
+  // A profile's Replies tab (bjk-modules ListProfileReplies).
+  if (path === "/api/posts/replies" && method === "GET") {
+    if (!requireUser()) return;
+    const handle = (url.searchParams.get("author") ?? "").replace(/^@/, "").toLowerCase();
+    const person = [...db.profiles.values()].find((x) => x.handle === handle);
+    const mine = person
+      ? db.comments
+          .filter((c) => c.authorId === person.id && c.status === "Visible")
+          .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      : [];
+    return send(
+      res,
+      200,
+      page(mine, url, (c) => {
+        const post = db.posts.find((x) => x.id === c.postId);
+        const parent = c.parentId ? db.comments.find((x) => x.id === c.parentId) : null;
+        return {
+          comment: commentDto(c, me, false),
+          post: { id: post.id, title: post.title, author: author(post.authorId) },
+          replyingTo: parent ? (db.profiles.get(parent.authorId)?.handle ?? null) : null,
+        };
+      }),
+    );
+  }
   if (path === "/api/posts/mine" && method === "GET") {
     if (!requireUser()) return;
     return send(
@@ -1121,6 +1145,14 @@ async function api(req, res, url) {
       if (action === "reports") {
         db.reports.push({ target: comment.id, by: me, ...(await json()) });
         return send(res, 204);
+      }
+      if (!action && method === "PUT") {
+        if (comment.authorId !== me) return problem(res, 403, "You can only edit your own comments.");
+        const { body } = await json();
+        if (!body?.trim()) return invalid(res, "Body", "Write something first.");
+        comment.body = body.trim();
+        comment.updatedAt = new Date().toISOString();
+        return send(res, 200, commentDto(comment, me, false));
       }
       if (!action && method === "DELETE") {
         if (comment.authorId !== me) return problem(res, 403, "You can only delete your own comments.");

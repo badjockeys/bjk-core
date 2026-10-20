@@ -209,8 +209,33 @@ test("comment, reply and react", async ({ page }) => {
   await expect(page.getByText("Already done, they said they'd look into it.")).toBeVisible();
   await expect(page.getByText("· replying to @lane_one_larry")).toBeVisible();
 
+  // Your own comment's ⋯ menu edits it; it then shows as edited.
+  const mine = page.locator(".comment", { hasText: "Same car was outside the school yesterday." });
+  await mine.getByRole("button", { name: /More options for this comment/ }).click();
+  await page.getByRole("menuitem", { name: "Edit comment" }).click();
+  // While editing, the comment's text is in the box, so find the box and Save on the page.
+  await page.getByLabel("Edit your comment").fill("Same car was outside the school on Monday.");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  const edited = page.locator(".comment", { hasText: "Same car was outside the school on Monday." });
+  await expect(edited).toBeVisible();
+  await expect(edited.getByText("· edited")).toBeVisible();
+
+  // Reply is in someone else's ⋯ menu too, with Report.
+  await larry.getByRole("button", { name: /More options for this comment/ }).click();
+  await expect(page.getByRole("menuitem", { name: "Report comment" })).toBeVisible();
+  await page.getByRole("menuitem", { name: "Reply" }).click();
+  await expect(page.getByPlaceholder("Reply to @lane_one_larry")).toBeVisible();
+
   await larry.getByRole("button", { name: /^0 reactions/ }).click();
   await expect(larry.getByRole("button", { name: /^1 reactions/ })).toHaveAttribute("aria-pressed", "true");
+
+  // Your replies show on your profile's Replies tab, with the post they're on.
+  await page.goto("/u/roadhog?tab=replies");
+  await expect(page.getByRole("link", { name: "Replies" })).toHaveAttribute("aria-current", "page");
+  const replies = page.getByRole("region", { name: "Replies" });
+  await expect(replies.getByText("Already done, they said they'd look into it.")).toBeVisible();
+  await expect(replies.getByText("Replying to @lane_one_larry on")).toBeVisible();
+  await page.goBack();
 
   // Everything was saved.
   await page.reload();

@@ -11,13 +11,14 @@ import { Feed } from "@/components/Feed";
 import { AccountIcon, CalendarIcon, PinIcon } from "@/components/icons";
 import { RoadBadge } from "@/components/PostPeople";
 import { ProfileMoreMenu } from "@/components/ProfileMoreMenu";
+import { ProfileReplies } from "@/components/ProfileReplies";
 import type { FeedSource } from "@/actions/posts";
 import { api, ApiError } from "@/lib/api";
 import { getAccessToken, getViewer } from "@/lib/auth";
 import { feedPage, pageNumber } from "@/lib/feed";
 import { joined, plural } from "@/lib/format";
 import { profilePath } from "@/lib/paths";
-import type { PagedResult, PostDto, ProfileDto } from "@/lib/types";
+import type { PagedResult, PostDto, ProfileDto, ProfileReplyDto } from "@/lib/types";
 
 type Props = {
   params: Promise<{ handle: string }>;
@@ -61,7 +62,9 @@ export default async function ProfilePage({ params, searchParams }: Props) {
   }
   const viewer = await getViewer();
   const isMe = viewer.userId === profile.id;
-  const page = pageNumber((await searchParams).page);
+  const query = await searchParams;
+  const page = pageNumber(query.page);
+  const tab: "posts" | "replies" = query.tab === "replies" ? "replies" : "posts";
   const here = profilePath(profile.handle);
 
   // Your own profile includes posts still processing, held or hidden, which only you can see.
@@ -80,6 +83,17 @@ export default async function ProfilePage({ params, searchParams }: Props) {
     posts = await feedPage({ author: profile.handle }, page);
   }
   const blocked = viewer.signedIn && !isMe ? await isBlocked(profile.id) : false;
+
+  // Replies need a signed-in viewer, like comments.
+  let replies: PagedResult<ProfileReplyDto> | null = null;
+  if (tab === "replies" && viewer.signedIn && !blocked) {
+    const token = await getAccessToken();
+    replies = token
+      ? await api()
+          .posts.replies(token, profile.handle, page)
+          .catch(() => null)
+      : null;
+  }
 
   return (
     <AppShell
@@ -147,11 +161,35 @@ export default async function ProfilePage({ params, searchParams }: Props) {
         ) : null}
       </section>
       <nav className="tabs tabs-fill" aria-label="Profile">
-        <span className="tab tab-on" aria-current="page">
+        <Link
+          href={here}
+          className={`tab${tab === "posts" ? " tab-on" : ""}`}
+          aria-current={tab === "posts" ? "page" : undefined}
+        >
           Posts
-        </span>
+        </Link>
+        <Link
+          href={`${here}?tab=replies`}
+          className={`tab${tab === "replies" ? " tab-on" : ""}`}
+          aria-current={tab === "replies" ? "page" : undefined}
+        >
+          Replies
+        </Link>
       </nav>
-      {posts && !blocked ? (
+      {tab === "replies" ? (
+        blocked ? null : !viewer.signedIn ? (
+          <section className="centre">
+            <h2 className="h2">Sign in to see replies</h2>
+            <p className="muted">Comments and replies are only shown to members.</p>
+          </section>
+        ) : replies ? (
+          <ProfileReplies page={replies} basePath={here} isMe={isMe} />
+        ) : (
+          <p className="error pad" role="alert">
+            We couldn&apos;t load the replies. Please try again.
+          </p>
+        )
+      ) : posts && !blocked ? (
         <Feed
           page={posts}
           source={source}

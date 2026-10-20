@@ -51,6 +51,18 @@ export async function reactToComment(
   );
 }
 
+/** Change the text of your own comment or reply. It then shows as edited. */
+export async function editComment(
+  postId: string,
+  commentId: string,
+  body: string,
+): Promise<ActionResult<CommentDto>> {
+  if (!body.trim()) {
+    return { ok: false, error: "Write something first." };
+  }
+  return asUser((t) => api().comments.edit(t, postId, commentId, body.trim()));
+}
+
 export async function deleteComment(postId: string, commentId: string): Promise<ActionResult> {
   return asUser((t) => api().comments.remove(t, postId, commentId));
 }

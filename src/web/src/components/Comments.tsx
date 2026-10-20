@@ -6,6 +6,7 @@ import {
   addComment,
   appealComment,
   deleteComment,
+  editComment,
   loadComments,
   loadReplies,
   reactToComment,
@@ -279,7 +280,11 @@ function CommentItem({
   onRemoved: (id: string) => void;
 }) {
   const [reporting, setReporting] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(comment.body);
+  const [editError, setEditError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [saving, startSaving] = useTransition();
 
   if (comment.isRemoved || !comment.author) {
     return (
@@ -322,8 +327,31 @@ function CommentItem({
     });
   };
 
+  const saveEdit = () =>
+    startSaving(async () => {
+      setEditError(null);
+      const result = await editComment(postId, comment.id, draft);
+      if (!result.ok) {
+        if (!followBlocker(result.blocker)) setEditError(result.error);
+        return;
+      }
+      onChange(comment.id, (c) => ({ ...c, body: result.data.body, updatedAt: result.data.updatedAt }));
+      setEditing(false);
+    });
+
   const items: MenuItem[] = [];
+  if (onReply) {
+    items.push({ label: "Reply", onSelect: onReply });
+  }
   if (isMine) {
+    items.push({
+      label: "Edit comment",
+      onSelect: () => {
+        setDraft(comment.body);
+        setEditError(null);
+        setEditing(true);
+      },
+    });
     items.push({
       label: "Delete comment",
       danger: true,
@@ -354,9 +382,56 @@ function CommentItem({
             <time dateTime={comment.createdAt} suppressHydrationWarning>
               {timeAgo(comment.createdAt)}
             </time>
+            {comment.updatedAt ? " · edited" : ""}
           </span>
         </span>
-        <span className="comment-text">{comment.body}</span>
+        {editing ? (
+          <form
+            className="stack"
+            style={{ gap: 6 }}
+            onSubmit={(event) => {
+              event.preventDefault();
+              saveEdit();
+            }}
+          >
+            <label className="sr-only" htmlFor={`edit-${comment.id}`}>
+              Edit your comment
+            </label>
+            <textarea
+              id={`edit-${comment.id}`}
+              className="textarea"
+              rows={2}
+              maxLength={2000}
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+            />
+            <span className="row" style={{ gap: 6 }}>
+              <button
+                type="submit"
+                className="btn btn-primary btn-sm"
+                disabled={saving || !draft.trim() || draft.trim() === comment.body}
+              >
+                {saving ? "Saving…" : "Save"}
+              </button>
+              <button
+                type="button"
+                className="btn btn-sm"
+                disabled={saving}
+                onClick={() => setEditing(false)}
+              >
+                Cancel
+              </button>
+            </span>
+            {editError ? (
+              <p className="error" role="alert">
+                {editError}
+              </p>
+            ) : null}
+          </form>
+        ) : (
+          <span className="comment-text">{comment.body}</span>
+        )}
         {comment.status === "HeldForReview" ? (
           <span className="help">Only you can see this until a moderator checks it.</span>
         ) : null}
@@ -386,7 +461,11 @@ function CommentItem({
               Reply
             </button>
           ) : null}
-          <Menu label="More: report or delete" items={items} buttonClassName="tw-act">
+          <Menu
+            label={`More options for this comment by @${author.handle ?? author.displayName}`}
+            items={items}
+            buttonClassName="tw-act"
+          >
             <MoreIcon />
           </Menu>
         </div>

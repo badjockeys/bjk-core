@@ -2936,6 +2936,65 @@ export class PostsClient {
     }
 
     /**
+     * One person's comments and replies, newest first, with the post each is on: the Replies tab on their profile.
+    Only comments on posts everyone can see.
+     * @param author (optional) The profile's @handle.
+     * @param page (optional) Page number, from 1.
+     * @param pageSize (optional) Comments per page, up to 50.
+     */
+    posts_ListProfileReplies(author?: string | undefined, page?: number | undefined, pageSize?: number | undefined, signal?: AbortSignal): Promise<PagedResultOfProfileReplyDto> {
+        let url_ = this.baseUrl + "/api/posts/replies?";
+        if (author === null)
+            throw new globalThis.Error("The parameter 'author' cannot be null.");
+        else if (author !== undefined)
+            url_ += "author=" + encodeURIComponent("" + author) + "&";
+        if (page === null)
+            throw new globalThis.Error("The parameter 'page' cannot be null.");
+        else if (page !== undefined)
+            url_ += "page=" + encodeURIComponent("" + page) + "&";
+        if (pageSize === null)
+            throw new globalThis.Error("The parameter 'pageSize' cannot be null.");
+        else if (pageSize !== undefined)
+            url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPosts_ListProfileReplies(_response);
+        });
+    }
+
+    protected processPosts_ListProfileReplies(response: Response): Promise<PagedResultOfProfileReplyDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PagedResultOfProfileReplyDto;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PagedResultOfProfileReplyDto>(null as any);
+    }
+
+    /**
      * One post. Anyone can call this; sensitive posts are 404 for logged-out callers.
      */
     posts_Get(id: string, signal?: AbortSignal): Promise<PostDto> {
@@ -5538,6 +5597,33 @@ export interface PagedResultOfPostDto {
 /** Accept or decline being tagged as a passenger. */
 export interface TagResponseRequest {
     accept: boolean;
+}
+
+export interface PagedResultOfProfileReplyDto {
+    items: ProfileReplyDto[];
+    page: number;
+    pageSize: number;
+    totalCount: number;
+}
+
+/** A comment on someone's profile Replies tab, with the post it's on. */
+export interface ProfileReplyDto {
+    /** The comment or reply. */
+    comment: CommentDto;
+    /** The post it's on. */
+    post: ReplyPostDto;
+    /** For a reply: the @handle of the comment it answers (null if that person's profile is gone). */
+    replyingTo: string | null;
+}
+
+/** The post a profile reply is on. */
+export interface ReplyPostDto {
+    /** The post's id. */
+    id: string;
+    /** Its title. */
+    title: string;
+    /** Who posted it. */
+    author: AuthorDto;
 }
 
 /** Creates a post with 1 to 10 photos or one video, uploaded through /api/media first. They don't have to have finished processing: if any is still Processing (or waiting for a moderator's review), the post is saved as Pending, seen only by its author (in "my posts") and moderators, and is published automatically once they're all Ready, or marked Failed (and the author emailed) if one fails. If they're all Ready already, it's visible to everyone straight away. Either way content screening can hold it for review. The author needs a confirmed email and a profile (and a passed age check if Safety:RequireAgeVerification is on). IsSensitive marks graphic content: the post shows to everyone, its media blurred except for age-verified adults, and the media are kept privately. If automatic detection already flagged any of the media, the post is tagged sensitive automatically (and queued for a moderator) whatever IsSensitive says. Types are the types of bad driving (at least one; the first is the main one); older clients can send one Category instead. Passengers are @handles of people in the author's vehicle (driving incidents only, up to 4, adults only): each is asked to accept before their name shows on the post. DraftId publishes one of the author's drafts: the draft is deleted once the post is saved (its photos and videos stay, in the post). */

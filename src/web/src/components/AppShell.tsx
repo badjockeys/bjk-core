@@ -96,9 +96,6 @@ export function AppShell({
               >
                 Account
               </NavItem>
-              <Link href="/post/new" className="btn btn-primary x-post">
-                Post
-              </Link>
               <div className="x-me">
                 <Avatar name={viewer.displayName ?? viewer.email} url={viewer.avatarUrl} />
                 <span className="c-sub">
