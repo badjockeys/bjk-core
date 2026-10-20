@@ -322,7 +322,7 @@ setting explained, is `src/web/.env.local.example`:
 
 ```bash
 APP_URL=http://localhost:3000
-API_BASE_URL=http://localhost:5100
+API_BASE_URL=https://localhost:5101
 IDSRV_AUTHORITY=https://localhost:5001
 IDSRV_CLIENT_ID=bjk-web
 IDSRV_CLIENT_SECRET=local-web-secret
@@ -335,7 +335,7 @@ UPLOAD_ORIGINS=http://localhost:9090
 | Setting | What it is |
 |---|---|
 | `APP_URL` | The web app's address. It must match the identity server's `Clients:Web:RedirectUris` (`http://localhost:3000/api/auth/callback/bjk`) |
-| `API_BASE_URL` | The API. Use its `http` address locally (`dotnet run ... --launch-profile http`, or the `https` profile also listens on 5100) |
+| `API_BASE_URL` | The API, on its `https` address. Not `http://localhost:5100`: the API redirects http to https, and Node.js drops the sign-in token when following a redirect, so signed-in calls would get 401. Node.js trusts the dev certificate through `NODE_EXTRA_CA_CERTS` (below) |
 | `IDSRV_AUTHORITY`, `IDSRV_CLIENT_ID`, `IDSRV_CLIENT_SECRET` | The identity server and the `bjk-web` client. The secret is `Clients:Web:Secret` from the identity server's user secrets |
 | `AUTH_SECRET` | Encrypts the session cookie holding the user's tokens |
 | `TURNSTILE_SITE_KEY` | Cloudflare Turnstile on the public report form. `1x00000000000000000000AA` is the public test **site** key, which always passes; it pairs with the test **secret** key in the API's `Captcha:TurnstileSecretKey` |

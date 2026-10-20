@@ -245,6 +245,17 @@ function createConfig() {
     "bjk-core/user-secrets.json",
   );
 
+  // Earlier templates pointed the web app at the API's http address, which redirects to https; Node.js drops the
+  // sign-in token on that redirect, so every signed-in call got 401. Move existing files to the https address.
+  const webEnv = join(web, ".env.local");
+  if (existsSync(webEnv)) {
+    const current = readFileSync(webEnv, "utf8");
+    if (/^API_BASE_URL=http:\/\/localhost:5100\/?\s*$/m.test(current)) {
+      writeFileSync(webEnv, current.replace(/^API_BASE_URL=http:\/\/localhost:5100\/?\s*$/m, "API_BASE_URL=https://localhost:5101"));
+      ok("bjk-core/src/web/.env.local: API_BASE_URL moved to https://localhost:5101");
+    }
+  }
+
   const webExample = readFileSync(join(web, ".env.local.example"), "utf8");
   writeIfMissing(
     join(web, ".env.local"),
