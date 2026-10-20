@@ -910,7 +910,9 @@ async function api(req, res, url) {
   }
   if (path === "/api/timelines/following" && method === "GET") {
     if (!requireUser()) return;
-    const items = db.posts.filter((p) => visibleTo(p) && (p.authorId === me || db.follows.has(`${me}>${p.authorId}`)));
+    const items = db.posts.filter(
+      (p) => visibleTo(p) && (p.authorId === me || db.follows.has(`${me}>${p.authorId}`)),
+    );
     return send(
       res,
       200,
