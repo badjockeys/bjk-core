@@ -8,7 +8,7 @@ import { Avatar } from "@/components/Avatar";
 import { BackButton } from "@/components/BackButton";
 import { CategoriesPanel } from "@/components/CategoriesPanel";
 import { Feed } from "@/components/Feed";
-import { CalendarIcon, PinIcon } from "@/components/icons";
+import { AccountIcon, CalendarIcon, PinIcon } from "@/components/icons";
 import { RoadBadge } from "@/components/PostPeople";
 import { ProfileMoreMenu } from "@/components/ProfileMoreMenu";
 import type { FeedSource } from "@/actions/posts";
@@ -106,9 +106,15 @@ export default async function ProfilePage({ params, searchParams }: Props) {
         <div className="spread" style={{ alignItems: "flex-end" }}>
           <Avatar name={profile.displayName} url={profile.avatarUrl} size="lg" decorative={false} />
           {isMe ? (
-            <Link href="/profile/edit" className="btn btn-sm">
-              Edit profile
-            </Link>
+            <div className="row" style={{ gap: 8 }}>
+              <Link href="/profile/edit" className="btn btn-sm">
+                Edit profile
+              </Link>
+              {/* Phones: Account lives here, as on Instagram, since the bottom bar has four tabs. */}
+              <Link href="/account" className="icon-btn m-only" aria-label="Account settings">
+                <AccountIcon size={24} />
+              </Link>
+            </div>
           ) : (
             <ProfileMoreMenu handle={profile.handle} signedIn={viewer.signedIn} blocked={blocked} />
           )}

@@ -1177,33 +1177,74 @@ p {
   z-index: 20;
 }
 
+/* Above the floating tab bar. */
+.has-bnav ~ .fab {
+  bottom: calc(86px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Phones: a floating "liquid glass" tab bar, like Instagram and Facebook. Frosted and translucent so the page shows
+   through, lifted above the iPhone home indicator. */
 .bnav {
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 56px;
-  border-top: 1px solid var(--line);
-  background: #ffffff;
+  left: 12px;
+  right: 12px;
+  bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  height: 64px;
+  padding: 0 6px;
+  border-radius: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.62);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  backdrop-filter: blur(22px) saturate(180%);
+  box-shadow:
+    0 10px 30px rgba(17, 17, 17, 0.14),
+    0 1px 3px rgba(17, 17, 17, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
   display: flex;
   justify-content: space-around;
   align-items: center;
+  gap: 4px;
   z-index: 20;
 }
 
-.bnav a {
-  width: 56px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .bnav {
+    background: rgba(255, 255, 255, 0.96);
+  }
 }
 
-.bnav a[aria-current="page"] svg [fill="#111111"] {
+.bnav-tab {
+  flex: 1;
+  height: 52px;
+  border-radius: 26px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: none;
+  transition:
+    background-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.bnav-tab:active {
+  transform: scale(0.94);
+}
+
+.bnav-tab[aria-current="page"] {
+  background: rgba(0, 181, 229, 0.14);
+  color: var(--brand-tint-text);
+}
+
+.bnav-tab[aria-current="page"] svg [fill="#111111"] {
   fill: var(--brand);
 }
 
-.bnav a[aria-current="page"] svg [stroke="#111111"] {
+.bnav-tab[aria-current="page"] svg [stroke="#111111"] {
   stroke: var(--brand);
 }
 
@@ -1251,7 +1292,7 @@ p {
 }
 
 .has-bnav .d-main {
-  padding-bottom: 72px;
+  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
 }
 
 .has-signup .d-main {
@@ -2625,8 +2666,20 @@ dialog.composer-dialog::backdrop {
 }
 
 .bnav-dark {
-  background: var(--ink);
-  border-top-color: #2a2a2c;
+  background: rgba(17, 17, 17, 0.5);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.bnav-dark .bnav-tab {
+  color: #ffffff;
+}
+
+.bnav-dark .bnav-tab[aria-current="page"] {
+  background: rgba(0, 181, 229, 0.22);
+  color: #ffffff;
 }
 
 .bnav-dark a svg [fill="#111111"] {

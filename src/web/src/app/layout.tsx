@@ -31,6 +31,8 @@ export async function generateMetadata(): Promise<Metadata> {
 export const viewport: Viewport = {
   themeColor: "#ffffff",
   colorScheme: "light",
+  // Lets the bottom tab bar sit above the iPhone home indicator (env(safe-area-inset-bottom)).
+  viewportFit: "cover",
 };
 
 /** `modal` is the pop-up slot (app/@modal): the new post composer opens there over the current page. */
