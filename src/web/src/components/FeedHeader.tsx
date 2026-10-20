@@ -29,7 +29,7 @@ export function FeedHeader({ viewer, title = "Home" }: { viewer: Viewer; title?:
   );
 }
 
-/** Desktop: "Seen some bad driving?", which opens the new post page. */
+/** Desktop: "Seen some bad driving?", which opens the new post composer as a pop-up over the feed. */
 export function Composer({ viewer }: { viewer: Viewer }) {
   return (
     <Link href="/post/new" className="composer d-only">

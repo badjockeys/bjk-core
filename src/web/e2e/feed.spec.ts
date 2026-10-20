@@ -95,7 +95,7 @@ test("signing in goes to the identity server and comes back to the page", async 
   await page.goto("/post/new");
 
   await expect(page).toHaveURL(/\/post\/new$/);
-  await expect(page.getByRole("heading", { name: "What did you catch?" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Create post" })).toBeVisible();
   expect(
     visited.some(
       (u) => u.startsWith(`${MOCK}/connect/authorize`) && u.includes("code_challenge_method=S256"),

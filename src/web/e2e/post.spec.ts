@@ -11,26 +11,44 @@ test.describe("posting", () => {
 
   test("a photo post goes live after processing", async ({ page }) => {
     await signIn(page, "/post/new");
-    await expect(page.getByRole("heading", { name: "What did you catch?" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Create post" })).toBeVisible();
+    const post = page.getByRole("button", { name: "Post", exact: true });
+    await expect(post).toBeDisabled();
+    await expect(page.getByText("Still needed: photos or a video, title")).toBeVisible();
 
     await page
-      .locator('input[type="file"][multiple]')
+      .getByTestId("photo-input")
       .setInputFiles({ name: "parking.png", mimeType: "image/png", buffer: PNG });
+    await expect(page.getByText("1 of 10")).toBeVisible();
 
-    await expect(page.getByText("(1 of 10)")).toBeVisible();
     await page.getByLabel("Title").fill("Parked on the zigzags outside the school");
-    await page.getByLabel("What happened?").selectOption("BadParking");
-    await page.getByLabel("Where?").fill("Kirkstall Road, Leeds");
+    await page.getByLabel("What happened? (optional)").fill("Right on the zigzags at home time.");
+    await expect(page.getByText("34 / 500")).toBeVisible();
+
+    // Several types: each shows as a tag, the first chosen is the main one.
+    await page.getByRole("button", { name: "What kind of bad driving?" }).click();
+    const types = page.getByRole("group", { name: "Types of bad driving" });
+    await types.getByLabel("Bad parking").check();
+    await types.getByLabel("Other").check();
+    await page.getByRole("button", { name: "Done · 2 chosen" }).click();
+    await expect(page.getByRole("button", { name: "Remove Other" })).toBeVisible();
+
+    await page.getByRole("button", { name: "Add where it happened" }).click();
+    await page.getByLabel("Road and town").fill("Kirkstall Road, Leeds");
     await page.getByRole("button", { name: "Use my location" }).click();
-    await expect(page.getByText(/Pin placed/)).toBeVisible();
+    await page.getByRole("button", { name: "Use this place" }).click();
+    await expect(page.getByRole("button", { name: "Where: Kirkstall Road, Leeds. Change" })).toBeVisible();
+
+    await expect(page.getByText("Still needed: confirm you took them")).toBeVisible();
     await page.getByLabel(/I took these photos/).check();
 
-    const post = page.getByRole("button", { name: "Post", exact: true });
     await expect(post).toBeEnabled({ timeout: 20_000 });
     await post.click();
 
     await expect(page).toHaveURL(/\/p\/[0-9a-f-]{36}/);
     await expect(page.getByText("Posted. Thanks for sharing.")).toBeVisible();
+    const tags = page.getByRole("list", { name: "Types of bad driving" }).first();
+    await expect(tags.getByRole("link")).toHaveText(["Bad parking", "Other"]);
     await expect(page.getByText(/Processing your photos/)).toBeVisible();
 
     // The mock finishes processing after a couple of seconds; the page checks again by itself.
@@ -39,6 +57,39 @@ test.describe("posting", () => {
 
     await page.goto("/");
     await expect(page.getByText("Parked on the zigzags outside the school")).toBeVisible();
+  });
+
+  test("the composer opens as a pop-up over the feed and closes after posting", async ({ page }) => {
+    await signIn(page, "/");
+    await page.getByRole("link", { name: /Seen some bad driving/ }).click();
+
+    const dialog = page.getByRole("dialog", { name: "Create post" });
+    await expect(dialog).toBeVisible();
+    await expect(page).toHaveURL(/\/post\/new$/);
+
+    // Closing an untouched composer goes straight back to the feed.
+    await dialog.getByRole("button", { name: "Close" }).click();
+    await expect(dialog).toBeHidden();
+    await expect(page).toHaveURL(/\/$/);
+
+    await page.getByRole("link", { name: /Seen some bad driving/ }).click();
+    await dialog
+      .getByTestId("photo-input")
+      .setInputFiles({ name: "tailgate.png", mimeType: "image/png", buffer: PNG });
+    await dialog.getByLabel("Title").fill("Tailgated for two miles on the A57");
+    await dialog.getByRole("button", { name: "What kind of bad driving?" }).click();
+    await dialog.getByLabel("Tailgating").check();
+    await dialog.getByRole("button", { name: "Done · 1 chosen" }).click();
+    await dialog.getByRole("button", { name: "Add where it happened" }).click();
+    await dialog.getByLabel("Road and town").fill("A57 Warrington Road, Rainhill");
+    await dialog.getByRole("button", { name: "Use my location" }).click();
+    await dialog.getByRole("button", { name: "Use this place" }).click();
+    await dialog.getByLabel(/I took these photos/).check();
+    await dialog.getByRole("button", { name: "Post", exact: true }).click();
+
+    await expect(page).toHaveURL(/\/p\/[0-9a-f-]{36}/);
+    await expect(dialog).toBeHidden();
+    await expect(page.getByText("Posted. Thanks for sharing.")).toBeVisible();
   });
 });
 

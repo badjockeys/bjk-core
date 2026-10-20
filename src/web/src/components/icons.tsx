@@ -274,11 +274,20 @@ export function TickIcon({ color = INK, ...p }: IconProps) {
   );
 }
 
-export function ClockIcon(p: IconProps) {
+export function ClockIcon({ color = INK, ...p }: IconProps) {
   return (
     <Svg size={20} {...p}>
-      <circle cx="12" cy="12" r="9" fill="none" stroke={INK} strokeWidth="2" />
-      <path d="M12 7v5l3 2" fill="none" stroke={INK} strokeWidth="2" strokeLinecap="round" />
+      <circle cx="12" cy="12" r="9" fill="none" stroke={color} strokeWidth="2" />
+      <path d="M12 7v5l3 2" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+export function VideoIcon({ color = INK, ...p }: IconProps) {
+  return (
+    <Svg size={24} {...p}>
+      <rect x="3" y="6" width="13" height="12" rx="3" fill="none" stroke={color} strokeWidth="2" />
+      <path d="M16 10l5-3v10l-5-3" fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" />
     </Svg>
   );
 }
