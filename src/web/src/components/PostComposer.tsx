@@ -1327,7 +1327,10 @@ function WherePanel({
         <div className="notice">
           <PinIcon size={18} color="#00607F" />
           <span className="col" style={{ gap: 2 }}>
-            <strong>{name.trim() || (spot ? "Pin placed" : "Tap the map to drop a pin")}</strong>
+            <strong>
+              {name.trim() ||
+                (spot ? "Pin placed: now add the road and town above" : "Tap the map to drop a pin")}
+            </strong>
             <span className="small">
               Only this place name is shown on your post. We keep the spot to within about 500 m, never the
               exact pin.
@@ -1343,6 +1346,9 @@ function WherePanel({
           type="button"
           className="btn btn-primary btn-block"
           disabled={!spot || !name.trim()}
+          title={
+            !spot ? "Drop a pin on the map first" : !name.trim() ? "Add the road and town first" : undefined
+          }
           onClick={() => spot && onDone(name.trim(), spot)}
         >
           Use this place
