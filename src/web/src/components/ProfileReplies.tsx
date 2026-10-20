@@ -57,7 +57,7 @@ export function ProfileReplies({
                 <time dateTime={comment.createdAt} suppressHydrationWarning>
                   {timeAgo(comment.createdAt)}
                 </time>
-                {comment.updatedAt ? " · edited" : ""}
+                {comment.editedAt ? " · edited" : ""}
                 {comment.status === "HeldForReview"
                   ? " · only you can see this until a moderator checks it"
                   : ""}

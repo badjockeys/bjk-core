@@ -357,10 +357,36 @@ function postDto(p, viewer) {
     isProcessing: p.mediaState === "Pending",
     requiresAgeVerification: blurred,
     sensitiveSource: p.isSensitive ? "Author" : "None",
+    commentSetting: p.commentSetting ?? "Everyone",
   };
+}
+/** The commenter and the post's author see a comment the post's author hid; everyone else sees a placeholder. */
+function shownTo(c, viewer) {
+  if (!c.hiddenByAuthor) return true;
+  const post = db.posts.find((x) => x.id === c.postId);
+  return viewer === c.authorId || viewer === post?.authorId;
 }
 function commentDto(c, viewer, withReplies) {
   const reactions = db.commentReactions.get(c.id);
+  if (!shownTo(c, viewer)) {
+    return {
+      id: c.id,
+      postId: c.postId,
+      author: null,
+      body: "",
+      createdAt: c.createdAt,
+      updatedAt: null,
+      editedAt: null,
+      isHiddenByPostAuthor: true,
+      status: "Visible",
+      parentCommentId: c.parentId,
+      isRemoved: false,
+      reactions: {},
+      myReaction: null,
+      replyCount: 0,
+      replies: withReplies ? [] : null,
+    };
+  }
   const replies = db.comments.filter((r) => r.parentId === c.id && r.status === "Visible");
   return {
     id: c.id,
@@ -369,6 +395,8 @@ function commentDto(c, viewer, withReplies) {
     body: c.body,
     createdAt: c.createdAt,
     updatedAt: c.updatedAt ?? null,
+    editedAt: c.editedAt ?? null,
+    isHiddenByPostAuthor: Boolean(c.hiddenByAuthor),
     status: c.status,
     parentCommentId: c.parentId,
     isRemoved: false,
@@ -1089,7 +1117,16 @@ async function api(req, res, url) {
         page(top, url, (c) => commentDto(c, me, true)),
       );
     }
+    if (rest === "comment-setting" && method === "PUT") {
+      if (p.authorId !== me) return problem(res, 403, "You can only change your own posts.");
+      const { setting } = await json();
+      if (!["Everyone", "Off"].includes(setting)) return invalid(res, "Setting", "Choose who can comment.");
+      p.commentSetting = setting;
+      return send(res, 204);
+    }
     if (rest === "comments" && method === "POST") {
+      if (p.commentSetting === "Off" && p.authorId !== me)
+        return problem(res, 403, "The author has turned comments off on this post.");
       const { body } = await json();
       if (!body?.trim()) return invalid(res, "Body", "Write something first.");
       if (/\b[A-Z]{2}\d{2} ?[A-Z]{3}\b/.test(body))
@@ -1116,11 +1153,33 @@ async function api(req, res, url) {
       return send(res, 200, appeal);
     }
     let c;
-    if ((c = rest.match(/^comments\/([0-9a-f-]{36})(?:\/(replies|reaction|reports|appeal))?$/))) {
+    if (
+      (c = rest.match(/^comments\/([0-9a-f-]{36})(?:\/(replies|reaction|reports|appeal|history|hidden))?$/))
+    ) {
       const comment = db.comments.find((x) => x.id === c[1] && x.postId === p.id);
       if (!comment) return problem(res, 404, "Comment not found.");
       const action = c[2];
+      if (action === "history" && method === "GET") {
+        if (!shownTo(comment, me)) return problem(res, 404, "Comment not found.");
+        return send(res, 200, [
+          { body: comment.body, writtenAt: comment.editedAt ?? comment.createdAt, isCurrent: true },
+          ...(comment.history ?? []).map((v) => ({ ...v, isCurrent: false })),
+        ]);
+      }
+      if (action === "hidden" && method === "PUT") {
+        if (p.authorId !== me) return problem(res, 403, "Only the post's author can hide comments on it.");
+        if (comment.authorId === me)
+          return invalid(res, "CommentId", "That's your own comment: delete it instead.");
+        comment.hiddenByAuthor = (await json()).hidden;
+        return send(res, 200, commentDto(comment, me, false));
+      }
       if (action === "replies" && method === "GET") {
+        if (!shownTo(comment, me))
+          return send(
+            res,
+            200,
+            page([], url, (r) => r),
+          );
         const replies = db.comments.filter((r) => r.parentId === comment.id && r.status === "Visible");
         return send(
           res,
@@ -1129,6 +1188,10 @@ async function api(req, res, url) {
         );
       }
       if (action === "replies" && method === "POST") {
+        if (p.commentSetting === "Off" && p.authorId !== me)
+          return problem(res, 403, "The author has turned comments off on this post.");
+        if (comment.hiddenByAuthor && p.authorId !== me)
+          return problem(res, 403, "The post's author hid this comment, so it can't be replied to.");
         if (comment.parentId)
           return invalid(res, "ParentCommentId", "Replies go one level deep: reply to the comment instead.");
         const { body } = await json();
@@ -1150,8 +1213,16 @@ async function api(req, res, url) {
         if (comment.authorId !== me) return problem(res, 403, "You can only edit your own comments.");
         const { body } = await json();
         if (!body?.trim()) return invalid(res, "Body", "Write something first.");
-        comment.body = body.trim();
-        comment.updatedAt = new Date().toISOString();
+        if (body.trim() !== comment.body) {
+          const now = new Date().toISOString();
+          comment.history = [
+            { body: comment.body, writtenAt: comment.editedAt ?? comment.createdAt },
+            ...(comment.history ?? []),
+          ];
+          comment.body = body.trim();
+          comment.editedAt = now;
+          comment.updatedAt = now;
+        }
         return send(res, 200, commentDto(comment, me, false));
       }
       if (!action && method === "DELETE") {

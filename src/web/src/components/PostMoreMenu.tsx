@@ -3,10 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { deletePost, reportPost } from "@/actions/posts";
+import { deletePost, reportPost, setCommentSetting } from "@/actions/posts";
 import { blockUser } from "@/actions/profiles";
 import { followBlocker } from "@/lib/blockers";
 import { postPath } from "@/lib/paths";
+import type { CommentSetting } from "@/lib/types";
 
 import { MoreIcon } from "./icons";
 import { Menu, type MenuItem } from "./Menu";
@@ -14,7 +15,10 @@ import { ReportDialog } from "./ReportDialog";
 import { copyLink } from "./ShareButton";
 import { toast } from "./toast";
 
-/** The ⋯ on a post: copy the link; report it or block its author; or, on your own post, delete it. */
+/**
+ * The ⋯ on a post: copy the link; report it or block its author; or, on your own post, turn comments off or on and
+ * delete it.
+ */
 export function PostMoreMenu({
   postId,
   title,
@@ -23,6 +27,7 @@ export function PostMoreMenu({
   signedIn,
   className = "icon-btn tw-more",
   afterDelete = "refresh",
+  commentSetting,
 }: {
   postId: string;
   title: string;
@@ -31,12 +36,29 @@ export function PostMoreMenu({
   signedIn: boolean;
   className?: string;
   afterDelete?: "refresh" | "home";
+  /** Your own post: who can comment now, for the "Turn off comments" or "Turn on comments" item. */
+  commentSetting?: CommentSetting;
 }) {
   const router = useRouter();
   const [reporting, setReporting] = useState(false);
   const link = () => new URL(postPath(postId), window.location.origin).href;
 
   const items: MenuItem[] = [{ label: "Copy link", onSelect: () => void copyLink(link()) }];
+  if (isMine && commentSetting) {
+    const off = commentSetting === "Off";
+    items.push({
+      label: off ? "Turn on comments" : "Turn off comments",
+      onSelect: async () => {
+        const result = await setCommentSetting(postId, off ? "Everyone" : "Off");
+        if (!result.ok) {
+          toast(result.error);
+          return;
+        }
+        toast(off ? "Comments are on" : "Comments are off. The ones already there stay.");
+        router.refresh();
+      },
+    });
+  }
   if (isMine) {
     items.push({
       label: "Delete post",
