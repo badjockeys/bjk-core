@@ -16,6 +16,7 @@ import {
   ProfilesClient,
   ReelsClient,
   ReportsClient,
+  TrendsClient,
   VehiclesClient,
 } from "./generated/api";
 import type {
@@ -347,6 +348,14 @@ export function endpoints(api: ApiClient) {
           q.reported,
           q.videoOnly,
         ),
+    },
+    trends: {
+      /**
+       * Category trends for the right panel. Anyone can call it; signed-out answers are the same for everyone, so they
+       * can be cached for five minutes.
+       */
+      categories: (token: string | null, q: { from?: string; to?: string; bbox?: string } = {}) =>
+        client(TrendsClient, { token, revalidate: 300 }).trends_Categories(q.from, q.to, q.bbox),
     },
     me: {
       /** Everything core holds about the user (profile, posts, comments, reactions, reports, media). */

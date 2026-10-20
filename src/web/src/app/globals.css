@@ -1397,6 +1397,109 @@ p {
   font-weight: 600;
 }
 
+/* Category trends (UI step 4): range chips, optional area, and a row per type with a sparkline. */
+.trends-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 16px 8px;
+}
+
+.trends-ranges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.trends-chip {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+.trends-chip:disabled {
+  color: var(--muted);
+  background: var(--soft);
+  cursor: not-allowed;
+}
+
+.trends-custom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.trends-date {
+  height: 32px;
+  width: auto;
+  padding: 0 8px;
+  font-size: 13px;
+}
+
+.trends-area {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.trends-note,
+.trends-dates,
+.trends-foot,
+.trends-pad {
+  margin: 0;
+  padding: 0 16px 8px;
+}
+
+.trends-error {
+  color: var(--danger);
+}
+
+.trends[aria-busy="true"] .trend-row {
+  opacity: 0.55;
+}
+
+.trend-row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.trend-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.trend-change {
+  font-weight: 600;
+}
+
+.trend-up {
+  color: var(--danger);
+}
+
+.trend-down {
+  color: var(--brand-tint-text);
+}
+
+.spark {
+  flex: none;
+}
+
+.spark-line {
+  fill: none;
+  stroke: var(--brand);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.spark-area {
+  fill: var(--brand-tint);
+}
+
 .card-more {
   display: block;
   width: 100%;
