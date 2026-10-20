@@ -4477,6 +4477,392 @@ export class ReportsClient {
     }
 }
 
+export class TimelinesClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * For you: the last 30 days' public posts ranked by reactions and comments fading with age, with posts near your
+    home area higher; then older posts, newest first. Anyone can call this.
+     * @param page (optional) 
+     * @param pageSize (optional) 
+     */
+    timelines_ForYou(page?: number | undefined, pageSize?: number | undefined, signal?: AbortSignal): Promise<PagedResultOfPostDto> {
+        let url_ = this.baseUrl + "/api/timelines/for-you?";
+        if (page === null)
+            throw new globalThis.Error("The parameter 'page' cannot be null.");
+        else if (page !== undefined)
+            url_ += "page=" + encodeURIComponent("" + page) + "&";
+        if (pageSize === null)
+            throw new globalThis.Error("The parameter 'pageSize' cannot be null.");
+        else if (pageSize !== undefined)
+            url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processTimelines_ForYou(_response);
+        });
+    }
+
+    protected processTimelines_ForYou(response: Response): Promise<PagedResultOfPostDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PagedResultOfPostDto;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PagedResultOfPostDto>(null as any);
+    }
+
+    /**
+     * Following: posts by the people you follow, and your own, newest first.
+     * @param page (optional) 
+     * @param pageSize (optional) 
+     */
+    timelines_Following(page?: number | undefined, pageSize?: number | undefined, signal?: AbortSignal): Promise<PagedResultOfPostDto> {
+        let url_ = this.baseUrl + "/api/timelines/following?";
+        if (page === null)
+            throw new globalThis.Error("The parameter 'page' cannot be null.");
+        else if (page !== undefined)
+            url_ += "page=" + encodeURIComponent("" + page) + "&";
+        if (pageSize === null)
+            throw new globalThis.Error("The parameter 'pageSize' cannot be null.");
+        else if (pageSize !== undefined)
+            url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processTimelines_Following(_response);
+        });
+    }
+
+    protected processTimelines_Following(response: Response): Promise<PagedResultOfPostDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PagedResultOfPostDto;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PagedResultOfPostDto>(null as any);
+    }
+
+    /**
+     * Your custom timelines, in order, and how many your plan allows.
+     */
+    timelines_List(signal?: AbortSignal): Promise<TimelinesDto> {
+        let url_ = this.baseUrl + "/api/timelines";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processTimelines_List(_response);
+        });
+    }
+
+    protected processTimelines_List(response: Response): Promise<TimelinesDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as TimelinesDto;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<TimelinesDto>(null as any);
+    }
+
+    /**
+     * Add a custom timeline at the end. 400 when your plan's limit is reached.
+     */
+    timelines_Create(command: CreateTimelineCommand, signal?: AbortSignal): Promise<TimelineDto> {
+        let url_ = this.baseUrl + "/api/timelines";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(command);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processTimelines_Create(_response);
+        });
+    }
+
+    protected processTimelines_Create(response: Response): Promise<TimelineDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 201) {
+            return response.text().then((_responseText) => {
+            let result201: any = null;
+            result201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as TimelineDto;
+            return result201;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<TimelineDto>(null as any);
+    }
+
+    /**
+     * Put your custom timelines in this order (list each once).
+     */
+    timelines_Reorder(command: ReorderTimelinesCommand, signal?: AbortSignal): Promise<TimelinesDto> {
+        let url_ = this.baseUrl + "/api/timelines/order";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(command);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processTimelines_Reorder(_response);
+        });
+    }
+
+    protected processTimelines_Reorder(response: Response): Promise<TimelinesDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as TimelinesDto;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<TimelinesDto>(null as any);
+    }
+
+    /**
+     * Change a custom timeline.
+     */
+    timelines_Update(id: string, request: TimelineRequest, signal?: AbortSignal): Promise<TimelineDto> {
+        let url_ = this.baseUrl + "/api/timelines/{id}";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processTimelines_Update(_response);
+        });
+    }
+
+    protected processTimelines_Update(response: Response): Promise<TimelineDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as TimelineDto;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<TimelineDto>(null as any);
+    }
+
+    /**
+     * Delete a custom timeline.
+     */
+    timelines_Delete(id: string, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/timelines/{id}";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            signal,
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processTimelines_Delete(_response);
+        });
+    }
+
+    protected processTimelines_Delete(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    /**
+     * A custom timeline's posts, newest first.
+     * @param page (optional) 
+     * @param pageSize (optional) 
+     */
+    timelines_Posts(id: string, page?: number | undefined, pageSize?: number | undefined, signal?: AbortSignal): Promise<PagedResultOfPostDto> {
+        let url_ = this.baseUrl + "/api/timelines/{id}/posts?";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        if (page === null)
+            throw new globalThis.Error("The parameter 'page' cannot be null.");
+        else if (page !== undefined)
+            url_ += "page=" + encodeURIComponent("" + page) + "&";
+        if (pageSize === null)
+            throw new globalThis.Error("The parameter 'pageSize' cannot be null.");
+        else if (pageSize !== undefined)
+            url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processTimelines_Posts(_response);
+        });
+    }
+
+    protected processTimelines_Posts(response: Response): Promise<PagedResultOfPostDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PagedResultOfPostDto;
+            return result200;
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PagedResultOfPostDto>(null as any);
+    }
+}
+
 export class TrendsClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -5176,6 +5562,260 @@ export class ProfilesClient {
     }
 
     /**
+     * Follow someone, by @handle or user id: their posts show in your Following timeline. You can't follow across a
+    block. Needs your own profile.
+     */
+    profiles_Follow(user: string, signal?: AbortSignal): Promise<FollowStateDto> {
+        let url_ = this.baseUrl + "/api/profiles/me/following/{user}";
+        if (user === undefined || user === null)
+            throw new globalThis.Error("The parameter 'user' must be defined.");
+        url_ = url_.replace("{user}", encodeURIComponent("" + user));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "PUT",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processProfiles_Follow(_response);
+        });
+    }
+
+    protected processProfiles_Follow(response: Response): Promise<FollowStateDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as FollowStateDto;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<FollowStateDto>(null as any);
+    }
+
+    /**
+     * Stop following someone, by @handle or user id.
+     */
+    profiles_Unfollow(user: string, signal?: AbortSignal): Promise<FollowStateDto> {
+        let url_ = this.baseUrl + "/api/profiles/me/following/{user}";
+        if (user === undefined || user === null)
+            throw new globalThis.Error("The parameter 'user' must be defined.");
+        url_ = url_.replace("{user}", encodeURIComponent("" + user));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processProfiles_Unfollow(_response);
+        });
+    }
+
+    protected processProfiles_Unfollow(response: Response): Promise<FollowStateDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as FollowStateDto;
+            return result200;
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<FollowStateDto>(null as any);
+    }
+
+    /**
+     * Who to follow: up to limit adults whose home area is near yours, nearest first. Empty, with
+    hasHomeArea false, until you choose a home area.
+     * @param limit (optional) 
+     */
+    profiles_Suggestions(limit?: number | undefined, signal?: AbortSignal): Promise<WhoToFollowDto> {
+        let url_ = this.baseUrl + "/api/profiles/me/suggestions?";
+        if (limit === null)
+            throw new globalThis.Error("The parameter 'limit' cannot be null.");
+        else if (limit !== undefined)
+            url_ += "limit=" + encodeURIComponent("" + limit) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processProfiles_Suggestions(_response);
+        });
+    }
+
+    protected processProfiles_Suggestions(response: Response): Promise<WhoToFollowDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as WhoToFollowDto;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<WhoToFollowDto>(null as any);
+    }
+
+    /**
+     * Someone's followers, most recent first. Anyone can call this.
+     * @param page (optional) 
+     * @param pageSize (optional) 
+     */
+    profiles_Followers(handle: string, page?: number | undefined, pageSize?: number | undefined, signal?: AbortSignal): Promise<PagedResultOfFollowProfileDto> {
+        let url_ = this.baseUrl + "/api/profiles/{handle}/followers?";
+        if (handle === undefined || handle === null)
+            throw new globalThis.Error("The parameter 'handle' must be defined.");
+        url_ = url_.replace("{handle}", encodeURIComponent("" + handle));
+        if (page === null)
+            throw new globalThis.Error("The parameter 'page' cannot be null.");
+        else if (page !== undefined)
+            url_ += "page=" + encodeURIComponent("" + page) + "&";
+        if (pageSize === null)
+            throw new globalThis.Error("The parameter 'pageSize' cannot be null.");
+        else if (pageSize !== undefined)
+            url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processProfiles_Followers(_response);
+        });
+    }
+
+    protected processProfiles_Followers(response: Response): Promise<PagedResultOfFollowProfileDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PagedResultOfFollowProfileDto;
+            return result200;
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PagedResultOfFollowProfileDto>(null as any);
+    }
+
+    /**
+     * The people someone follows, most recent first. Anyone can call this.
+     * @param page (optional) 
+     * @param pageSize (optional) 
+     */
+    profiles_Following(handle: string, page?: number | undefined, pageSize?: number | undefined, signal?: AbortSignal): Promise<PagedResultOfFollowProfileDto> {
+        let url_ = this.baseUrl + "/api/profiles/{handle}/following?";
+        if (handle === undefined || handle === null)
+            throw new globalThis.Error("The parameter 'handle' must be defined.");
+        url_ = url_.replace("{handle}", encodeURIComponent("" + handle));
+        if (page === null)
+            throw new globalThis.Error("The parameter 'page' cannot be null.");
+        else if (page !== undefined)
+            url_ += "page=" + encodeURIComponent("" + page) + "&";
+        if (pageSize === null)
+            throw new globalThis.Error("The parameter 'pageSize' cannot be null.");
+        else if (pageSize !== undefined)
+            url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processProfiles_Following(_response);
+        });
+    }
+
+    protected processProfiles_Following(response: Response): Promise<PagedResultOfFollowProfileDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PagedResultOfFollowProfileDto;
+            return result200;
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PagedResultOfFollowProfileDto>(null as any);
+    }
+
+    /**
      * Whether a handle is free. Anyone can call this.
      */
     profiles_CheckHandle(handle: string, signal?: AbortSignal): Promise<HandleAvailability> {
@@ -5534,7 +6174,7 @@ export interface NotificationDto {
 }
 
 /** What happened, for a notification. Stored by name: add new types at the end. */
-export type NotificationType = "PassengerTagged" | "PassengerAccepted" | "CommentOnPost" | "ReplyToComment" | "ReactionOnPost" | "AreaPost";
+export type NotificationType = "PassengerTagged" | "PassengerAccepted" | "CommentOnPost" | "ReplyToComment" | "ReactionOnPost" | "AreaPost" | "NewFollower";
 
 /** Who did it. Handle is null if their profile has gone ("Former member"). */
 export interface NotificationActorDto {
@@ -5774,7 +6414,7 @@ export type VehicleType = "Car" | "Van" | "Lorry" | "Bus" | "Coach" | "Taxi" | "
 export type VehicleColour = "Black" | "White" | "Silver" | "Grey" | "Blue" | "Red" | "Green" | "Yellow" | "Orange" | "Brown" | "Beige" | "Purple" | "Gold" | "Other";
 
 /** Who can comment on a post, chosen by its author. Stored by name. */
-export type CommentSetting = "Everyone" | "Off";
+export type CommentSetting = "Everyone" | "Off" | "Following";
 
 /** The content screening queues moderators work through. */
 export type ScreeningQueue = "Held" | "Flagged";
@@ -6223,6 +6863,50 @@ export interface PublicReportRequest {
     consent: boolean;
 }
 
+/** The signed-in user's custom timelines, in order, and how many their plan allows. */
+export interface TimelinesDto {
+    timelines: TimelineDto[];
+    limit: number;
+    plan: SubscriptionPlan;
+}
+
+/** A custom timeline: its name, types, optional place (name and radius only) and position. */
+export interface TimelineDto {
+    id: string;
+    name: string;
+    types: IncidentCategory[];
+    placeName: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    radiusKm: number | null;
+    position: number;
+}
+
+/** Adds a custom timeline at the end, if your plan allows another. */
+export interface CreateTimelineCommand {
+    name: string;
+    types: IncidentCategory[];
+    placeName: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    radiusKm: number | null;
+}
+
+/** Puts your custom timelines in this order. Every one of them must be listed once. */
+export interface ReorderTimelinesCommand {
+    ids: string[];
+}
+
+/** A custom timeline's name, types and optional place (name, position and radius). */
+export interface TimelineRequest {
+    name: string;
+    types: IncidentCategory[];
+    placeName: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    radiusKm: number | null;
+}
+
 /** What's trending: tags and places growing fastest against their usual level. */
 export interface TrendingDto {
     hashtags: TrendingTagDto[];
@@ -6285,7 +6969,7 @@ export interface ModeratedProfileDto {
     deactivatedAt: string | null;
 }
 
-/** A profile. RoadUser (Driver, Cyclist or Both) is shown to others only if the user chose to show it; ShowRoadUser is only filled in for the user themselves (null for others). */
+/** A profile. RoadUser (Driver, Cyclist or Both) is shown to others only if the user chose to show it; ShowRoadUser is only filled in for the user themselves (null for others). FollowerCount and FollowingCount count active profiles; IsFollowing (you follow them) and FollowsYou are null when signed out or for yourself. */
 export interface ProfileDto {
     id: string;
     handle: string;
@@ -6296,6 +6980,10 @@ export interface ProfileDto {
     createdAt: string;
     roadUser: RoadUser | null;
     showRoadUser: boolean | null;
+    followerCount: number;
+    followingCount: number;
+    isFollowing: boolean | null;
+    followsYou: boolean | null;
 }
 
 /** How someone mostly uses the road, if they choose to say. Stored by name. */
@@ -6344,6 +7032,35 @@ export interface BlockDto {
     displayName: string | null;
     avatarUrl: string | null;
     blockedAt: string;
+}
+
+/** Whether the signed-in user now follows someone, and how many followers that person has. */
+export interface FollowStateDto {
+    userId: string;
+    following: boolean;
+    followerCount: number;
+}
+
+export interface WhoToFollowDto {
+    people: FollowProfileDto[];
+    hasHomeArea: boolean;
+}
+
+/** A person in a list of followers, people followed or suggestions. IsFollowing: you follow them (null when signed out or yourself). */
+export interface FollowProfileDto {
+    id: string;
+    handle: string;
+    displayName: string;
+    avatarUrl: string | null;
+    bio: string | null;
+    isFollowing: boolean | null;
+}
+
+export interface PagedResultOfFollowProfileDto {
+    items: FollowProfileDto[];
+    page: number;
+    pageSize: number;
+    totalCount: number;
 }
 
 /** Is a handle free to take? */
