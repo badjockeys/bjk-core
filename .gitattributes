@@ -1,2 +1,4 @@
 # Shell scripts must keep LF line endings, even in a Windows checkout.
 *.sh text eol=lf
+# NSwag rewrites its settings with LF line endings and no final newline; keep them that way so builds leave no change.
+src/BJK.Core.Api/nswag.json text eol=lf
