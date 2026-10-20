@@ -3,6 +3,13 @@
   <PropertyGroup>
     <RootNamespace>BJK.Core.Api</RootNamespace>
     <UserSecretsId>bjk-core-api</UserSecretsId>
+    <!-- The modules' XML comments, so the API reference and the generated client carry their descriptions. -->
+    <CopyDocumentationFilesFromPackages>true</CopyDocumentationFilesFromPackages>
+    <!--
+      Regenerate the web app's API client after each Debug build (outside containers). Release builds only do it when
+      asked: CI runs "-p:GenerateApiClient=true" and fails if the committed client is out of date.
+    -->
+    <GenerateApiClient Condition="'$(GenerateApiClient)' == '' And '$(Configuration)' == 'Debug' And '$(DOTNET_RUNNING_IN_CONTAINER)' != 'true'">true</GenerateApiClient>
   </PropertyGroup>
 
   <ItemGroup>
@@ -14,6 +21,19 @@
     <PackageReference Include="BJK.Modules.SMS" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
     <PackageReference Include="NSwag.AspNetCore" />
+    <PackageReference Include="NSwag.MSBuild">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
+
+  <ItemGroup>
+    <Content Update="nswag.json" CopyToOutputDirectory="Never" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+
+  <!-- See nswag.json. Writes src/web/src/lib/generated/api.ts. -->
+  <Target Name="GenerateApiClient" AfterTargets="Build" Condition="'$(GenerateApiClient)' == 'true'">
+    <Exec WorkingDirectory="$(MSBuildProjectDirectory)" EnvironmentVariables="ASPNETCORE_ENVIRONMENT=Development" Command="$(NSwagExe_Net100) run nswag.json /variables:Configuration=$(Configuration)" />
+  </Target>
 
 </Project>

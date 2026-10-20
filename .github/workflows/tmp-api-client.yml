@@ -1,0 +1,28 @@
+# Temporary: generates the web app's API client for this branch. Removed before review.
+name: tmp-api-client
+on:
+  push:
+    branches: [feature/generated-api-client]
+permissions:
+  contents: write
+  packages: read
+env:
+  NuGetPackageSourceCredentials_badjockeys: Username=${{ github.actor }};Password=${{ secrets.GITHUB_TOKEN }}
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+      - run: dotnet restore BJK.Core.slnx
+      - run: dotnet build src/BJK.Core.Api --configuration Release --no-restore -p:GenerateApiClient=true
+      - name: Push the generated client
+        if: ${{ always() }}
+        run: |
+          set -e
+          ls -la src/web/src/lib/generated || true
+          git -c user.name=ci -c user.email=ci@example.com add -A src/web/src/lib/generated
+          git -c user.name=ci -c user.email=ci@example.com commit -m "Generated API client" || true
+          git push origin HEAD:refs/heads/tmp/generated-api-client --force
