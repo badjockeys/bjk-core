@@ -37,7 +37,7 @@ function sqlPassword() {
 }
 
 /** Runs T-SQL in the local SQL Server container and returns what sqlcmd printed. */
-function sqlcmd(sql, extraArgs = []) {
+export function sqlcmd(sql, extraArgs = []) {
   try {
     return execFileSync(
       "docker",

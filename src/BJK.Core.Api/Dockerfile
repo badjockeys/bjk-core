@@ -16,7 +16,7 @@ RUN dotnet publish src/BJK.Core.Api/BJK.Core.Api.csproj --configuration Release 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
 COPY --from=build /app ./
-# Settings come from environment variables (Key Vault references in Azure), never from files in the image.
+# Settings come from environment variables (Container Apps secrets in Azure), never from files in the image.
 ENV ASPNETCORE_HTTP_PORTS=8080
 EXPOSE 8080
 USER $APP_UID

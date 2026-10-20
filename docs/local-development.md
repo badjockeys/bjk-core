@@ -306,6 +306,8 @@ Some settings are optional:
 | `Email:Provider`, `SMS:Provider` | `Log`: emails and texts are written to the console, not sent |
 | `Media:Processing:MaxConcurrentJobs` | 1 |
 | `Media:Redaction:FaceModelPath`, `PlateModelPath` | Unset: blurring can't run, so every upload goes to `NeedsReview`. The setup script downloads the models to `bjk-core/.local/models` and sets these for you. By hand: `pipelines/scripts/download-redaction-models.sh ~/bjk-models` (macOS and Linux), then point these at the two `.onnx` files |
+| `Media:SensitiveDetection:Enabled`, `Provider`, `ModelPath` | `true`, `Clip`, and the CLIP model in `bjk-core/.local/models` (the setup downloads it and sets these; it also turns the check on in a `user-secrets.json` made before it existed). Without the model every upload goes to `NeedsReview` |
+| `Media:KnownImages:*`, `BlockedUrls:*` | Defaults: on, checked against the test entries only (see "Online safety checks") |
 | `Media:Processing:VideoHeight`, `VideoCrf` | 720, 23 |
 | `Media:Processing:ImageMaxSize`, `ThumbnailMaxSize` | 2048, 640 pixels |
 
@@ -377,7 +379,10 @@ On your machine nothing needs a supplier account: S3Mock stands in for R2, email
 | `Media:Processing:FfmpegPath`, `FfprobePath` | Paths in the worker image, e.g. `/usr/bin/ffmpeg` | |
 | `Media:Redaction:FaceModelPath`, `PlateModelPath` | Paths to the two models in the worker image | The models in the image |
 | `Media:Redaction:ReviewEverything` | `true` at launch, so a moderator checks every upload | |
-| `Media:SensitiveDetection:Enabled`, `ModelPath` | `false` until a model is chosen | **A gore and injury model** (not chosen yet) |
+| `Media:SensitiveDetection:Enabled`, `ModelPath` | **Required**: `true`, and the CLIP model's path in the worker image (the image sets both) | |
+| `Media:SensitiveDetection:Threshold`, `NudityThreshold` | Optional: 0.35 and 0.3; tune from the recorded scores | |
+| `Media:KnownImages:Enabled` | Must not be `false` (on by default) | **IWF membership** for the real hash list (until then only moderators' hashes are checked) |
+| IWF Hash List and URL List | Synced into SQL by the worker and API once an adapter is written against the IWF's API | **IWF membership**, and their API details and test credentials |
 | `Captcha:TurnstileSecretKey` (secret) | The real Turnstile widget's secret | A Cloudflare account |
 | `Screening:Provider` | `Keywords` (built in), or `Http` with `Endpoint` for a classifier | Optional |
 | `Reels:ViewerKeySecret` (secret) | A long random string (`openssl rand -base64 48`) | |
@@ -522,6 +527,33 @@ The quickest way is the web app (step 8). To try the API directly, use the `.htt
 Ask for the API's scopes when you sign in with the identity server's local test client: `scope=openid bjk.media bjk.profiles bjk.posts`. Each module checks its own scope.
 
 Posting and commenting also need a confirmed email address (confirm it from the link in the identity server's console).
+
+## Online safety checks
+
+What runs on your machine, and what doesn't. The setup prints the same summary at the end.
+
+| Check | On your machine | Deployed |
+|---|---|---|
+| Face and number plate blurring | On (YuNet models, downloaded by the setup) | On |
+| Nudity | On (CLIP model, downloaded by the setup). Scores at or above 0.3 hold the upload for a moderator | On |
+| Graphic content (blood, injuries) | On (the same CLIP run). Scores at or above 0.35 mark it sensitive: shown blurred, queued for a moderator | On |
+| Known illegal images | On, against **test entries only**: the hashes of `scripts/sql/safety-test/known-image-test.png` | Moderators' hashes; the **IWF Hash List** once we're members |
+| Blocked web addresses | On, against **one test entry**: `blocked-url-test.example` | Moderators' entries; the **IWF URL List** once we're members |
+| Threats, slurs and abuse in text | Built-in keyword list (the Detoxify classifier isn't run locally) | Keyword list, plus Detoxify if `Screening:Provider` is `Http` |
+| Personal details in text | On (plates, phone numbers, emails, street addresses, social handles) | On |
+
+**Nothing on your machine is ever checked against the real IWF lists**, and nothing needs to be kept up to date here: the lists live in SQL (`media.KnownImageHashes`, `posts.BlockedUrls`) and, when deployed, a sync job fetches each provider's list over its API every 6 hours. Locally the only entries are the `Test` rows the setup adds.
+
+**Try it.**
+
+- **Known image:** post `scripts/sql/safety-test/known-image-test.png` (a yellow and black "TEST IMAGE" card; it's harmless). The upload fails with "This file can't be posted.", nothing is published, and the match appears in `badjockeys.media.KnownImageMatches` (and `GET /api/admin/known-images/matches` as an admin). A resized or re-saved copy is caught too, by its perceptual hash. Uploads are checked by the media worker, so it must be running.
+- **Blocked address:** write a post or comment containing `blocked-url-test.example/anything`. It's held for review (only you see it) with the label `blocked_url`.
+- **Nudity and graphic content:** the scores of every upload are in `badjockeys.media.Media` (`NudityScore`, `SensitiveScore`). Don't test with real explicit or gory pictures; ordinary dashcam footage should score near 0.
+- **Re-add the test entries** (for example after resetting the database): `node scripts/sql/safety-test/seed.mjs`.
+
+**IWF test environment.** The IWF doesn't publish a public sandbox for its lists. When we join, ask them for test credentials and a test feed (or a set of test hashes and URLs) for DEV and QA, so the first real sync isn't in production. The code is ready for that: each list is a "source" with its own sync, and DEV and QA can point at the test feed while production uses the live one. Until then, DEV and QA use the same `Test` entries as your machine.
+
+If you change `known-image-test.png`, update the two hashes in `scripts/sql/safety-test/seed.mjs`: the SHA-256 (`shasum -a 256`) and the PDQ hash (upload the new picture and read `PerceptualHashes` for it in `badjockeys.media.Media`).
 
 ## Example users and posts
 

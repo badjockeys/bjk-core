@@ -107,8 +107,9 @@ jobs:
           aws --endpoint-url http://localhost:9090 s3api create-bucket --bucket bjk-ci-public
           echo "Started $started"
 
-      # The face and number plate models the worker blurs with (the worker image downloads them the same way).
-      - name: Download the blurring models
+      # The face and number plate models the worker blurs with, and the CLIP content model (the worker image
+      # downloads them the same way).
+      - name: Download the blurring and content models
         run: sh pipelines/scripts/download-redaction-models.sh "$RUNNER_TEMP/models"
 
       - name: Start the stand-in token issuer
@@ -124,6 +125,8 @@ jobs:
           SQL_CONTAINER: ${{ job.services.sql.id }}
           Media__Redaction__FaceModelPath: ${{ runner.temp }}/models/face_detection_yunet_2026may.onnx
           Media__Redaction__PlateModelPath: ${{ runner.temp }}/models/license_plate_detection_lpd_yunet_2023mar.onnx
+          Media__SensitiveDetection__Enabled: "true"
+          Media__SensitiveDetection__ModelPath: ${{ runner.temp }}/models/clip-vit-b32-vision-quantized.onnx
           Logging__Console__FormatterName: simple
           Logging__Console__FormatterOptions__SingleLine: "true"
           Logging__Console__FormatterOptions__ColorBehavior: Disabled

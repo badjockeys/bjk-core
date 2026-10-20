@@ -222,6 +222,9 @@ expect 200 "anyone can view a profile"
 
 # ---------- uploads, processed by the media worker ----------
 
+# The harmless test image goes on the known-image list before the worker starts (it loads the list at startup).
+sql "INSERT media.KnownImageHashes (Id, Kind, Value, Source, Reference, AddedAt) VALUES (NEWID(), 'Sha256', '$(sha256sum scripts/sql/safety-test/known-image-test.png | cut -d' ' -f1)', 'Test', 'smoke test', SYSDATETIMEOFFSET())"
+
 start_worker
 pass "media worker starts"
 
@@ -318,6 +321,19 @@ pass "video is capped at 30 frames a second"
 request GET "/api/media/$PHOTO_ID" "" "$TOKEN_B"
 expect 200 "others can see the media once it's ready"
 MEDIA_ID=$PHOTO_ID
+
+# ---------- online safety: a known image is blocked ----------
+
+upload scripts/sql/safety-test/known-image-test.png image/png "$TOKEN_A"
+request POST "/api/media/$MEDIA_ID/complete" "" "$TOKEN_A"
+expect 202 "complete the upload of the known test image"
+KNOWN_ID=$MEDIA_ID
+wait_for "sql \"SELECT Status FROM media.Media WHERE Id = '$KNOWN_ID'\"" Failed "the known test image is blocked"
+expect_sql "SELECT FailureReason FROM media.Media WHERE Id = '$KNOWN_ID'" "This file can't be posted." "the uploader isn't told why"
+expect_sql "SELECT COUNT(*) FROM media.KnownImageMatches WHERE MediaId = '$KNOWN_ID'" 1 "the match is recorded"
+expect_sql "SELECT CASE WHEN PlaybackKey IS NULL THEN 'none' ELSE 'published' END FROM media.Media WHERE Id = '$KNOWN_ID'" none "nothing is published"
+expect_sql "SELECT CASE WHEN NudityScore IS NULL THEN 'missing' ELSE 'scored' END FROM media.Media WHERE Id = '$PHOTO_ID'" scored "photos are scored for nudity"
+
 wait_for "queue_messages media.process" 0 "no jobs left on the queue"
 expect_sql "SELECT COUNT(*) FROM [messaging].[media.process.failed]" 0 "no jobs in the dead-letter table"
 

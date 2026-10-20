@@ -13,10 +13,11 @@
 //   3. trusts the .NET HTTPS development certificate and exports it for Node.js
 //   4. starts SQL Server and S3Mock in Docker, as the group "bad-jockeys" (bjk-core's docker-compose.yml)
 //   5. loads the .NET user secrets for the identity server and the API (the media worker shares the API's)
-//   6. downloads the face and number plate blurring models into bjk-core/.local/models
+//   6. downloads the face and number plate blurring models and the CLIP content model into bjk-core/.local/models
 //   7. builds the .NET apps and installs the web app's packages
 //   8. adds example users and posts (scripts/sql/example-data), starting the identity server and the API for a
-//      moment first so their databases exist, and gives the owner account its plan (Plans:Overrides)
+//      moment first so their databases exist, and gives the owner account its plan (Plans:Overrides); adds the
+//      harmless online safety test entries (scripts/sql/safety-test) and says which checks work on this machine
 //
 // Needs the tools installed and bjk-identity-server cloned next to bjk-core: scripts/setup/setup.ps1 (Windows) and
 // scripts/setup/setup.sh (macOS) do both, then run this. Uses only Node.js built-ins.
@@ -32,6 +33,7 @@ import { removeOldGroups, startServices } from "./docker-services.mjs";
 import { OWNER_EMAIL, OWNER_PLAN } from "./sql/example-data/data.mjs";
 import { applyReporting, reportingPassword } from "./sql/reporting/apply.mjs";
 import { ownerId, seedExampleData } from "./sql/example-data/seed.mjs";
+import { safetyCoverage, seedSafetyTestData } from "./sql/safety-test/seed.mjs";
 
 const core = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const idsrv = resolve(core, "..", "bjk-identity-server");
@@ -40,21 +42,30 @@ const models = join(core, ".local", "models");
 const isWindows = process.platform === "win32";
 const configOnly = process.argv.includes("--config-only");
 
+// Pinned, SHA-256 checked; keep in step with pipelines/scripts/download-redaction-models.sh.
+const OPENCV_ZOO =
+  "https://media.githubusercontent.com/media/opencv/opencv_zoo/47534e27c9851bb1128ccc0102f1145e27f23f98/models";
 const MODELS = [
   {
     file: "face_detection_yunet_2026may.onnx",
-    path: "face_detection_yunet/face_detection_yunet_2026may.onnx",
+    url: `${OPENCV_ZOO}/face_detection_yunet/face_detection_yunet_2026may.onnx`,
     sha256: "ebafce4e3c118d6554634be5c27ab333b4c047a9a8c3faf1d7cf93101c22f0f0",
   },
   {
     file: "license_plate_detection_lpd_yunet_2023mar.onnx",
-    path: "license_plate_detection_yunet/license_plate_detection_lpd_yunet_2023mar.onnx",
+    url: `${OPENCV_ZOO}/license_plate_detection_yunet/license_plate_detection_lpd_yunet_2023mar.onnx`,
     sha256: "6d4978a7b6d25514d5e24811b82bfb511d166bdd8ca3b03aa63c1623d4d039c7",
   },
+  {
+    // OpenAI CLIP ViT-B/32 (MIT), Xenova's quantised ONNX export of the vision model: the nudity and graphic content check.
+    file: "clip-vit-b32-vision-quantized.onnx",
+    url: "https://huggingface.co/Xenova/clip-vit-base-patch32/resolve/d15189d7028b43f1d3e65039190477f6af591c2a/onnx/vision_model_quantized.onnx",
+    sha256: "583fd1110a514667812fee7d684952aaf82a99b959760c8d7dca7e0ab9839299",
+  },
 ];
-// OpenCV Zoo pinned to one commit; keep in step with pipelines/scripts/download-redaction-models.sh.
-const MODEL_BASE =
-  "https://media.githubusercontent.com/media/opencv/opencv_zoo/47534e27c9851bb1128ccc0102f1145e27f23f98/models";
+
+/** The content check settings the setup writes into bjk-core/user-secrets.json. */
+const sensitiveDetection = () => ({ Enabled: true, Provider: "Clip", ModelPath: join(models, MODELS[2].file) });
 
 const colour = (code, text) => (process.stdout.isTTY ? `\x1b[${code}m${text}\x1b[0m` : text);
 const step = (text) => console.log(`\n${colour("1;36", `== ${text}`)}`);
@@ -250,9 +261,22 @@ function createConfig() {
         FaceModelPath: join(models, MODELS[0].file),
         PlateModelPath: join(models, MODELS[1].file),
       };
+      json.Media.SensitiveDetection = sensitiveDetection();
     }),
     "bjk-core/user-secrets.json",
   );
+
+  // Files made before the nudity and graphic content check existed: turn it on with the downloaded model.
+  const coreSecrets = join(core, "user-secrets.json");
+  if (existsSync(coreSecrets)) {
+    const json = JSON.parse(readFileSync(coreSecrets, "utf8"));
+    const current = json.Media?.SensitiveDetection;
+    if (!current?.ModelPath || String(current.ModelPath).startsWith("<")) {
+      json.Media = { ...(json.Media ?? {}), SensitiveDetection: { ...(current ?? {}), ...sensitiveDetection() } };
+      writeFileSync(coreSecrets, `${JSON.stringify(json, null, 2)}\n`);
+      ok("bjk-core/user-secrets.json: nudity and graphic content checks turned on (Media:SensitiveDetection)");
+    }
+  }
 
   // Earlier templates pointed the web app at the API's http address, which redirects to https; Node.js drops the
   // sign-in token on that redirect, so every signed-in call got 401. Move existing files to the https address.
@@ -309,7 +333,7 @@ function loadSecrets() {
 }
 
 async function downloadModels() {
-  step("Downloading the face and number plate blurring models");
+  step("Downloading the face and number plate blurring models and the CLIP content model (about 100 MB)");
   mkdirSync(models, { recursive: true });
   const sha256 = (buffer) => createHash("sha256").update(buffer).digest("hex");
   for (const model of MODELS) {
@@ -318,7 +342,7 @@ async function downloadModels() {
       console.log(`${model.file}: already there`);
       continue;
     }
-    const response = await fetch(`${MODEL_BASE}/${model.path}`);
+    const response = await fetch(model.url);
     if (!response.ok) fail(`Downloading ${model.file} failed: HTTP ${response.status}.`);
     const buffer = Buffer.from(await response.arrayBuffer());
     if (sha256(buffer) !== model.sha256) fail(`${model.file} doesn't match its expected SHA-256, so it wasn't saved.`);
@@ -418,6 +442,7 @@ async function exampleData() {
     }
 
     await seedExampleData();
+    seedSafetyTestData();
 
     const owner = ownerId();
     if (owner) {
@@ -461,6 +486,7 @@ if (configOnly) {
   build();
   await exampleData();
   reporting();
+  safetyCoverage();
   console.log(
     `\n${colour("1;32", "Setup complete.")} In VS Code: Terminal > Run Task... > "Run Bad Jockeys", then open http://localhost:3000`,
   );
