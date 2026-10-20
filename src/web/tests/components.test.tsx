@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { PostDto } from "@/lib/types";
+import type { PostDto, PostMediaDto } from "@/lib/types";
 import { ANONYMOUS, type Viewer } from "@/lib/viewer";
 
 const actions = vi.hoisted(() => ({
@@ -26,9 +26,31 @@ import { PostCard } from "@/components/PostCard";
 import { ReactionBar } from "@/components/ReactionBar";
 import { ReportDialog } from "@/components/ReportDialog";
 
+function photo(mediaId: string, playbackUrl: string, thumbnailUrl: string): PostMediaDto {
+  return {
+    mediaId,
+    mediaType: "Image",
+    playbackUrl,
+    thumbnailUrl,
+    durationSeconds: null,
+    width: 2048,
+    height: 1536,
+    previewUrl: null,
+    isBlurred: false,
+    linksExpireAt: null,
+    feedUrl: null,
+  };
+}
+
 const post: PostDto = {
   id: "8f2e1c3a-0000-4000-8000-000000000001",
-  author: { id: "author-1", handle: "dashcam_dave", displayName: "Dashcam Dave", avatarUrl: null },
+  author: {
+    id: "author-1",
+    handle: "dashcam_dave",
+    displayName: "Dashcam Dave",
+    avatarUrl: null,
+    roadUser: null,
+  },
   title: "Parked across two disabled bays, again",
   description: "Third time this week.",
   category: "BadParking",
@@ -37,39 +59,26 @@ const post: PostDto = {
   status: "Published",
   hiddenReason: null,
   media: [
-    {
-      mediaId: "m1",
-      mediaType: "Image",
-      playbackUrl: "/1.webp",
-      thumbnailUrl: "/1t.webp",
-      durationSeconds: null,
-      width: 2048,
-      height: 1536,
-    },
-    {
-      mediaId: "m2",
-      mediaType: "Image",
-      playbackUrl: "/2.webp",
-      thumbnailUrl: "/2t.webp",
-      durationSeconds: null,
-      width: 2048,
-      height: 1536,
-    },
-    {
-      mediaId: "m3",
-      mediaType: "Image",
-      playbackUrl: "/3.webp",
-      thumbnailUrl: "/3t.webp",
-      durationSeconds: null,
-      width: 2048,
-      height: 1536,
-    },
+    photo("m1", "/1.webp", "/1t.webp"),
+    photo("m2", "/2.webp", "/2t.webp"),
+    photo("m3", "/3.webp", "/3t.webp"),
   ],
   reactions: { Like: 9, Angry: 17, Shocked: 4, Laugh: 1 },
   myReaction: null,
   commentCount: 7,
   createdAt: "2026-10-18T07:14:00Z",
   updatedAt: null,
+  isSensitive: false,
+  commentsRequireSignIn: false,
+  mediaState: "Ready",
+  mediaFailureReason: null,
+  requiresAgeVerification: false,
+  sensitiveSource: "None",
+  types: null,
+  passengers: null,
+  vehicle: null,
+  reportedToPolice: null,
+  isProcessing: false,
 };
 
 const member: Viewer = {
@@ -156,6 +165,8 @@ describe("sensitive posts", () => {
         height: 1536,
         previewUrl: "/1-preview.webp",
         isBlurred: true,
+        linksExpireAt: null,
+        feedUrl: null,
       },
     ],
   };

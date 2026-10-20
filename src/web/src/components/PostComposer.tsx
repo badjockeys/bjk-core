@@ -404,6 +404,8 @@ export function PostComposer({
       const request = {
         title: fields.title,
         description: fields.description || null,
+        // The main type is the first of `types`; `category` is only for older callers.
+        category: null,
         types: fields.types,
         passengers: onTheRoad ? fields.passengers.map((p) => p.handle!) : [],
         vehicleType: fields.vehicle?.type ?? null,

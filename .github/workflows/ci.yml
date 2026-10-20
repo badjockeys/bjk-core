@@ -70,8 +70,17 @@ jobs:
             exit 1
           fi
 
+      # Also regenerates the web app's API client from the API (src/BJK.Core.Api/nswag.json).
       - name: Build
-        run: dotnet build BJK.Core.slnx --configuration Release --no-restore
+        run: dotnet build BJK.Core.slnx --configuration Release --no-restore -p:GenerateApiClient=true
+
+      - name: API client is up to date
+        run: |
+          if ! git diff --quiet -- src/web/src/lib/generated; then
+            git diff --stat -- src/web/src/lib/generated
+            echo "::error title=API client out of date::src/web/src/lib/generated/api.ts doesn't match the API. Build src/BJK.Core.Api in Debug (or with -p:GenerateApiClient=true) and commit the regenerated file."
+            exit 1
+          fi
 
       - name: Build the container images
         run: |

@@ -9,12 +9,13 @@ const ROAD_USER_LABELS: Record<RoadUser, string> = {
   Both: "Driver and cyclist",
 };
 
-export function roadUserLabel(value: RoadUser): string {
-  return ROAD_USER_LABELS[value] ?? value;
+/** The label for a road user type. Posts send it as plain text (the Posts module doesn't share Profiles' enum). */
+export function roadUserLabel(value: RoadUser | string): string {
+  return ROAD_USER_LABELS[value as RoadUser] ?? value;
 }
 
 /** "Cyclist" next to a name, when they chose to show it. */
-export function RoadBadge({ value }: { value: RoadUser | null | undefined }) {
+export function RoadBadge({ value }: { value: RoadUser | string | null | undefined }) {
   return value ? <span className="road-badge">{roadUserLabel(value)}</span> : null;
 }
 
@@ -26,7 +27,7 @@ export function WithPassengers({
   passengers,
   showPending = false,
 }: {
-  passengers: PassengerDto[] | undefined;
+  passengers: PassengerDto[] | null | undefined;
   showPending?: boolean;
 }) {
   const accepted = (passengers ?? []).filter((p) => p.status === "Accepted");

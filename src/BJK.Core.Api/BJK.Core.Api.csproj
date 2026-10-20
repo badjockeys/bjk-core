@@ -10,6 +10,9 @@
       asked: CI runs "-p:GenerateApiClient=true" and fails if the committed client is out of date.
     -->
     <GenerateApiClient Condition="'$(GenerateApiClient)' == '' And '$(Configuration)' == 'Debug' And '$(DOTNET_RUNNING_IN_CONTAINER)' != 'true'">true</GenerateApiClient>
+    <!-- A failure only warns in Debug (e.g. before user secrets are set up), and stops the build otherwise. -->
+    <ApiClientOnError Condition="'$(ApiClientOnError)' == '' And '$(Configuration)' == 'Debug'">WarnAndContinue</ApiClientOnError>
+    <ApiClientOnError Condition="'$(ApiClientOnError)' == ''">ErrorAndStop</ApiClientOnError>
   </PropertyGroup>
 
   <ItemGroup>
@@ -33,7 +36,7 @@
 
   <!-- See nswag.json. Writes src/web/src/lib/generated/api.ts. -->
   <Target Name="GenerateApiClient" AfterTargets="Build" Condition="'$(GenerateApiClient)' == 'true'">
-    <Exec WorkingDirectory="$(MSBuildProjectDirectory)" EnvironmentVariables="ASPNETCORE_ENVIRONMENT=Development;GeneratingApiClient=true" Command="$(NSwagExe_Net100) run nswag.json /variables:Configuration=$(Configuration)" />
+    <Exec ContinueOnError="$(ApiClientOnError)" WorkingDirectory="$(MSBuildProjectDirectory)" EnvironmentVariables="ASPNETCORE_ENVIRONMENT=Development;GeneratingApiClient=true" Command="$(NSwagExe_Net100) run nswag.json /variables:Configuration=$(Configuration)" />
   </Target>
 
 </Project>
