@@ -1,6 +1,6 @@
 /**
  * Every setting the web server reads, from environment variables (src/web/.env.local on a developer's machine,
- * container settings and Key Vault in Azure). Nothing here is sent to the browser: values the browser needs, such as
+ * container settings and secrets when deployed). Nothing here is sent to the browser: values the browser needs, such as
  * the Turnstile site key, are passed to components as props, so one image works in every environment.
  */
 export interface WebConfig {
