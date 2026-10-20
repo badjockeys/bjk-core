@@ -49,6 +49,7 @@ import {
   TagIcon,
   VideoIcon,
 } from "./icons";
+import { useHashtagSuggest } from "./HashtagSuggest";
 import type { Pin } from "./MapPicker";
 import { PlaceSearch } from "./PlaceSearch";
 import { TrimVideo, type TrimmedClip } from "./TrimVideo";
@@ -198,6 +199,7 @@ export function PostComposer({
   const videoInput = useRef<HTMLInputElement>(null);
   const picker = useRef<HTMLDialogElement>(null);
   const title = useRef<HTMLInputElement>(null);
+  const text = useRef<HTMLTextAreaElement>(null);
   const uploads = useRef<UploadQueue | null>(null);
 
   const kind: "Image" | "Video" | null = items[0]?.kind ?? null;
@@ -559,6 +561,20 @@ export function PostComposer({
     setErrors((current) => ({ ...current, [key]: "" }));
   };
 
+  // Typing # in the title or description suggests hashtags (UI step 5).
+  const titleTags = useHashtagSuggest({
+    id: "post-title",
+    value: fields.title,
+    onChange: (v) => set("title", v),
+    ref: title,
+  });
+  const textTags = useHashtagSuggest({
+    id: "post-text",
+    value: fields.description,
+    onChange: (v) => set("description", v),
+    ref: text,
+  });
+
   const toggleType = (type: IncidentCategory, on: boolean) => {
     set(
       "types",
@@ -825,6 +841,7 @@ export function PostComposer({
             <input
               id="post-title"
               ref={title}
+              {...titleTags.fieldProps}
               className={`cmp-title${errors.title ? " input-error" : ""}`}
               type="text"
               maxLength={120}
@@ -833,12 +850,15 @@ export function PostComposer({
               value={fields.title}
               onChange={(e) => set("title", e.target.value)}
             />
+            {titleTags.list}
             {errors.title ? <span className="error">{errors.title}</span> : null}
             <label htmlFor="post-text" className="cmp-label">
               What happened? <span className="muted">(optional)</span>
             </label>
             <textarea
               id="post-text"
+              ref={text}
+              {...textTags.fieldProps}
               className={`cmp-textarea${errors.description ? " input-error" : ""}`}
               rows={3}
               maxLength={DESCRIPTION_MAX}
@@ -846,6 +866,7 @@ export function PostComposer({
               value={fields.description}
               onChange={(e) => set("description", e.target.value)}
             />
+            {textTags.list}
             <span id="post-text-count" className="cmp-count">
               {fields.description.length} / {DESCRIPTION_MAX}
             </span>

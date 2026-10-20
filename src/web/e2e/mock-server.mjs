@@ -159,6 +159,7 @@ function seed() {
         isSensitive: true,
       }),
       post(SEED.videoPost, dave, "Undertaking a lorry on the M62", "Undertaking", ["m-4"], ago(300), {
+        description: "Straight up the inside at junction 26. #M62 #Undertaking",
         passengers: [{ userId: USERS.roadhog.id, status: "Pending" }],
       }),
       post(SEED.secondVideo, dave, "Cutting up on the A64", "CuttingUp", ["m-7"], ago(400), {
@@ -723,6 +724,48 @@ async function api(req, res, url) {
     });
   }
 
+  // Hashtags (UI step 5): from posts' titles and descriptions, the same rule as the API.
+  const tagsOf = (p) =>
+    [
+      ...`${p.title} ${p.description ?? ""}`.matchAll(
+        /(?<![\p{L}\p{N}_/&#])#([A-Za-z][A-Za-z0-9_]{1,49})(?![A-Za-z0-9_])/gu,
+      ),
+    ].map((m) => m[1]);
+  if (path === "/api/trends" && method === "GET") {
+    return send(res, 200, {
+      hashtags: [
+        { tag: "M62", posts: 12 },
+        { tag: "SchoolRun", posts: 5 },
+      ],
+      places: [{ name: "Leeds", posts: 9 }],
+    });
+  }
+  if (path === "/api/hashtags" && method === "GET") {
+    const prefix = (url.searchParams.get("prefix") ?? "").toLowerCase();
+    const counts = new Map();
+    for (const p of db.posts.filter(isPublic)) {
+      for (const tag of new Set(tagsOf(p))) {
+        const key = tag.toLowerCase();
+        const entry = counts.get(key) ?? { tag, uses: 0 };
+        entry.uses += 1;
+        counts.set(key, entry);
+      }
+    }
+    const items = [...counts.entries()]
+      .filter(([key]) => prefix && key.startsWith(prefix))
+      .map(([, v]) => v)
+      .sort((a, b) => b.uses - a.uses);
+    return send(res, 200, items.slice(0, Number(url.searchParams.get("limit") ?? 8)));
+  }
+  const tagMatch = path.match(/^\/api\/hashtags\/([^/]+)$/);
+  if (tagMatch && method === "GET") {
+    const key = decodeURIComponent(tagMatch[1]).replace(/^#/, "").toLowerCase();
+    const posts = db.posts.filter((p) => isPublic(p) && tagsOf(p).some((t) => t.toLowerCase() === key));
+    if (posts.length === 0) return send(res, 404, { status: 404, title: "Not found" });
+    const tag = tagsOf(posts[0]).find((t) => t.toLowerCase() === key);
+    return send(res, 200, { tag, key, uses: posts.length, firstUsedAt: posts[0].createdAt });
+  }
+
   // Category trends (UI step 4): anyone. Free and signed out get the last 7 days for the whole UK.
   if (path === "/api/trends/categories" && method === "GET") {
     const plan =
@@ -843,13 +886,15 @@ async function api(req, res, url) {
   if (path === "/api/posts" && method === "GET") {
     const category = url.searchParams.get("type") ?? url.searchParams.get("category");
     const handle = url.searchParams.get("author");
+    const hashtag = url.searchParams.get("hashtag")?.toLowerCase();
     const authorId = handle ? [...db.profiles.values()].find((p) => p.handle === handle)?.id : null;
     const items = db.posts.filter(
       (p) =>
         isPublic(p) &&
         canSee(p, me) &&
         (!category || p.types.includes(category)) &&
-        (!handle || p.authorId === authorId),
+        (!handle || p.authorId === authorId) &&
+        (!hashtag || tagsOf(p).some((t) => t.toLowerCase() === hashtag)),
     );
     return send(
       res,

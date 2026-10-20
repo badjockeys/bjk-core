@@ -16,6 +16,7 @@ import type { Viewer } from "@/lib/viewer";
 import { Avatar } from "./Avatar";
 import { BackIcon, ChevronIcon, CommentIcon } from "./icons";
 import { PostMoreMenu } from "./PostMoreMenu";
+import { HashtagText } from "./HashtagText";
 import { isBlurred } from "./PostMedia";
 import { totalReactions } from "./PostCard";
 import { ReactionCount } from "./ReactionCount";
@@ -444,8 +445,12 @@ function ReelSlide({
           )}
           <Link href={href}>
             <strong>{post.title}</strong>
-            {post.description ? <span className="reel-text">{post.description}</span> : null}
           </Link>
+          {post.description ? (
+            <span className="reel-text">
+              <HashtagText text={post.description} />
+            </span>
+          ) : null}
           {facts ? <span className="reel-facts">{facts}</span> : null}
         </div>
 

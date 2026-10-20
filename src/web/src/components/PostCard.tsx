@@ -8,6 +8,7 @@ import { describeVehicle } from "@/lib/vehicles";
 import type { Viewer } from "@/lib/viewer";
 
 import { Avatar } from "./Avatar";
+import { HashtagText } from "./HashtagText";
 import { CommentIcon, PinIcon, TagIcon } from "./icons";
 import { PostMedia } from "./PostMedia";
 import { PostMoreMenu } from "./PostMoreMenu";
@@ -68,17 +69,16 @@ export function PostCard({ post, viewer }: { post: PostDto; viewer: Viewer }) {
         </div>
         <WithPassengers passengers={post.passengers} showPending={isMine} />
         <StatusBadge post={post} isMine={isMine} />
-        <Link href={href}>
-          <p className="tw-text" id={`post-${post.id}-title`}>
+        <div className="tw-text">
+          <Link href={href} id={`post-${post.id}-title`} className="tw-title">
             <strong>{post.title}</strong>
-            {text ? (
-              <>
-                <br />
-                {text}
-              </>
-            ) : null}
-          </p>
-        </Link>
+          </Link>
+          {text ? (
+            <p className="tw-desc">
+              <HashtagText text={text} />
+            </p>
+          ) : null}
+        </div>
         <div className="tw-ctx">
           {post.location.placeName ? (
             <span>

@@ -13,6 +13,7 @@ import type {
   ReactionType,
   ReportReason,
 } from "@/lib/types";
+import { tagFromPath } from "@/lib/hashtags";
 import { IN_APP_REASONS, isReason } from "@/lib/reasons";
 
 import { asUser, run } from "./run";
@@ -22,6 +23,7 @@ const REACTIONS: readonly ReactionType[] = ["Like", "Angry", "Shocked", "Laugh"]
 export type FeedSource =
   | { kind: "feed"; category?: IncidentCategory }
   | { kind: "author"; handle: string }
+  | { kind: "hashtag"; tag: string }
   | { kind: "mine" };
 
 /** The next page of a feed, for infinite scrolling. */
@@ -36,6 +38,13 @@ export async function loadPosts(
   }
   if (source.kind === "author") {
     return run(() => api().posts.list(token, { author: source.handle, page: safePage }));
+  }
+  if (source.kind === "hashtag") {
+    const tag = tagFromPath(source.tag);
+    if (!tag) {
+      return { ok: false, error: "That isn't a hashtag." };
+    }
+    return run(() => api().posts.list(token, { hashtag: tag, page: safePage }));
   }
   const category = CATEGORIES.some((c) => c.value === source.category) ? source.category : undefined;
   return run(() => api().posts.list(token, { category, page: safePage }));

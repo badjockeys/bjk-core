@@ -1964,6 +1964,65 @@ export class AdminPostsClient {
     }
 
     /**
+     * Hide a hashtag from Trending and from suggestions (hidden: true), or show it again. Posts keep the tag and
+    its page still works. A reason is required.
+     * @param tag The tag, with or without the # (any case).
+     * @param request Hidden or not, and why.
+     */
+    adminPosts_SetHashtagHidden(tag: string, request: HashtagTrendingRequest, signal?: AbortSignal): Promise<HashtagDto> {
+        let url_ = this.baseUrl + "/api/admin/hashtags/{tag}/trending";
+        if (tag === undefined || tag === null)
+            throw new globalThis.Error("The parameter 'tag' must be defined.");
+        url_ = url_.replace("{tag}", encodeURIComponent("" + tag));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processAdminPosts_SetHashtagHidden(_response);
+        });
+    }
+
+    protected processAdminPosts_SetHashtagHidden(response: Response): Promise<HashtagDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as HashtagDto;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<HashtagDto>(null as any);
+    }
+
+    /**
      * The moderation audit log for Posts, Profiles and Media, newest first. Admins only. Filter by actor, module,
     action, target and time (from inclusive, to exclusive).
      * @param actorId (optional) 
@@ -2321,6 +2380,115 @@ export class DraftsClient {
     }
 }
 
+export class HashtagsClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * Tags starting with what's been typed after the # (any case), most used first.
+     * @param prefix (optional) A letter, then letters, numbers or underscores, e.g. m6.
+     * @param limit (optional) How many, 1 to 10 (default 8).
+     */
+    hashtags_Suggest(prefix?: string | null | undefined, limit?: number | undefined, signal?: AbortSignal): Promise<HashtagSuggestionDto[]> {
+        let url_ = this.baseUrl + "/api/hashtags?";
+        if (prefix !== undefined && prefix !== null)
+            url_ += "prefix=" + encodeURIComponent("" + prefix) + "&";
+        if (limit === null)
+            throw new globalThis.Error("The parameter 'limit' cannot be null.");
+        else if (limit !== undefined)
+            url_ += "limit=" + encodeURIComponent("" + limit) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processHashtags_Suggest(_response);
+        });
+    }
+
+    protected processHashtags_Suggest(response: Response): Promise<HashtagSuggestionDto[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as HashtagSuggestionDto[];
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<HashtagSuggestionDto[]>(null as any);
+    }
+
+    /**
+     * A tag as first written and how many posts have used it. 404 if no post has.
+     * @param tag The tag, with or without the # (any case).
+     */
+    hashtags_Get(tag: string, signal?: AbortSignal): Promise<HashtagDto> {
+        let url_ = this.baseUrl + "/api/hashtags/{tag}";
+        if (tag === undefined || tag === null)
+            throw new globalThis.Error("The parameter 'tag' must be defined.");
+        url_ = url_.replace("{tag}", encodeURIComponent("" + tag));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processHashtags_Get(_response);
+        });
+    }
+
+    protected processHashtags_Get(response: Response): Promise<HashtagDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as HashtagDto;
+            return result200;
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<HashtagDto>(null as any);
+    }
+}
+
 export class HeatmapClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -2628,8 +2796,9 @@ export class PostsClient {
      * @param radiusKm (optional) Radius of the area, 1 to 200 km.
      * @param page (optional) Page number, from 1.
      * @param pageSize (optional) Posts per page, up to 50.
+     * @param hashtag (optional) Only posts with this hashtag (with or without the #, any case).
      */
-    posts_List(type?: IncidentCategory | null | undefined, category?: IncidentCategory | null | undefined, author?: string | null | undefined, lat?: number | null | undefined, lng?: number | null | undefined, radiusKm?: number | null | undefined, page?: number | undefined, pageSize?: number | undefined, signal?: AbortSignal): Promise<PagedResultOfPostDto> {
+    posts_List(type?: IncidentCategory | null | undefined, category?: IncidentCategory | null | undefined, author?: string | null | undefined, lat?: number | null | undefined, lng?: number | null | undefined, radiusKm?: number | null | undefined, page?: number | undefined, pageSize?: number | undefined, hashtag?: string | null | undefined, signal?: AbortSignal): Promise<PagedResultOfPostDto> {
         let url_ = this.baseUrl + "/api/posts?";
         if (type !== undefined && type !== null)
             url_ += "type=" + encodeURIComponent("" + type) + "&";
@@ -2651,6 +2820,8 @@ export class PostsClient {
             throw new globalThis.Error("The parameter 'pageSize' cannot be null.");
         else if (pageSize !== undefined)
             url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
+        if (hashtag !== undefined && hashtag !== null)
+            url_ += "hashtag=" + encodeURIComponent("" + hashtag) + "&";
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
@@ -4317,6 +4488,44 @@ export class TrendsClient {
     }
 
     /**
+     * What's trending: up to 10 hashtags and 5 towns with the most public posts in the last 24 hours compared with
+    their usual level, each from at least 3 different people. Hidden, held and deleted posts never count.
+     */
+    trends_Trending(signal?: AbortSignal): Promise<TrendingDto> {
+        let url_ = this.baseUrl + "/api/trends";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processTrends_Trending(_response);
+        });
+    }
+
+    protected processTrends_Trending(response: Response): Promise<TrendingDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as TrendingDto;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<TrendingDto>(null as any);
+    }
+
+    /**
      * Every type of bad driving, busiest first, with a line of incidents per day (per week beyond 92 days, per month
     beyond two years), its total and the change on the previous period of the same length. Free and signed-out: the
     last 7 days. Premium: up to 12 months; Premium +: up to 5 years. Everyone sees the whole UK; Premium and Premium +
@@ -5649,6 +5858,20 @@ export interface SensitiveReviewRequest {
     reason: string | null;
 }
 
+/** A hashtag for its page: as first written, and how many posts have used it. */
+export interface HashtagDto {
+    tag: string;
+    key: string;
+    uses: number;
+    firstUsedAt: string;
+}
+
+/** Hide a hashtag from Trending (or show it again), and why. */
+export interface HashtagTrendingRequest {
+    hidden: boolean;
+    reason: string | null;
+}
+
 export interface PagedResultOfAuditEntryDto {
     items: AuditEntryDto[];
     page: number;
@@ -5760,6 +5983,12 @@ export interface DraftLimitsDto {
     maxDrafts: number;
     /** Days a draft is kept after it was last saved. */
     keptForDays: number;
+}
+
+/** A suggestion as # is typed: the tag as first written and how many posts used it. */
+export interface HashtagSuggestionDto {
+    tag: string;
+    uses: number;
 }
 
 /** The heat map: cells with counts, the cell size in degrees, the suppression threshold, the busiest cell's count (for shading), whether cells were cut off at Heatmap:MaxCells, and what the plan allowed. */
@@ -5992,6 +6221,24 @@ export interface PublicReportRequest {
     reporterName: string;
     reporterEmail: string;
     consent: boolean;
+}
+
+/** What's trending: tags and places growing fastest against their usual level. */
+export interface TrendingDto {
+    hashtags: TrendingTagDto[];
+    places: TrendingPlaceDto[];
+}
+
+/** A trending tag: as first written, and its public posts in the last 24 hours. */
+export interface TrendingTagDto {
+    tag: string;
+    posts: number;
+}
+
+/** A trending town, e.g. "Prescot", and its public posts in the last 24 hours. */
+export interface TrendingPlaceDto {
+    name: string;
+    posts: number;
 }
 
 /** The right panel's category trends: every type of bad driving, busiest first, with a line of incidents per Period (each starting on the date in Periods), over Access.From–Access.To (UK days, inclusive), compared with PreviousFrom–PreviousTo. AreaAllowed is true for Premium and Premium +, who can narrow it to a box; AreaIgnored says a box was sent but the whole UK was used. */

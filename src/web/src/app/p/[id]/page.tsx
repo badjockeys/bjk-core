@@ -8,6 +8,7 @@ import { Avatar } from "@/components/Avatar";
 import { BackButton } from "@/components/BackButton";
 import { Comments } from "@/components/Comments";
 import { Gallery } from "@/components/Gallery";
+import { HashtagText } from "@/components/HashtagText";
 import { ClockIcon, SpinnerIcon } from "@/components/icons";
 import { LinkExpiryRefresh } from "@/components/LinkExpiryRefresh";
 import { PostMoreMenu } from "@/components/PostMoreMenu";
@@ -144,9 +145,13 @@ export default async function PostPage({ params, searchParams }: Props) {
           <TagRequest postId={post.id} authorName={post.author.displayName} status={myTag.status} />
         ) : null}
         <h1 id="post-title" className="h1">
-          {post.title}
+          <HashtagText text={post.title} />
         </h1>
-        {post.description ? <p className="post-text">{post.description}</p> : null}
+        {post.description ? (
+          <p className="post-text">
+            <HashtagText text={post.description} />
+          </p>
+        ) : null}
 
         <PostBody
           post={post}

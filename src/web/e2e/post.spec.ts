@@ -197,6 +197,17 @@ test.describe("posting", () => {
   });
 });
 
+test("typing # in a post suggests hashtags, most used first", async ({ page }) => {
+  await signIn(page, "/post/new");
+  const text = page.getByLabel("What happened? (optional)");
+  await text.pressSequentially("Same lorry on the #m6");
+  const suggestions = page.getByRole("listbox", { name: "Hashtags" });
+  await expect(suggestions.getByRole("option", { name: /#M62/ })).toBeVisible();
+  await text.press("Enter");
+  await expect(text).toHaveValue("Same lorry on the #M62 ");
+  await expect(suggestions).toHaveCount(0);
+});
+
 test("the post's author hides a comment and turns comments off", async ({ page, request }) => {
   await request.post("http://localhost:4010/__next-user", { data: "dave" });
   await signIn(page, `/p/${SEED.photoPost}`);

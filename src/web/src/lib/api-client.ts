@@ -8,6 +8,7 @@
 import {
   AreaClient,
   DraftsClient,
+  HashtagsClient,
   HeatmapClient,
   MediaClient,
   NotificationsClient,
@@ -174,6 +175,8 @@ type ClientType<T> = new (baseUrl?: string, http?: Http) => T;
 export interface FeedQuery {
   category?: IncidentCategory;
   author?: string;
+  /** Only posts with this hashtag (without the #). */
+  hashtag?: string;
   page?: number;
   pageSize?: number;
 }
@@ -198,6 +201,7 @@ export function endpoints(api: ApiClient) {
           undefined,
           q.page ?? 1,
           q.pageSize ?? 20,
+          q.hashtag,
         ),
       mine: (token: string, page = 1, pageSize = 20) => posts(token).posts_ListMine(page, pageSize),
       /** One person's comments and replies, with the post each is on (their profile's Replies tab). */
@@ -356,6 +360,15 @@ export function endpoints(api: ApiClient) {
        */
       categories: (token: string | null, q: { from?: string; to?: string; bbox?: string } = {}) =>
         client(TrendsClient, { token, revalidate: 300 }).trends_Categories(q.from, q.to, q.bbox),
+      /** Trending hashtags and towns (the same for everyone; cached for two minutes). */
+      trending: () => client(TrendsClient, { token: null, revalidate: 120 }).trends_Trending(),
+    },
+    hashtags: {
+      /** Tags starting with what's been typed after the #, most used first. */
+      suggest: (prefix: string, limit = 8) =>
+        client(HashtagsClient, { token: null, revalidate: 60 }).hashtags_Suggest(prefix, limit),
+      /** A tag for its page (404 if no post has used it). */
+      get: (tag: string) => client(HashtagsClient, { token: null, revalidate: 60 }).hashtags_Get(tag),
     },
     me: {
       /** Everything core holds about the user (profile, posts, comments, reactions, reports, media). */
