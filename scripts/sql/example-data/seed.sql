@@ -3,18 +3,17 @@
 --
 -- Adds 8 sign-in accounts (password BadJockeys!2026, email confirmed, age check passed) with profiles, and 26 posts
 -- around Prescot, Liverpool, Warrington, Manchester, Leeds and London, with reactions, comments and replies. The
--- photos are placeholder dashcam frames: run scripts/seed-example-data.mjs to upload them to local file storage (it
--- also runs this script).
+-- photos are placeholder dashcam frames, uploaded to local file storage by seed.mjs (the setup runs it, and it runs
+-- this script).
 --
 -- If the owner account below exists and has a profile, one post tags it as a passenger (waiting for approval) and
--- the bell shows that. Safe to run again: it removes the previous example data first (see remove.sql).
+-- the bell shows that. Safe to run again: it clears the previous example data first.
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
 
 DECLARE @OwnerEmail nvarchar(256) = N'aaron.greenhalgh@badjockey.com';
 
-SET NOCOUNT ON;
-SET XACT_ABORT ON;
+-- Clear the previous run.
 BEGIN TRANSACTION;
 
 DECLARE @Example TABLE (Id uniqueidentifier PRIMARY KEY);
@@ -56,7 +55,6 @@ DELETE FROM idsrv.auth.AspNetUserTokens WHERE LEFT(UserId, 8) = 'e0000000';
 DELETE FROM idsrv.auth.AspNetUsers WHERE LEFT(Id, 8) = 'e0000000';
 
 COMMIT;
-
 
 BEGIN TRANSACTION;
 

@@ -1,28 +1,29 @@
 #!/usr/bin/env node
-// Fills a LOCAL Bad Jockeys with example users and posts (scripts/example-data), or removes them again.
+// Fills a LOCAL Bad Jockeys with example users and posts: uploads the placeholder photos to S3Mock, then runs
+// seed.sql. The setup (scripts/setup-local.mjs) runs it; you can also run it on its own to refresh the data:
 //
-//   node scripts/seed-example-data.mjs           upload the example photos to S3Mock, then run example-data/seed.sql
-//   node scripts/seed-example-data.mjs --remove  run example-data/remove.sql (the photos stay in S3Mock, harmlessly)
+//   node scripts/sql/example-data/seed.mjs
 //
 // Needs SQL Server and S3Mock running (Docker group "bad-jockeys"), and the API and identity server to have started
 // once so their databases exist. Only ever talks to localhost.
 
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { ids, PASSWORD, posts, users } from "./example-data/data.mjs";
+import { ids, OWNER_EMAIL, PASSWORD, posts, users } from "./data.mjs";
 
-const core = join(dirname(fileURLToPath(import.meta.url)), "..");
-const remove = process.argv.includes("--remove");
+const here = dirname(fileURLToPath(import.meta.url));
+const core = resolve(here, "..", "..", "..");
 const S3 = process.env.S3_ENDPOINT ?? "http://localhost:9090";
 const BUCKET = process.env.BJK_PUBLIC_BUCKET ?? "bjk-dev-public";
 const SQL_CONTAINER = "bad-jockeys-sql-server";
 
+class SeedError extends Error {}
+
 function fail(message) {
-  console.error(`\n${message}`);
-  process.exit(1);
+  throw new SeedError(message);
 }
 
 function sqlPassword() {
@@ -35,23 +36,32 @@ function sqlPassword() {
   fail("Couldn't read BJK_SQL_PASSWORD from bjk-core/.env. Run the setup first (setup.sh or setup.ps1).");
 }
 
-function runSql(file) {
-  const sql = readFileSync(join(core, "scripts", "example-data", file), "utf8");
+/** Runs T-SQL in the local SQL Server container and returns what sqlcmd printed. */
+function sqlcmd(sql, extraArgs = []) {
   try {
-    const output = execFileSync(
+    return execFileSync(
       "docker",
-      ["exec", "-i", SQL_CONTAINER, "/opt/mssql-tools18/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", sqlPassword(), "-C", "-b", "-I"],
+      [
+        "exec", "-i", SQL_CONTAINER, "/opt/mssql-tools18/bin/sqlcmd",
+        "-S", "localhost", "-U", "sa", "-P", sqlPassword(), "-C", "-b", "-I", ...extraArgs,
+      ],
       { input: sql, encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] },
     );
-    process.stdout.write(output);
   } catch (error) {
     process.stdout.write(error.stdout ?? "");
     fail(
-      `${file} failed:\n${error.stderr || error.message}\n` +
+      `SQL failed:\n${error.stderr || error.message}\n` +
         "Check SQL Server is running (node scripts/start-docker.mjs) and that the API and identity server have " +
         "started once, so both databases exist.",
     );
   }
+}
+
+/** The owner's user id (OWNER_EMAIL in data.mjs), or null if they haven't signed up yet. */
+export function ownerId() {
+  const email = OWNER_EMAIL.toUpperCase().replace(/'/g, "''");
+  const out = sqlcmd(`SET NOCOUNT ON; SELECT Id FROM idsrv.auth.AspNetUsers WHERE NormalizedEmail = N'${email}';`, ["-h", "-1", "-W"]);
+  return /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.exec(out)?.[0]?.toLowerCase() ?? null;
 }
 
 // --- Placeholder dashcam frames (SVG) ---
@@ -139,10 +149,19 @@ async function uploadPhotos() {
   console.log(`Uploaded ${count} example photos to ${S3}/${BUCKET}/examples/.`);
 }
 
-if (remove) {
-  runSql("remove.sql");
-} else {
+/** Uploads the photos and runs seed.sql. Throws with a readable message if something isn't running. */
+export async function seedExampleData() {
   await uploadPhotos();
-  runSql("seed.sql");
-  console.log(`\nDone. Sign in at the web app as any example user (password ${PASSWORD}), e.g. ${users[0].email}.`);
+  process.stdout.write(sqlcmd(readFileSync(join(here, "seed.sql"), "utf8")));
+  console.log(`Sign in at the web app as any example user (password ${PASSWORD}), e.g. ${users[0].email}.`);
+}
+
+// Run on its own (not imported by the setup).
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try {
+    await seedExampleData();
+  } catch (error) {
+    console.error(`\n${error.message}`);
+    process.exit(1);
+  }
 }

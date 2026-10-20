@@ -15,17 +15,21 @@
 //   5. loads the .NET user secrets for the identity server and the API (the media worker shares the API's)
 //   6. downloads the face and number plate blurring models into bjk-core/.local/models
 //   7. builds the .NET apps and installs the web app's packages
+//   8. adds example users and posts (scripts/sql/example-data), starting the identity server and the API for a
+//      moment first so their databases exist, and gives the owner account its plan (Plans:Overrides)
 //
 // Needs the tools installed and bjk-identity-server cloned next to bjk-core: setup.ps1 (Windows) and setup.sh
 // (macOS) in the repo root do both, then run this. Uses only Node.js built-ins.
 
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { removeOldGroups, startServices } from "./docker-services.mjs";
+import { OWNER_EMAIL, OWNER_PLAN } from "./sql/example-data/data.mjs";
+import { ownerId, seedExampleData } from "./sql/example-data/seed.mjs";
 
 const core = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const idsrv = resolve(core, "..", "bjk-identity-server");
@@ -330,6 +334,65 @@ function build() {
   mustRun("npm", ["ci", "--no-audit", "--no-fund"], { cwd: web });
 }
 
+/** True once the app at `url` answers /health. */
+async function healthy(url) {
+  try {
+    return (await fetch(`${url}/health`, { signal: AbortSignal.timeout(2000) })).ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Adds the example users and posts. The identity server and the API create and update their databases when they
+ * start, so any that aren't already running are started for a moment (from the Debug build) and stopped again.
+ * A problem here only warns: the rest of the setup is still done.
+ */
+async function exampleData() {
+  step("Adding example users and posts");
+  const api = join(core, "src", "BJK.Core.Api");
+  const apps = [
+    { name: "identity server", project: join(idsrv, "src", "BJK.Idsrv.Host"), dll: "BJK.Idsrv.Host.dll", url: "http://localhost:5000" },
+    { name: "API", project: api, dll: "BJK.Core.Api.dll", url: "http://localhost:5100" },
+  ];
+  const started = [];
+  try {
+    for (const app of apps) {
+      if (await healthy(app.url)) continue;
+      console.log(`Starting the ${app.name} for a moment, so its database is up to date...`);
+      const child = spawn("dotnet", [join(app.project, "bin", "Debug", "net10.0", app.dll)], {
+        cwd: app.project,
+        env: { ...process.env, ASPNETCORE_ENVIRONMENT: "Development", ASPNETCORE_URLS: app.url },
+        stdio: "ignore",
+      });
+      started.push(child);
+      let up = false;
+      for (let i = 0; i < 90 && !up && child.exitCode === null; i++) {
+        await new Promise((done) => setTimeout(done, 2000));
+        up = await healthy(app.url);
+      }
+      if (!up) throw new Error(`The ${app.name} didn't start, so its database may not exist yet.`);
+    }
+
+    await seedExampleData();
+
+    const owner = ownerId();
+    if (owner) {
+      mustRun("dotnet", ["user-secrets", "set", `Plans:Overrides:${owner}`, OWNER_PLAN, "--project", api], { quiet: true });
+      ok(`${OWNER_EMAIL} has ${OWNER_PLAN} on this computer (Plans:Overrides in the API's user secrets).`);
+    } else {
+      console.log(
+        `${OWNER_EMAIL} hasn't signed up here yet. Sign up in the web app, then run the setup again: it gives the ` +
+          `account ${OWNER_PLAN} and a passenger tag to approve.`,
+      );
+    }
+  } catch (error) {
+    console.warn(colour("33", `Example data wasn't added: ${error.message}\nRun the setup again once that's fixed.`));
+  } finally {
+    for (const child of started) child.kill();
+  }
+}
+
 if (configOnly) {
   createConfig();
 } else {
@@ -341,6 +404,7 @@ if (configOnly) {
   loadSecrets();
   await downloadModels();
   build();
+  await exampleData();
   console.log(
     `\n${colour("1;32", "Setup complete.")} In VS Code: Terminal > Run Task... > "Run Bad Jockeys", then open http://localhost:3000`,
   );

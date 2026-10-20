@@ -1,13 +1,17 @@
 // Example users and posts for a local Bad Jockeys, so the feed, map, profiles and notifications have something in
-// them. build-sql.mjs turns this into seed.sql; ../seed-example-data.mjs uploads the images and runs it.
+// them. build-sql.mjs turns this into seed.sql; seed.mjs (run by the setup) uploads the photos and runs it.
 //
-// Every id starts with "e0000000", so remove.sql can find and delete exactly this data and nothing else.
+// Every id starts with "e0000000", so a re-run can replace exactly this data and nothing else.
 
 /** Every example account signs in with this password. Local use only. */
 export const PASSWORD = "BadJockeys!2026";
 
-/** The person running it locally: tagged as a passenger once (Pending) and told about it in the bell. */
+/**
+ * The person running it locally: tagged as a passenger once (Pending) and told about it in the bell, and given
+ * OWNER_PLAN through the API's Plans:Overrides user secret (until billing exists).
+ */
 export const OWNER_EMAIL = "aaron.greenhalgh@badjockey.com";
+export const OWNER_PLAN = "premium_plus";
 
 const userId = (n) => `e0000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const postId = (n) => `e0000000-0000-4000-8001-${String(n).padStart(12, "0")}`;
