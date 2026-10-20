@@ -1,5 +1,6 @@
 using BJK.Modules.Media;
 using BJK.Modules.Shared.Configuration;
+using BJK.Modules.Shared.Observability;
 
 // The media processing worker: takes jobs off the media.process queue, converts each upload with ffmpeg
 // (720p H.264 video or WebP photos, plus a thumbnail, with metadata such as GPS stripped), publishes the results
@@ -10,6 +11,8 @@ using BJK.Modules.Shared.Configuration;
 const string ConnectionStringName = "AppDatabase";
 
 var builder = Host.CreateApplicationBuilder(args);
+
+builder.AddBjkObservability("bjk-media-worker");
 
 builder.Services.AddMediaProcessing(builder.Configuration, ConnectionStringName);
 

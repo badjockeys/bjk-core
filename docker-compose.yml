@@ -48,6 +48,18 @@ services:
     volumes:
       - s3-data:/data
 
+  # Grafana's all-in-one OpenTelemetry stack for local logs, traces and metrics: an OpenTelemetry collector, Loki
+  # (logs), Tempo (traces) and Prometheus (metrics), the same parts Grafana Cloud runs. The apps send to it on
+  # http://localhost:4318 (OTEL_EXPORTER_OTLP_ENDPOINT in their launchSettings.json); our Grafana below reads it. Data
+  # is kept only while the container runs. Its own Grafana isn't published: use http://localhost:3300.
+  lgtm:
+    image: grafana/otel-lgtm:0.29.1
+    container_name: bad-jockeys-otel
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    restart: unless-stopped
+
   # Grafana: the reports (src/reporting). It reads only the reporting views in both databases, through the read-only
   # bjk_reporting login (scripts/sql/reporting/apply.mjs creates both). http://localhost:3300: anyone on this
   # computer can view; admin / admin to edit (edits aren't kept: change the JSON in src/reporting instead).
@@ -74,6 +86,7 @@ services:
       - grafana-data:/var/lib/grafana
     depends_on:
       - sql
+      - lgtm
     restart: unless-stopped
 
 volumes:
