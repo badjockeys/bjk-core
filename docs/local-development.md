@@ -10,7 +10,8 @@ This guide gets the whole platform running on your machine:
 | Media worker (converts uploads with ffmpeg) | bjk-core, `src/BJK.Core.MediaWorker` | .NET + ffmpeg | no address, reads the queue |
 | Web app | bjk-core, `src/web` | Node.js (Next.js) | http://localhost:3000 |
 | File storage | bjk-core (`docker-compose.yml`): S3Mock, standing in for Cloudflare R2 | Docker, group `bad-jockeys` | http://localhost:9090 |
-| Reports (Grafana) | bjk-core (`docker-compose.yml`, `src/reporting`) | Docker, group `bad-jockeys` | http://localhost:3300 |
+| Reports, logs and traces (Grafana) | bjk-core (`docker-compose.yml`, `src/reporting`) | Docker, group `bad-jockeys` | http://localhost:3300 |
+| Logs, traces and metrics store (`otel-lgtm`: OpenTelemetry collector, Loki, Tempo, Prometheus) | bjk-core (`docker-compose.yml`) | Docker, group `bad-jockeys` | OTLP on `localhost:4317` / `4318` |
 
 > **Status (19 Oct 2026):** everything in the table runs: the identity server, the API, the media worker and the web app (`src/web`).
 
@@ -353,7 +354,7 @@ If you add a setting, add it to `user-secrets.template.json` (or `.env.local.exa
 
 On your machine nothing needs a supplier account: S3Mock stands in for R2, email and texts go to the console (`Provider: Log`), the CAPTCHA uses Cloudflare's test keys, and maps use OpenStreetMap's public tiles. These are what a deployed environment must change. Secrets are container secrets; everything else is a container setting (Terraform). Nothing needs a cloud-specific service such as Key Vault. Nested keys become environment variables with `__`, e.g. `Email__SendGrid__ApiKey`. The identity server's list is in its README.
 
-**`Log` isn't chosen by environment.** `Email:Provider` and `SMS:Provider` default to `Log` everywhere, so a deployed app without `SendGrid` or `Twilio` set quietly sends nothing (it logs that each message was dropped).
+**Outside Development the apps refuse to start** until every required setting below is set to a live value (no `Log` providers, test keys, http addresses or `<...>` placeholders), listing everything that's missing at once. `--check-settings` runs the same check without starting: e.g. `dotnet BJK.Core.Api.dll --check-settings` with an environment's settings exits 1 and lists the problems. The deploy pipeline runs it before deploying.
 
 **API and media worker** (they share their settings):
 
@@ -384,6 +385,9 @@ On your machine nothing needs a supplier account: S3Mock stands in for R2, email
 | `Notifications:AppUrl`, `Posts:AppUrl` | The web app, e.g. `https://badjockeys.com` | The live domain |
 | `Posts:ReportsInbox` (from bjk-modules #30) | `support@badjockeys.com` (the default) | The mailbox must exist |
 | `Heatmap:VehicleMinCellCount`, `Heatmap:ModelFilterMinSpanKm` | Optional: defaults 5 and 10 | |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Grafana Cloud's OTLP address (https) | **A Grafana Cloud stack** |
+| `OTEL_EXPORTER_OTLP_PROTOCOL` | `http/protobuf` | |
+| `OTEL_EXPORTER_OTLP_HEADERS` (secret) | `Authorization=Basic <base64 of instance id:token>`, from the stack's OpenTelemetry page | **A Grafana Cloud stack** |
 
 The API also needs outbound HTTPS to `api.postcodes.io` (place names; no key).
 
@@ -400,6 +404,7 @@ The API also needs outbound HTTPS to `api.postcodes.io` (place names; no key).
 | `TURNSTILE_SITE_KEY` | The real Turnstile widget's site key | A Cloudflare account |
 | `MEDIA_ORIGINS`, `UPLOAD_ORIGINS` | The public media domain, and `https://<account id>.r2.cloudflarestorage.com` | A Cloudflare account |
 | `MAP_TILE_URL`, `MAP_ATTRIBUTION` | A tile provider's URL and attribution (OpenStreetMap's public tiles aren't allowed for heavy use) | **A map tile provider** |
+| `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL`, `OTEL_EXPORTER_OTLP_HEADERS` (secret) | The same as the API's | **A Grafana Cloud stack** |
 
 ## 7. Run the back end
 
@@ -548,9 +553,23 @@ How it fits together:
 - **Grafana** runs in the `bad-jockeys` Docker group. Its data sources and dashboards come from `src/reporting/grafana` (provisioned, so they can't drift). To change a dashboard, edit it in Grafana as admin, then **Export → Save to file** and replace the JSON in `src/reporting/grafana/dashboards`; edits made only in Grafana are lost when it restarts.
 - **After pulling changes to the views**, or if the setup couldn't apply them (the identity server and API must each have started once, so both databases exist): `node scripts/sql/reporting/apply.mjs`.
 - **Adding a report:** add or change a view in the matching `scripts/sql/reporting/*.sql` (counts only, `CREATE OR ALTER VIEW reporting.<Name>`), apply it, then add a panel. CI applies every view, checks `bjk_reporting` can read each one but not the tables, starts Grafana and runs every panel's query.
-- **Logs and errors aren't here:** those are monitoring, which goes to Grafana Cloud (OpenTelemetry) once deployed.
+- **Logs, traces and app health** are in the same Grafana: see below.
 
-When deployed, Grafana is its own container behind Cloudflare Access, with Google sign-in limited to badjockeys.com; `bjk_reporting` is a contained database user in each Azure SQL database, its password a container secret.
+When deployed, the same dashboards run in **Grafana Cloud**, which reads the databases through its Private Data Source Connect agent (a small container next to the apps, outbound only), with Google sign-in for badjockeys.com; `bjk_reporting` is a contained database user in each Azure SQL database, its password a container secret.
+
+### Logs, traces and app health
+
+The identity server, the API, the media worker and the web app's server send their logs, traces and metrics through **OpenTelemetry** to the `otel-lgtm` container (Grafana's all-in-one OpenTelemetry collector, Loki, Tempo and Prometheus: the same parts Grafana Cloud runs). It's in the `bad-jockeys` Docker group, and the apps find it through `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318` (the .NET apps' `launchSettings.json`, the web app's `.env.local`; add the two `OTEL_` lines from `.env.local.example` to an older `.env.local`).
+
+In Grafana at http://localhost:3300:
+
+- **App health** dashboard: requests per second, server errors, the slowest endpoints, errors and warnings logged, failed jobs, and the latest errors. Pick a service at the top.
+- **Explore → Logs:** search any app's logs, e.g. `{service_name="bjk-core-api"} | severity_text="Error"`. A log line's trace id opens the request's trace.
+- **Explore → Traces:** one request's path through the app, its SQL calls and outgoing calls, with timings.
+
+Logs never contain emails, names or IP addresses, URLs' query string values are redacted, and SQL text isn't recorded. Data is kept only while the container runs. Apps started by the setup, or without `OTEL_EXPORTER_OTLP_ENDPOINT`, send nothing.
+
+When deployed, the same apps send to **Grafana Cloud** instead: only `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL` (`http/protobuf`) and `OTEL_EXPORTER_OTLP_HEADERS` (its key, a secret) change, and outside Development the .NET apps refuse to start without an https address. The App health dashboard picks its data sources from the list at the top, so it imports into Grafana Cloud as it is.
 
 ## Database changes
 

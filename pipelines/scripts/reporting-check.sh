@@ -73,15 +73,15 @@ for _ in $(seq 1 60); do curl -fs http://localhost:3300/api/health > /dev/null &
 curl -fs http://localhost:3300/api/health > /dev/null || fail "Grafana didn't start (see grafana.log)."
 auth=(-u admin:ci-admin)
 count=$(curl -fs "${auth[@]}" "http://localhost:3300/api/search?tag=bad-jockeys" | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))')
-[ "$count" = "2" ] || fail "Expected 2 provisioned dashboards, found $count."
-echo "ok  Grafana provisioned both dashboards"
+[ "$count" = "3" ] || fail "Expected 3 provisioned dashboards, found $count."
+echo "ok  Grafana provisioned the three dashboards"
 for uid in bjk-app bjk-idsrv; do
   result=$(curl -s "${auth[@]}" "http://localhost:3300/api/datasources/uid/$uid/health")
   grep -q '"status":"OK"' <<< "$result" || fail "Grafana's $uid data source can't connect: $result"
   echo "ok  data source $uid connects as bjk_reporting"
 done
 
-# Every panel's query runs against its data source.
+# Every database panel's query runs against its data source.
 python3 - <<'PY' || fail "A dashboard query failed."
 import json, glob, urllib.request, base64
 token = base64.b64encode(b"admin:ci-admin").decode()
@@ -89,6 +89,9 @@ for path in sorted(glob.glob("src/reporting/grafana/dashboards/*.json")):
     dash = json.load(open(path))
     for panel in dash["panels"]:
         for target in panel.get("targets", []):
+            # Only the database queries: logs and metrics come from otel-lgtm, which CI doesn't run.
+            if target.get("datasource", {}).get("type") != "mssql":
+                continue
             body = json.dumps({"queries": [dict(target, intervalMs=86400000, maxDataPoints=500)], "from": "now-90d", "to": "now"}).encode()
             request = urllib.request.Request("http://localhost:3300/api/ds/query", body, {"Content-Type": "application/json", "Authorization": f"Basic {token}"})
             try:
@@ -98,5 +101,5 @@ for path in sorted(glob.glob("src/reporting/grafana/dashboards/*.json")):
             error = result["results"]["A"].get("error")
             if error:
                 raise SystemExit(f"{dash['title']} / {panel['title']}: {error}")
-    print(f"ok  {dash['title']}: every panel's query runs")
+    print(f"ok  {dash['title']}: every database query runs")
 PY

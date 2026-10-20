@@ -1,4 +1,4 @@
-# The two databases, read through the read-only bjk_reporting login, which can only see the `reporting` views
+# Data sources. The two databases, read through the read-only bjk_reporting login, which can only see the `reporting` views
 # (scripts/sql/reporting). The password comes from BJK_REPORTING_PASSWORD in bjk-core/.env locally, and from a
 # container secret when deployed. Locally the SQL Server container is "sql" on the Docker network.
 # tlsSkipVerify is for the local and CI SQL Server containers, which have self-signed certificates; a deployed Grafana
@@ -36,3 +36,38 @@ datasources:
       connMaxLifetime: 14400
     secureJsonData:
       password: ${BJK_REPORTING_PASSWORD}
+  # Logs, traces and metrics from the otel-lgtm container (Grafana Cloud's own Loki, Tempo and Mimir when deployed).
+  - name: Logs
+    uid: bjk-logs
+    type: loki
+    access: proxy
+    url: http://lgtm:3100
+    editable: false
+    jsonData:
+      # A log line's trace id links to the trace.
+      derivedFields:
+        - name: Trace
+          matcherType: label
+          matcherRegex: trace_id
+          datasourceUid: bjk-traces
+          url: "$${__value.raw}"
+  - name: Traces
+    uid: bjk-traces
+    type: tempo
+    access: proxy
+    url: http://lgtm:3200
+    editable: false
+    jsonData:
+      tracesToLogsV2:
+        datasourceUid: bjk-logs
+        filterByTraceID: true
+        spanStartTimeShift: "-5m"
+        spanEndTimeShift: "5m"
+      serviceMap:
+        datasourceUid: bjk-metrics
+  - name: Metrics
+    uid: bjk-metrics
+    type: prometheus
+    access: proxy
+    url: http://lgtm:9090
+    editable: false

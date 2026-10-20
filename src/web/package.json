@@ -20,6 +20,8 @@
     "licences": "node scripts/check-licences.mjs"
   },
   "dependencies": {
+    "@opentelemetry/api": "1.9.1",
+    "@vercel/otel": "2.1.3",
     "jose": "^6.0.0",
     "leaflet": "^1.9.4",
     "mediabunny": "^1.0.0",

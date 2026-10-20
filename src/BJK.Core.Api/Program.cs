@@ -6,6 +6,7 @@ using BJK.Modules.Posts;
 using BJK.Modules.Profiles;
 using BJK.Modules.Shared;
 using BJK.Modules.Shared.Configuration;
+using BJK.Modules.Shared.Observability;
 using BJK.Modules.Shared.Security;
 using BJK.Modules.SMS;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -15,6 +16,10 @@ using NSwag.Generation.Processors.Security;
 const string ConnectionStringName = "AppDatabase";
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Logs, traces and metrics over OTLP: locally the otel-lgtm container (launchSettings.json), Grafana Cloud when
+// deployed. See "Logs, traces and metrics" in the bjk-modules README.
+builder.AddBjkObservability("bjk-core-api");
 
 // --- Who may call ---
 
