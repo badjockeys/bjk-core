@@ -346,7 +346,13 @@ None of these reach the browser, so the same container image works in every envi
 
 ### Adding a setting
 
-If you add a setting, add it to `user-secrets.template.json` (or `.env.local.example`) in the same pull request, so everyone else knows to load it.
+If you add a setting, add it to `user-secrets.template.json` (or `.env.local.example`) in the same pull request, so everyone else knows to load it. If live needs a different value, add it to the go-live checklists as well.
+
+### Going live
+
+Two checklists list every setting a deployed environment needs, with a `<GO-LIVE ...>` placeholder wherever a real value or supplier account is still missing: [`go-live.settings.template.json`](../go-live.settings.template.json) for the API and the media worker, and [`src/web/.env.production.example`](../src/web/.env.production.example) for the web app (the identity server has its own). Setup never reads them. On your machine nothing needs a supplier account: S3Mock stands in for R2, email and texts go to the console (`Provider: Log`), the CAPTCHA uses Cloudflare's test keys, and maps use OpenStreetMap's public tiles.
+
+**`Log` isn't chosen by environment.** `Email:Provider` and `SMS:Provider` default to `Log` everywhere, so a deployed app without `SendGrid` or `Twilio` set quietly sends nothing (it logs that each message was dropped).
 
 ## 7. Run the back end
 

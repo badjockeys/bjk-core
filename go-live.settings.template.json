@@ -1,0 +1,113 @@
+{
+  "//": "GO-LIVE CHECKLIST for the API and the media worker (they share these settings). Not used on your machine: setup reads user-secrets.template.json. Every <GO-LIVE ...> value must be replaced before launch. SECRET values go in Key Vault; the rest are container settings (Terraform). Nested keys become environment variables with __, e.g. Email__SendGrid__ApiKey. Values without <...> are what live should use.",
+
+  "ConnectionStrings": {
+    "AppDatabase": "<GO-LIVE: Azure SQL with the app's managed identity, e.g. Server=tcp:<server>.database.windows.net,1433;Database=badjockeys;Authentication=Active Directory Managed Identity;Encrypt=True>"
+  },
+  "MediatR": {
+    "LicenseKey": "<GO-LIVE SECRET: MediatR licence key>"
+  },
+  "Authentication": {
+    "Authority": "<GO-LIVE: the identity server's address, e.g. https://auth.badjockeys.com>",
+    "Audience": "bjk-api"
+  },
+  "Cors": {
+    "AllowedOrigins": [ "<GO-LIVE: the web app's address, e.g. https://badjockeys.com>" ]
+  },
+  "ApiDocs": {
+    "//": "Swagger UI and the OpenAPI file. Off in live unless the API reference should be public.",
+    "Enabled": false
+  },
+
+  "Email": {
+    "//": "Notification and report emails. Provider defaults to Log, which sends NOTHING: live must say SendGrid.",
+    "Provider": "SendGrid",
+    "FromAddress": "<GO-LIVE: e.g. no-reply@badjockeys.com, on a domain verified in SendGrid>",
+    "FromName": "Bad Jockeys",
+    "ReplyToAddress": "support@badjockeys.com",
+    "LogoUrl": "<GO-LIVE: a PNG logo for email headers, e.g. https://badjockeys.com/email-logo.png>",
+    "SendGrid": {
+      "ApiKey": "<GO-LIVE SECRET: SendGrid API key with the Mail Send permission only>",
+      "BaseUrl": "https://api.sendgrid.com",
+      "SandboxMode": false
+    }
+  },
+  "SMS": {
+    "//": "Texts (mobile number verification, UI overhaul step 6). Provider defaults to Log, which sends NOTHING: live must say Twilio. Use an API key rather than the auth token, and a Messaging Service rather than one number.",
+    "Provider": "Twilio",
+    "Twilio": {
+      "AccountSid": "<GO-LIVE: Twilio account SID, AC...>",
+      "ApiKeySid": "<GO-LIVE: Twilio API key SID, SK...>",
+      "ApiKeySecret": "<GO-LIVE SECRET: the API key's secret>",
+      "MessagingServiceSid": "<GO-LIVE: Messaging Service SID, MG... (UK alphanumeric sender BADJOCKEYS needs registering)>"
+    }
+  },
+
+  "Media": {
+    "Storage": {
+      "//": "Cloudflare R2 (S3Mock on your machine). The originals bucket needs CORS PUT from the web app's address and a 90-day deletion rule; the sensitive bucket needs neither and must stay private.",
+      "ServiceUrl": "<GO-LIVE: https://<cloudflare account id>.r2.cloudflarestorage.com>",
+      "AccessKeyId": "<GO-LIVE SECRET: R2 API token access key, Object Read & Write on the live buckets only>",
+      "SecretAccessKey": "<GO-LIVE SECRET: R2 API token secret>",
+      "OriginalsBucket": "<GO-LIVE: e.g. bjk-live-originals>",
+      "PublicBucket": "<GO-LIVE: e.g. bjk-live-public>",
+      "PublicBaseUrl": "<GO-LIVE: the public bucket's custom domain behind Cloudflare, e.g. https://media.badjockeys.com/>",
+      "SensitiveBucket": "<GO-LIVE: e.g. bjk-live-sensitive (private)>"
+    },
+    "Processing": {
+      "//": "Media worker only. Paths inside the worker's container image.",
+      "FfmpegPath": "/usr/bin/ffmpeg",
+      "FfprobePath": "/usr/bin/ffprobe"
+    },
+    "Redaction": {
+      "//": "Media worker only. Without the models every upload goes to review. ReviewEverything=true at launch (decision 19 Oct): every upload is checked by a moderator until blurring has a track record.",
+      "FaceModelPath": "<GO-LIVE: path in the worker image, e.g. /opt/bjk/models/face_detection_yunet_2023mar.onnx>",
+      "PlateModelPath": "<GO-LIVE: path in the worker image, e.g. /opt/bjk/models/license_plate_detection_lpd_yunet_2023mar.onnx>",
+      "RemoveAudio": true,
+      "ReviewEverything": true
+    },
+    "SensitiveDetection": {
+      "//": "Media worker only. Off until a gore/injury classifier has been chosen and tested; once on, a missing model sends every upload to review.",
+      "Enabled": false,
+      "Provider": "Onnx",
+      "ModelPath": "<GO-LIVE (when enabled): path to the chosen classifier, e.g. /opt/bjk/models/graphic-content.onnx>"
+    }
+  },
+
+  "Captcha": {
+    "//": "Cloudflare Turnstile on the public report form. The local value is Cloudflare's always-pass test key.",
+    "Provider": "Turnstile",
+    "TurnstileSecretKey": "<GO-LIVE SECRET: the Turnstile widget's secret key (its site key goes in the web app's TURNSTILE_SITE_KEY)>"
+  },
+  "Screening": {
+    "//": "Keywords (built-in list) works with no supplier. Http adds a classifier service (e.g. Detoxify in a sidecar).",
+    "Provider": "Keywords",
+    "Endpoint": "<GO-LIVE (only if Provider is Http): the classifier's address, e.g. http://localhost:8000/score>"
+  },
+  "Reels": {
+    "ViewerKeySecret": "<GO-LIVE SECRET: a long random string (openssl rand -base64 48); hashes logged-out viewers' ids and IP addresses>"
+  },
+  "Plans": {
+    "//": "Billing (Stripe) isn't built yet. Until the identity server issues the plan claim, Overrides gives chosen accounts a plan. Live: empty, then remove once billing exists.",
+    "Overrides": {}
+  },
+  "Safety": {
+    "RequireAgeVerification": false
+  },
+  "Notifications": {
+    "AppUrl": "<GO-LIVE: the web app's address, for links in emails, e.g. https://badjockeys.com>"
+  },
+  "Posts": {
+    "//": "ReportsInbox and AppUrl arrive with bjk-modules #30 (report emails). The inbox must exist before launch.",
+    "AllowedRegions": [ "GB" ],
+    "ReportsInbox": "support@badjockeys.com",
+    "AppUrl": "<GO-LIVE: the web app's address, e.g. https://badjockeys.com>"
+  },
+  "Messaging": {
+    "UserEventsQueue": "bjk-core.user-events",
+    "MediaEventsQueue": "bjk-core.media-events"
+  },
+  "Database": {
+    "AllowDestructiveMigrations": false
+  }
+}
