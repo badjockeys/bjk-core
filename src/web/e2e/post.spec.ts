@@ -213,10 +213,12 @@ test("comment, reply and react", async ({ page }) => {
   const mine = page.locator(".comment", { hasText: "Same car was outside the school yesterday." });
   await mine.getByRole("button", { name: /More options for this comment/ }).click();
   await page.getByRole("menuitem", { name: "Edit comment" }).click();
-  await mine.getByLabel("Edit your comment").fill("Same car was outside the school on Monday.");
-  await mine.getByRole("button", { name: "Save" }).click();
-  await expect(page.getByText("Same car was outside the school on Monday.")).toBeVisible();
-  await expect(mine.getByText("· edited")).toBeVisible();
+  // While editing, the comment's text is in the box, so find the box and Save on the page.
+  await page.getByLabel("Edit your comment").fill("Same car was outside the school on Monday.");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  const edited = page.locator(".comment", { hasText: "Same car was outside the school on Monday." });
+  await expect(edited).toBeVisible();
+  await expect(edited.getByText("· edited")).toBeVisible();
 
   // Reply is in someone else's ⋯ menu too, with Report.
   await larry.getByRole("button", { name: /More options for this comment/ }).click();
