@@ -10,7 +10,8 @@ This guide gets the whole platform running on your machine:
 | Media worker (converts uploads with ffmpeg) | bjk-core, `src/BJK.Core.MediaWorker` | .NET + ffmpeg | no address, reads the queue |
 | Web app | bjk-core, `src/web` | Node.js (Next.js) | http://localhost:3000 |
 | File storage | bjk-core (`docker-compose.yml`): S3Mock, standing in for Cloudflare R2 | Docker, group `bad-jockeys` | http://localhost:9090 |
-| Reports (Grafana) | bjk-core (`docker-compose.yml`, `src/reporting`) | Docker, group `bad-jockeys` | http://localhost:3300 |
+| Reports, logs and traces (Grafana) | bjk-core (`docker-compose.yml`, `src/reporting`) | Docker, group `bad-jockeys` | http://localhost:3300 |
+| Logs, traces and metrics store (`otel-lgtm`: OpenTelemetry collector, Loki, Tempo, Prometheus) | bjk-core (`docker-compose.yml`) | Docker, group `bad-jockeys` | OTLP on `localhost:4317` / `4318` |
 
 > **Status (19 Oct 2026):** everything in the table runs: the identity server, the API, the media worker and the web app (`src/web`).
 
@@ -496,9 +497,23 @@ How it fits together:
 - **Grafana** runs in the `bad-jockeys` Docker group. Its data sources and dashboards come from `src/reporting/grafana` (provisioned, so they can't drift). To change a dashboard, edit it in Grafana as admin, then **Export → Save to file** and replace the JSON in `src/reporting/grafana/dashboards`; edits made only in Grafana are lost when it restarts.
 - **After pulling changes to the views**, or if the setup couldn't apply them (the identity server and API must each have started once, so both databases exist): `node scripts/sql/reporting/apply.mjs`.
 - **Adding a report:** add or change a view in the matching `scripts/sql/reporting/*.sql` (counts only, `CREATE OR ALTER VIEW reporting.<Name>`), apply it, then add a panel. CI applies every view, checks `bjk_reporting` can read each one but not the tables, starts Grafana and runs every panel's query.
-- **Logs and errors aren't here:** those are monitoring, which goes to Grafana Cloud (OpenTelemetry) once deployed.
+- **Logs, traces and app health** are in the same Grafana: see below.
 
-When deployed, Grafana is its own container behind Cloudflare Access, with Google sign-in limited to badjockeys.com; `bjk_reporting` is a contained database user in each Azure SQL database, its password a container secret.
+When deployed, the same dashboards run in **Grafana Cloud**, which reads the databases through its Private Data Source Connect agent (a small container next to the apps, outbound only), with Google sign-in for badjockeys.com; `bjk_reporting` is a contained database user in each Azure SQL database, its password a container secret.
+
+### Logs, traces and app health
+
+The identity server, the API, the media worker and the web app's server send their logs, traces and metrics through **OpenTelemetry** to the `otel-lgtm` container (Grafana's all-in-one OpenTelemetry collector, Loki, Tempo and Prometheus: the same parts Grafana Cloud runs). It's in the `bad-jockeys` Docker group, and the apps find it through `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318` (the .NET apps' `launchSettings.json`, the web app's `.env.local`; add the two `OTEL_` lines from `.env.local.example` to an older `.env.local`).
+
+In Grafana at http://localhost:3300:
+
+- **App health** dashboard: requests per second, server errors, the slowest endpoints, errors and warnings logged, failed jobs, and the latest errors. Pick a service at the top.
+- **Explore → Logs:** search any app's logs, e.g. `{service_name="bjk-core-api"} | severity_text="Error"`. A log line's trace id opens the request's trace.
+- **Explore → Traces:** one request's path through the app, its SQL calls and outgoing calls, with timings.
+
+Logs never contain emails, names or IP addresses, URLs' query string values are redacted, and SQL text isn't recorded. Data is kept only while the container runs. Apps started by the setup, or without `OTEL_EXPORTER_OTLP_ENDPOINT`, send nothing.
+
+When deployed, the same apps send to **Grafana Cloud** instead: only `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL` (`http/protobuf`) and `OTEL_EXPORTER_OTLP_HEADERS` (its key, a secret) change, and outside Development the .NET apps refuse to start without an https address. The App health dashboard picks its data sources from the list at the top, so it imports into Grafana Cloud as it is.
 
 ## Database changes
 
