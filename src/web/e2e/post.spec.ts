@@ -260,8 +260,12 @@ test("comment, reply and react", async ({ page }) => {
   await edited.getByRole("button", { name: "Edited: see earlier versions" }).click();
   const history = page.getByRole("dialog", { name: "Edit history" });
   await expect(history.getByRole("listitem")).toHaveCount(2);
-  await expect(history.getByRole("listitem").first()).toContainText("Same car was outside the school on Monday.");
-  await expect(history.getByRole("listitem").last()).toContainText("Same car was outside the school yesterday.");
+  await expect(history.getByRole("listitem").first()).toContainText(
+    "Same car was outside the school on Monday.",
+  );
+  await expect(history.getByRole("listitem").last()).toContainText(
+    "Same car was outside the school yesterday.",
+  );
   await history.getByRole("button", { name: "Close" }).last().click();
   await expect(history).toBeHidden();
 

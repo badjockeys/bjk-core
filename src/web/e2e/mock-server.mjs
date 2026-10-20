@@ -1153,7 +1153,9 @@ async function api(req, res, url) {
       return send(res, 200, appeal);
     }
     let c;
-    if ((c = rest.match(/^comments\/([0-9a-f-]{36})(?:\/(replies|reaction|reports|appeal|history|hidden))?$/))) {
+    if (
+      (c = rest.match(/^comments\/([0-9a-f-]{36})(?:\/(replies|reaction|reports|appeal|history|hidden))?$/))
+    ) {
       const comment = db.comments.find((x) => x.id === c[1] && x.postId === p.id);
       if (!comment) return problem(res, 404, "Comment not found.");
       const action = c[2];
@@ -1166,12 +1168,18 @@ async function api(req, res, url) {
       }
       if (action === "hidden" && method === "PUT") {
         if (p.authorId !== me) return problem(res, 403, "Only the post's author can hide comments on it.");
-        if (comment.authorId === me) return invalid(res, "CommentId", "That's your own comment: delete it instead.");
+        if (comment.authorId === me)
+          return invalid(res, "CommentId", "That's your own comment: delete it instead.");
         comment.hiddenByAuthor = (await json()).hidden;
         return send(res, 200, commentDto(comment, me, false));
       }
       if (action === "replies" && method === "GET") {
-        if (!shownTo(comment, me)) return send(res, 200, page([], url, (r) => r));
+        if (!shownTo(comment, me))
+          return send(
+            res,
+            200,
+            page([], url, (r) => r),
+          );
         const replies = db.comments.filter((r) => r.parentId === comment.id && r.status === "Visible");
         return send(
           res,

@@ -120,25 +120,27 @@ export function Comments({
           The author has turned comments off on this post.
         </p>
       ) : null}
-      {closed ? null : blockerNotice ?? (
-        <CommentBox
-          viewer={viewer}
-          label="Add a comment"
-          button="Comment"
-          onSubmit={async (body) => {
-            const result = await addComment(postId, body);
-            if (result.ok) {
-              setComments((current) => [...current, { ...result.data, replies: [], replyCount: 0 }]);
-              setTopLevelTotal((n) => n + 1);
-              setCount((n) => n + 1);
-              if (result.data.status === "HeldForReview") {
-                toast("Thanks. A moderator will check your comment before others see it.");
-              }
-            }
-            return result;
-          }}
-        />
-      )}
+      {closed
+        ? null
+        : (blockerNotice ?? (
+            <CommentBox
+              viewer={viewer}
+              label="Add a comment"
+              button="Comment"
+              onSubmit={async (body) => {
+                const result = await addComment(postId, body);
+                if (result.ok) {
+                  setComments((current) => [...current, { ...result.data, replies: [], replyCount: 0 }]);
+                  setTopLevelTotal((n) => n + 1);
+                  setCount((n) => n + 1);
+                  if (result.data.status === "HeldForReview") {
+                    toast("Thanks. A moderator will check your comment before others see it.");
+                  }
+                }
+                return result;
+              }}
+            />
+          ))}
 
       {comments.map((comment) => (
         <CommentThread
@@ -539,7 +541,12 @@ function CommentItem({
         </div>
       </div>
       {comment.editedAt ? (
-        <CommentHistory postId={postId} commentId={comment.id} open={history} onClose={() => setHistory(false)} />
+        <CommentHistory
+          postId={postId}
+          commentId={comment.id}
+          open={history}
+          onClose={() => setHistory(false)}
+        />
       ) : null}
       {!isMine ? (
         <ReportDialog
