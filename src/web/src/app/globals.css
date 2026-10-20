@@ -1390,9 +1390,16 @@ p {
   color: var(--ink);
 }
 
-/* The "Seen some bad driving?" box at the top of the feed (not the composer pop-up, which is .composer). */
+/* "Seen some bad driving?" at the top of the feed; clicking it opens the composer in place (.composer-inline). */
 .feed-composer {
   display: flex;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
   gap: 12px;
   padding: 12px 16px;
   border-bottom: 1px solid var(--line);
@@ -1743,7 +1750,7 @@ dialog.lightbox {
 
 /* --- New post composer (approved mock-ups, 20 Oct 2026) --- */
 
-/* Phones: fills the screen. From 640px: a pop-up card over the page (see Responsive). */
+/* Phones: fills the screen. From 640px: a card (see Responsive). Its panels open as a pop-up (dialog.composer-dialog). */
 .composer {
   display: flex;
   flex-direction: column;
@@ -1769,6 +1776,38 @@ dialog.composer-dialog::backdrop {
 .composer-page {
   display: flex;
   justify-content: center;
+}
+
+/* Desktop: the composer in place at the top of the feed, like X. Beats the card styles below (two classes). */
+.composer.composer-inline {
+  width: 100%;
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  border-radius: 0;
+  box-shadow: none;
+  border-bottom: 1px solid var(--line);
+}
+
+.composer-inline .cmp-scroll {
+  overflow: visible;
+}
+
+/* Post stays in reach while the details are filled in. */
+.composer-inline .cmp-foot {
+  gap: 8px;
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  background: #ffffff;
+}
+
+.composer-posted {
+  margin: 12px 16px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
 }
 
 .cmp-head {

@@ -35,11 +35,7 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-/** `modal` is the pop-up slot (app/@modal): the new post composer opens there over the current page. */
-export default function RootLayout({
-  children,
-  modal,
-}: Readonly<{ children: React.ReactNode; modal: React.ReactNode }>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en-GB" className={poppins.variable}>
       <body>
@@ -47,7 +43,6 @@ export default function RootLayout({
           Skip to content
         </a>
         {children}
-        {modal}
         <Toaster />
       </body>
     </html>
