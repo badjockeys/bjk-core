@@ -446,6 +446,24 @@ Ask for the API's scopes when you sign in with the identity server's local test 
 
 Posting and commenting also need a confirmed email address (confirm it from the link in the identity server's console).
 
+## Example users and posts
+
+A fresh install has an empty feed. To fill it with example data, start everything once (so both databases exist), then from bjk-core run:
+
+```bash
+node scripts/seed-example-data.mjs           # add (or refresh) the example data
+node scripts/seed-example-data.mjs --remove  # take it all out again
+```
+
+It adds 8 example users and 26 posts around Prescot, Liverpool, Warrington, Manchester, Leeds and London. The posts come with reactions, comments and replies, vehicle details, and enough posts close together for the heat map. The photos are placeholder dashcam frames marked "Example clip", uploaded to S3Mock.
+
+- **Sign in as an example user:** for example `dave@example.test` (@dashcam_dave) or `priya@example.test` (@pedal_power_priya), password `BadJockeys!2026`. They're all adults who have passed the age check, with confirmed emails.
+- **Your own account:** if `aaron.greenhalgh@badjockey.com` has a profile, Dashcam Dave tags it as a passenger on one post. You'll see it waiting under **Approve tags** and in the bell. Change `OWNER_EMAIL` in `scripts/example-data/data.mjs` for someone else.
+- **Running it again** replaces the example data. Only rows whose ids start `e0000000` are touched.
+- **The SQL is in `scripts/example-data/`** (`seed.sql` and `remove.sql`) if you'd rather run it yourself. The photos only appear after the script uploads them. After changing `data.mjs`, regenerate the SQL with `node scripts/example-data/build-sql.mjs`.
+
+There are no videos, so Reels stays empty.
+
 ## Data and handy queries
 
 To look at the data, connect your SQL tool with these settings:
