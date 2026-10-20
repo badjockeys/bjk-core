@@ -1,0 +1,39 @@
+{
+  "runtime": "Net100",
+  "documentGenerator": {
+    "aspNetCoreToOpenApi": {
+      "project": "BJK.Core.Api.csproj",
+      "configuration": "$(Configuration)",
+      "noBuild": true,
+      "documentName": "v1",
+      "aspNetCoreEnvironment": "Development",
+      "output": null
+    }
+  },
+  "codeGenerators": {
+    "openApiToTypeScriptClient": {
+      "className": "{controller}Client",
+      "moduleName": "",
+      "namespace": "",
+      "typeScriptVersion": 5.9,
+      "template": "Fetch",
+      "promiseType": "Promise",
+      "operationGenerationMode": "MultipleClientsFromFirstTagAndOperationId",
+      "generateClientClasses": true,
+      "generateClientInterfaces": false,
+      "generateOptionalParameters": true,
+      "useAbortSignal": true,
+      "wrapDtoExceptions": false,
+      "typeStyle": "Interface",
+      "enumStyle": "StringLiteral",
+      "generateDtoTypes": true,
+      "markOptionalProperties": false,
+      "dateTimeType": "String",
+      "nullValue": "Null",
+      "generateCloneMethod": false,
+      "exportTypes": true,
+      "output": "../web/src/lib/generated/api.ts",
+      "newLineBehavior": "LF"
+    }
+  }
+}

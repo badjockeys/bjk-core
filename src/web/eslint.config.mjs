@@ -12,5 +12,12 @@ export default defineConfig([
       "@next/next/no-img-element": "off",
     },
   },
-  globalIgnores([".next/**", "out/**", "playwright-report/**", "test-results/**", "next-env.d.ts"]),
+  globalIgnores([
+    ".next/**",
+    "out/**",
+    "playwright-report/**",
+    "test-results/**",
+    "next-env.d.ts",
+    "src/lib/generated/**",
+  ]),
 ]);

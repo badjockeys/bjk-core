@@ -97,7 +97,11 @@ builder.Services.AddOpenApiDocument(document =>
 var app = builder.Build();
 
 // Create the database if needed and apply each module's schema changes. Never drops data (see DatabaseMigrator).
-await app.Services.InitialiseBjkModulesAsync();
+// Skipped while NSwag generates the web app's API client (nswag.json): it only reads the endpoints.
+if (!builder.Configuration.GetValue<bool>("GeneratingApiClient"))
+{
+    await app.Services.InitialiseBjkModulesAsync();
+}
 
 app.UseForwardedHeaders();
 app.UseExceptionHandler();

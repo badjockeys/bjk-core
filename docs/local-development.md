@@ -382,6 +382,8 @@ The API reference isn't a document anyone writes: NSwag generates it from the co
 
 Each CI run also attaches the document as the `openapi` artifact. In other environments it's off unless `ApiDocs:Enabled` is `true`.
 
+The web app's API client is generated from the same controllers. Every Debug build of `src/BJK.Core.Api` rewrites `src/web/src/lib/generated/api.ts` (settings in `src/BJK.Core.Api/nswag.json`); never edit that file by hand. When you change an endpoint or a DTO in bjk-modules and update core to the new packages, build the API and commit the regenerated file with your change: CI fails if it's out of date. `src/web/src/lib/api-client.ts` wraps it to add the caller's token, caching and `ApiError`.
+
 ## 8. Run the web app
 
 You need Node.js 24 (step 1). The first time:
