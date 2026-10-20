@@ -127,21 +127,32 @@ function createQueue(limit: number): UploadQueue {
 }
 
 export interface PostComposerProps {
-  /** "modal": a pop-up over the page it was opened from (full screen on phones); "page": the /post/new page. */
-  mode: "modal" | "page";
+  /**
+   * "inline": at the top of the feed on desktop, like X (the panels open as small pop-ups over it); "page": the
+   * /post/new page, which fills the screen on phones.
+   */
+  mode: "inline" | "page";
   defaultDate: string;
   defaultTime: string;
   tileUrl: string;
   attribution: string;
   emailVerified: boolean;
   author: { name: string; avatarUrl: string | null };
+  /** Inline only: the composer was closed (cancelled, discarded or kept as a draft). */
+  onClose?: () => void;
+  /** Inline only: the post went up. */
+  onPosted?: (post: { id: string; kind: "Image" | "Video" }) => void;
 }
+
+/** What the composer needs from a signed-in member with a profile (app/post/new/composer-props.ts). */
+export type ComposerData = Omit<PostComposerProps, "mode" | "onClose" | "onPosted">;
 
 /**
  * The new post composer (approved mock-ups, 20 Oct 2026): like Facebook or X, everything on one screen. Title, what
  * happened (up to 500 characters), photos or a video, then the details as chips: the types of bad driving (several),
  * when and where, each opening a panel in place. Post is enabled once nothing required is missing, and the footer
- * says what still is. On desktop it's a pop-up over the feed; on phones it fills the screen.
+ * says what still is. On desktop it sits at the top of the feed (UI overhaul, 20 Oct 2026); on phones it fills the
+ * screen.
  */
 export function PostComposer({
   mode,
@@ -151,6 +162,8 @@ export function PostComposer({
   attribution,
   emailVerified,
   author,
+  onClose,
+  onPosted,
 }: PostComposerProps) {
   const router = useRouter();
   const [view, setView] = useState<View>("compose");
@@ -183,7 +196,8 @@ export function PostComposer({
   const [savingDraft, startSavingDraft] = useTransition();
   const photoInput = useRef<HTMLInputElement>(null);
   const videoInput = useRef<HTMLInputElement>(null);
-  const dialog = useRef<HTMLDialogElement>(null);
+  const picker = useRef<HTMLDialogElement>(null);
+  const title = useRef<HTMLInputElement>(null);
   const uploads = useRef<UploadQueue | null>(null);
 
   const kind: "Image" | "Video" | null = items[0]?.kind ?? null;
@@ -377,7 +391,9 @@ export function PostComposer({
   }, []);
 
   const close = () => {
-    if (mode === "modal") {
+    if (mode === "inline") {
+      onClose?.();
+    } else if (window.history.length > 1) {
       router.back();
     } else {
       router.push("/");
@@ -505,13 +521,38 @@ export function PostComposer({
     return result;
   };
 
-  // The pop-up opens as a modal dialog: the page behind can't be reached, and Escape asks before discarding.
+  // Inline: the title is ready to type into as soon as the composer opens.
   useEffect(() => {
-    const element = dialog.current;
-    if (element && !element.open) {
+    if (mode === "inline") {
+      title.current?.focus();
+    }
+  }, [mode]);
+
+  // Inline: the panels (types, when, where, vehicle, drafts, leaving) open as a small pop-up over the feed.
+  useEffect(() => {
+    const element = picker.current;
+    if (mode === "inline" && element && view !== "compose" && !element.open) {
       element.showModal();
     }
-  }, []);
+  }, [mode, view]);
+
+  // Inline: leaving the page with a post started asks first (the browser's own prompt).
+  const leaveGuard = useRef(false);
+  useEffect(() => {
+    leaveGuard.current = started;
+  }, [started]);
+  useEffect(() => {
+    if (mode !== "inline") {
+      return;
+    }
+    const warn = (event: BeforeUnloadEvent) => {
+      if (leaveGuard.current) {
+        event.preventDefault();
+      }
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [mode]);
 
   const set = <K extends keyof Fields>(key: K, value: Fields[K]) => {
     setFields((current) => ({ ...current, [key]: value }));
@@ -604,6 +645,12 @@ export function PostComposer({
         setSubmitError(result.error);
         return;
       }
+      if (mode === "inline") {
+        leaveGuard.current = false;
+        onPosted?.({ id: result.data.id, kind: kind ?? "Image" });
+        router.refresh();
+        return;
+      }
       router.push(`/p/${result.data.id}?posted=${kind === "Video" ? "video" : "photos"}`);
     });
   };
@@ -646,9 +693,10 @@ export function PostComposer({
     </>
   );
 
-  let body: ReactNode;
+  // The panel open over the composer (or in its place on the page), if any.
+  let panel: ReactNode = null;
   if (view === "leave") {
-    body = (
+    panel = (
       <LeavePanel
         editingDraft={draftId !== null}
         uploading={uploading > 0}
@@ -661,7 +709,7 @@ export function PostComposer({
       />
     );
   } else if (view === "drafts") {
-    body = (
+    panel = (
       <DraftsPanel
         drafts={drafts ?? []}
         onOpen={openDraft}
@@ -670,7 +718,7 @@ export function PostComposer({
       />
     );
   } else if (view === "trim" && videoFile) {
-    body = (
+    panel = (
       <div className="cmp-panel cmp-scroll">
         <TrimVideo
           file={videoFile.file}
@@ -684,9 +732,9 @@ export function PostComposer({
       </div>
     );
   } else if (view === "types") {
-    body = <TypesPanel chosen={fields.types} onToggle={toggleType} onDone={() => setView("compose")} />;
+    panel = <TypesPanel chosen={fields.types} onToggle={toggleType} onDone={() => setView("compose")} />;
   } else if (view === "when") {
-    body = (
+    panel = (
       <WhenPanel
         date={fields.date}
         time={fields.time}
@@ -700,7 +748,7 @@ export function PostComposer({
       />
     );
   } else if (view === "vehicle") {
-    body = (
+    panel = (
       <VehiclePanel
         vehicle={fields.vehicle}
         onDone={(vehicle) => {
@@ -711,7 +759,7 @@ export function PostComposer({
       />
     );
   } else if (view === "where") {
-    body = (
+    panel = (
       <WherePanel
         placeName={fields.placeName}
         pin={fields.pin}
@@ -725,9 +773,15 @@ export function PostComposer({
         onBack={() => setView("compose")}
       />
     );
-  } else {
-    body = (
-      <>
+  }
+
+  const compose = (
+    <>
+      {mode === "inline" ? (
+        <h2 id="composer-title" className="sr-only">
+          Create post
+        </h2>
+      ) : (
         <header className="cmp-head">
           <button type="button" className="link m-only" onClick={cancel}>
             Cancel
@@ -744,329 +798,337 @@ export function PostComposer({
           </button>
           <span className="cmp-head-end d-only" />
         </header>
+      )}
 
-        <form id="new-post" className="cmp-body cmp-scroll" onSubmit={submit} noValidate>
-          {!started && drafts && drafts.length > 0 ? (
-            <button type="button" className="cmp-drafts-link" onClick={() => setView("drafts")}>
-              <span>
-                You have {plural(drafts.length, "draft")} saved. <strong>Open drafts</strong>
-              </span>
-              <ChevronIcon />
-            </button>
-          ) : null}
-
-          {!emailVerified ? (
-            <p className="notice notice-warn" role="note">
-              Confirm your email address before you post: use the link we emailed you when you joined.
-            </p>
-          ) : null}
-
-          <div className="cmp-text">
-            <Avatar name={author.name} url={author.avatarUrl} />
-            <div className="cmp-fields">
-              <label htmlFor="post-title" className="cmp-label">
-                Title
-              </label>
-              <input
-                id="post-title"
-                className={`cmp-title${errors.title ? " input-error" : ""}`}
-                type="text"
-                maxLength={120}
-                required
-                placeholder="Sum it up, e.g. Tailgated on the A57"
-                value={fields.title}
-                onChange={(e) => set("title", e.target.value)}
-              />
-              {errors.title ? <span className="error">{errors.title}</span> : null}
-              <label htmlFor="post-text" className="cmp-label">
-                What happened? <span className="muted">(optional)</span>
-              </label>
-              <textarea
-                id="post-text"
-                className={`cmp-textarea${errors.description ? " input-error" : ""}`}
-                rows={3}
-                maxLength={DESCRIPTION_MAX}
-                aria-describedby="post-text-count"
-                value={fields.description}
-                onChange={(e) => set("description", e.target.value)}
-              />
-              <span id="post-text-count" className="cmp-count">
-                {fields.description.length} / {DESCRIPTION_MAX}
-              </span>
-              {errors.description ? <span className="error">{errors.description}</span> : null}
-            </div>
-          </div>
-
-          <div className="field">
-            <span className="cmp-label">
-              Photos or a video <span className="cmp-req">· required</span>
-              <span className="d-only-inline"> · up to {MAX_PHOTOS} photos or 1 video</span>
+      <form id="new-post" className="cmp-body cmp-scroll" onSubmit={submit} noValidate>
+        {!started && drafts && drafts.length > 0 ? (
+          <button type="button" className="cmp-drafts-link" onClick={() => setView("drafts")}>
+            <span>
+              You have {plural(drafts.length, "draft")} saved. <strong>Open drafts</strong>
             </span>
-            <div className="cmp-thumbs">
-              {items.map((item, index) => (
-                <Thumb key={item.key} item={item} index={index} onRemove={() => remove(item)} />
-              ))}
-              {items.length === 0 ? (
-                <DropTile onPhotos={() => photoInput.current?.click()} onDrop={onFiles} />
-              ) : null}
-              {kind === "Image" && photosLeft > 0 ? (
-                <button
-                  type="button"
-                  className="cmp-add"
-                  aria-label="Add more photos"
-                  onClick={() => photoInput.current?.click()}
-                >
-                  <PlusIcon size={22} />
-                  Add more
-                  <span className="small">
-                    {items.length} of {MAX_PHOTOS}
-                  </span>
-                </button>
-              ) : null}
-            </div>
-            <span className={errors.media || mediaError ? "error" : "help"} aria-live="polite">
-              {errors.media ||
-                mediaError ||
-                (uploading > 0
-                  ? `Uploading ${plural(uploading, kind === "Video" ? "video" : "photo")}…`
-                  : items.some((i) => i.status === "processing")
-                    ? "Uploaded. We'll finish processing after you post."
-                    : "")}
-            </span>
-          </div>
+            <ChevronIcon />
+          </button>
+        ) : null}
 
-          <div className="cmp-details">
-            <div className="cmp-row">
-              <span className="cmp-row-label" id="types-label">
-                Bad driving
-              </span>
-              <div className="cmp-chips" role="group" aria-labelledby="types-label">
-                {fields.types.map((type) => (
-                  <span key={type} className="cmp-chip cmp-chip-on">
-                    {categoryLabel(type)}
-                    <button
-                      type="button"
-                      className="cmp-chip-x"
-                      aria-label={`Remove ${categoryLabel(type)}`}
-                      onClick={() => toggleType(type, false)}
-                    >
-                      <CloseIcon size={12} color="#FFFFFF" />
-                    </button>
-                  </span>
-                ))}
-                {fields.types.length === 0 ? (
-                  <button type="button" className="cmp-chip cmp-chip-todo" onClick={() => setView("types")}>
-                    <TagIcon />
-                    What kind of bad driving?
-                  </button>
-                ) : (
+        {!emailVerified ? (
+          <p className="notice notice-warn" role="note">
+            Confirm your email address before you post: use the link we emailed you when you joined.
+          </p>
+        ) : null}
+
+        <div className="cmp-text">
+          <Avatar name={author.name} url={author.avatarUrl} />
+          <div className="cmp-fields">
+            <label htmlFor="post-title" className="cmp-label">
+              Title
+            </label>
+            <input
+              id="post-title"
+              ref={title}
+              className={`cmp-title${errors.title ? " input-error" : ""}`}
+              type="text"
+              maxLength={120}
+              required
+              placeholder="Sum it up, e.g. Tailgated on the A57"
+              value={fields.title}
+              onChange={(e) => set("title", e.target.value)}
+            />
+            {errors.title ? <span className="error">{errors.title}</span> : null}
+            <label htmlFor="post-text" className="cmp-label">
+              What happened? <span className="muted">(optional)</span>
+            </label>
+            <textarea
+              id="post-text"
+              className={`cmp-textarea${errors.description ? " input-error" : ""}`}
+              rows={3}
+              maxLength={DESCRIPTION_MAX}
+              aria-describedby="post-text-count"
+              value={fields.description}
+              onChange={(e) => set("description", e.target.value)}
+            />
+            <span id="post-text-count" className="cmp-count">
+              {fields.description.length} / {DESCRIPTION_MAX}
+            </span>
+            {errors.description ? <span className="error">{errors.description}</span> : null}
+          </div>
+        </div>
+
+        <div className="field">
+          <span className="cmp-label">
+            Photos or a video <span className="cmp-req">· required</span>
+            <span className="d-only-inline"> · up to {MAX_PHOTOS} photos or 1 video</span>
+          </span>
+          <div className="cmp-thumbs">
+            {items.map((item, index) => (
+              <Thumb key={item.key} item={item} index={index} onRemove={() => remove(item)} />
+            ))}
+            {items.length === 0 ? (
+              <DropTile onPhotos={() => photoInput.current?.click()} onDrop={onFiles} />
+            ) : null}
+            {kind === "Image" && photosLeft > 0 ? (
+              <button
+                type="button"
+                className="cmp-add"
+                aria-label="Add more photos"
+                onClick={() => photoInput.current?.click()}
+              >
+                <PlusIcon size={22} />
+                Add more
+                <span className="small">
+                  {items.length} of {MAX_PHOTOS}
+                </span>
+              </button>
+            ) : null}
+          </div>
+          <span className={errors.media || mediaError ? "error" : "help"} aria-live="polite">
+            {errors.media ||
+              mediaError ||
+              (uploading > 0
+                ? `Uploading ${plural(uploading, kind === "Video" ? "video" : "photo")}…`
+                : items.some((i) => i.status === "processing")
+                  ? "Uploaded. We'll finish processing after you post."
+                  : "")}
+          </span>
+        </div>
+
+        <div className="cmp-details">
+          <div className="cmp-row">
+            <span className="cmp-row-label" id="types-label">
+              Bad driving
+            </span>
+            <div className="cmp-chips" role="group" aria-labelledby="types-label">
+              {fields.types.map((type) => (
+                <span key={type} className="cmp-chip cmp-chip-on">
+                  {categoryLabel(type)}
                   <button
                     type="button"
-                    className="cmp-chip"
-                    aria-label="Add a type of bad driving"
-                    onClick={() => setView("types")}
+                    className="cmp-chip-x"
+                    aria-label={`Remove ${categoryLabel(type)}`}
+                    onClick={() => toggleType(type, false)}
                   >
-                    <PlusIcon size={14} />
-                    Add
+                    <CloseIcon size={12} color="#FFFFFF" />
                   </button>
-                )}
-              </div>
+                </span>
+              ))}
+              {fields.types.length === 0 ? (
+                <button type="button" className="cmp-chip cmp-chip-todo" onClick={() => setView("types")}>
+                  <TagIcon />
+                  What kind of bad driving?
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="cmp-chip"
+                  aria-label="Add a type of bad driving"
+                  onClick={() => setView("types")}
+                >
+                  <PlusIcon size={14} />
+                  Add
+                </button>
+              )}
             </div>
-            {errors.types ? <span className="error">{errors.types}</span> : null}
+          </div>
+          {errors.types ? <span className="error">{errors.types}</span> : null}
 
-            <div className="cmp-row">
-              <span className="cmp-row-label">When</span>
+          <div className="cmp-row">
+            <span className="cmp-row-label">When</span>
+            <button
+              type="button"
+              className="cmp-chip cmp-chip-on"
+              aria-label={`When: ${when}. Change`}
+              onClick={() => setView("when")}
+            >
+              <ClockIcon size={16} color="#FFFFFF" />
+              {when}
+            </button>
+          </div>
+          {errors.when ? <span className="error">{errors.when}</span> : null}
+
+          <div className="cmp-row">
+            <span className="cmp-row-label">Where</span>
+            {fields.pin && fields.placeName.trim() ? (
               <button
                 type="button"
                 className="cmp-chip cmp-chip-on"
-                aria-label={`When: ${when}. Change`}
-                onClick={() => setView("when")}
+                aria-label={`Where: ${fields.placeName}. Change`}
+                onClick={() => setView("where")}
               >
-                <ClockIcon size={16} color="#FFFFFF" />
-                {when}
+                <PinIcon size={16} color="#FFFFFF" />
+                {fields.placeName}
               </button>
-            </div>
-            {errors.when ? <span className="error">{errors.when}</span> : null}
-
-            <div className="cmp-row">
-              <span className="cmp-row-label">Where</span>
-              {fields.pin && fields.placeName.trim() ? (
-                <button
-                  type="button"
-                  className="cmp-chip cmp-chip-on"
-                  aria-label={`Where: ${fields.placeName}. Change`}
-                  onClick={() => setView("where")}
-                >
-                  <PinIcon size={16} color="#FFFFFF" />
-                  {fields.placeName}
-                </button>
-              ) : (
-                <button type="button" className="cmp-chip cmp-chip-todo" onClick={() => setView("where")}>
-                  <PinIcon size={16} color="#00607F" />
-                  Add where it happened
-                </button>
-              )}
-            </div>
-            {errors.placeName || errors.pin ? (
-              <span className="error">{errors.placeName || errors.pin}</span>
-            ) : null}
-
-            <div className="cmp-row">
-              <span className="cmp-row-label">
-                Vehicle <span className="small">(optional)</span>
-              </span>
-              {fields.vehicle ? (
-                <button
-                  type="button"
-                  className="cmp-chip cmp-chip-on"
-                  aria-label={`Vehicle: ${describeVehicle(fields.vehicle)}. Change`}
-                  onClick={() => setView("vehicle")}
-                >
-                  {describeVehicle(fields.vehicle)}
-                </button>
-              ) : (
-                <button type="button" className="cmp-chip" onClick={() => setView("vehicle")}>
-                  <PlusIcon size={14} />
-                  Add the vehicle
-                </button>
-              )}
-            </div>
-
-            <div className="cmp-row">
-              <span className="cmp-row-label" id="police-label">
-                Reported to police?
-              </span>
-              <div className="cmp-chips" role="radiogroup" aria-labelledby="police-label">
-                {(
-                  [
-                    [true, "Yes"],
-                    [false, "No"],
-                  ] as const
-                ).map(([value, label]) => (
-                  <button
-                    key={label}
-                    type="button"
-                    role="radio"
-                    aria-checked={fields.reportedToPolice === value}
-                    className={`cmp-chip${fields.reportedToPolice === value ? " cmp-chip-on" : ""}`}
-                    onClick={() => set("reportedToPolice", fields.reportedToPolice === value ? null : value)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {onTheRoad ? (
-              <PassengersRow
-                passengers={fields.passengers}
-                error={errors.passengers}
-                onChange={(passengers) => set("passengers", passengers)}
-              />
-            ) : null}
-
-            <div className="cmp-row">
-              <span className="cmp-row-label">Sensitive</span>
-              <label className="check">
-                <input
-                  type="checkbox"
-                  checked={fields.sensitive}
-                  onChange={(e) => set("sensitive", e.target.checked)}
-                />
-                <span>Shows serious injuries or a crash</span>
-              </label>
-            </div>
-          </div>
-
-          <div className="notice">
-            <ShieldIcon />
-            <span>
-              Faces and number plates are blurred automatically, and video sound is removed. Please don&apos;t
-              type number plates, names or contact details.
-            </span>
-          </div>
-
-          <label className="check">
-            <input type="checkbox" checked={fields.owned} onChange={(e) => set("owned", e.target.checked)} />
-            <span>
-              I took {kind === "Video" ? "this video" : "these photos"}, and they follow the{" "}
-              <a href="/guidelines" target="_blank" rel="noreferrer">
-                community guidelines
-              </a>
-              .
-            </span>
-          </label>
-          {errors.owned ? <span className="error">{errors.owned}</span> : null}
-
-          {submitError ? (
-            <p className="error" role="alert">
-              {submitError}
-            </p>
-          ) : null}
-          {status ? (
-            <p className="help" role="status">
-              {status}
-            </p>
-          ) : null}
-        </form>
-
-        <footer className="cmp-foot">
-          <button
-            type="button"
-            className="icon-btn"
-            aria-label="Add photos"
-            disabled={kind === "Video" || photosLeft <= 0}
-            onClick={() => photoInput.current?.click()}
-          >
-            <PhotoIcon size={24} color="#00B5E5" strokeWidth={2} />
-          </button>
-          <button
-            type="button"
-            className="icon-btn"
-            aria-label="Add a video"
-            disabled={items.length > 0}
-            onClick={() => videoInput.current?.click()}
-          >
-            <VideoIcon color="#00B5E5" />
-          </button>
-          <span className="cmp-needed" aria-live="polite">
-            {needed.length > 0 ? (
-              <>
-                Still needed: <strong>{needed.join(", ")}</strong>
-              </>
-            ) : uploading > 0 ? (
-              "Uploading…"
             ) : (
-              "Ready to post"
+              <button type="button" className="cmp-chip cmp-chip-todo" onClick={() => setView("where")}>
+                <PinIcon size={16} color="#00607F" />
+                Add where it happened
+              </button>
             )}
-          </span>
-          <button type="submit" form="new-post" className="btn btn-primary d-only" disabled={!canPost}>
-            {pending ? "Posting…" : "Post"}
-          </button>
-        </footer>
-      </>
-    );
-  }
+          </div>
+          {errors.placeName || errors.pin ? (
+            <span className="error">{errors.placeName || errors.pin}</span>
+          ) : null}
 
-  if (mode === "modal") {
+          <div className="cmp-row">
+            <span className="cmp-row-label">
+              Vehicle <span className="small">(optional)</span>
+            </span>
+            {fields.vehicle ? (
+              <button
+                type="button"
+                className="cmp-chip cmp-chip-on"
+                aria-label={`Vehicle: ${describeVehicle(fields.vehicle)}. Change`}
+                onClick={() => setView("vehicle")}
+              >
+                {describeVehicle(fields.vehicle)}
+              </button>
+            ) : (
+              <button type="button" className="cmp-chip" onClick={() => setView("vehicle")}>
+                <PlusIcon size={14} />
+                Add the vehicle
+              </button>
+            )}
+          </div>
+
+          <div className="cmp-row">
+            <span className="cmp-row-label" id="police-label">
+              Reported to police?
+            </span>
+            <div className="cmp-chips" role="radiogroup" aria-labelledby="police-label">
+              {(
+                [
+                  [true, "Yes"],
+                  [false, "No"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={label}
+                  type="button"
+                  role="radio"
+                  aria-checked={fields.reportedToPolice === value}
+                  className={`cmp-chip${fields.reportedToPolice === value ? " cmp-chip-on" : ""}`}
+                  onClick={() => set("reportedToPolice", fields.reportedToPolice === value ? null : value)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {onTheRoad ? (
+            <PassengersRow
+              passengers={fields.passengers}
+              error={errors.passengers}
+              onChange={(passengers) => set("passengers", passengers)}
+            />
+          ) : null}
+
+          <div className="cmp-row">
+            <span className="cmp-row-label">Sensitive</span>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={fields.sensitive}
+                onChange={(e) => set("sensitive", e.target.checked)}
+              />
+              <span>Shows serious injuries or a crash</span>
+            </label>
+          </div>
+        </div>
+
+        <div className="notice">
+          <ShieldIcon />
+          <span>
+            Faces and number plates are blurred automatically, and video sound is removed. Please don&apos;t
+            type number plates, names or contact details.
+          </span>
+        </div>
+
+        <label className="check">
+          <input type="checkbox" checked={fields.owned} onChange={(e) => set("owned", e.target.checked)} />
+          <span>
+            I took {kind === "Video" ? "this video" : "these photos"}, and they follow the{" "}
+            <a href="/guidelines" target="_blank" rel="noreferrer">
+              community guidelines
+            </a>
+            .
+          </span>
+        </label>
+        {errors.owned ? <span className="error">{errors.owned}</span> : null}
+
+        {submitError ? (
+          <p className="error" role="alert">
+            {submitError}
+          </p>
+        ) : null}
+        {status ? (
+          <p className="help" role="status">
+            {status}
+          </p>
+        ) : null}
+      </form>
+
+      <footer className="cmp-foot">
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label="Add photos"
+          disabled={kind === "Video" || photosLeft <= 0}
+          onClick={() => photoInput.current?.click()}
+        >
+          <PhotoIcon size={24} color="#00B5E5" strokeWidth={2} />
+        </button>
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label="Add a video"
+          disabled={items.length > 0}
+          onClick={() => videoInput.current?.click()}
+        >
+          <VideoIcon color="#00B5E5" />
+        </button>
+        <span className="cmp-needed" aria-live="polite">
+          {needed.length > 0 ? (
+            <>
+              Still needed: <strong>{needed.join(", ")}</strong>
+            </>
+          ) : uploading > 0 ? (
+            "Uploading…"
+          ) : (
+            "Ready to post"
+          )}
+        </span>
+        {mode === "inline" ? (
+          <button type="button" className="btn btn-sm" onClick={cancel}>
+            Cancel
+          </button>
+        ) : null}
+        <button type="submit" form="new-post" className="btn btn-primary d-only" disabled={!canPost}>
+          {pending ? "Posting…" : "Post"}
+        </button>
+      </footer>
+    </>
+  );
+
+  if (mode === "inline") {
     return (
-      <dialog
-        ref={dialog}
-        className="composer composer-dialog"
-        aria-labelledby={view === "compose" ? "composer-title" : "panel-title"}
-        onCancel={(event) => {
-          // Escape: step back from a panel, or ask before discarding the post.
-          event.preventDefault();
-          if (view !== "compose" && view !== "trim") {
-            setView("compose");
-          } else {
-            cancel();
-          }
-        }}
-      >
+      <section className="composer composer-inline" aria-labelledby="composer-title">
         {fileInputs}
-        {body}
-      </dialog>
+        {compose}
+        {panel ? (
+          <dialog
+            ref={picker}
+            className="composer composer-dialog"
+            aria-labelledby="panel-title"
+            onCancel={(event) => {
+              // Escape steps back to the composer; a video being trimmed is dropped.
+              event.preventDefault();
+              setVideoFile(null);
+              setView("compose");
+            }}
+          >
+            {panel}
+          </dialog>
+        ) : null}
+      </section>
     );
   }
 
@@ -1078,7 +1140,7 @@ export function PostComposer({
         aria-labelledby={view === "compose" ? "composer-title" : "panel-title"}
       >
         {fileInputs}
-        {body}
+        {panel ?? compose}
       </div>
     </main>
   );
