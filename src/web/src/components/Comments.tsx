@@ -575,18 +575,14 @@ function CommentHistory({
   const titleId = useId();
   const [versions, setVersions] = useState<CommentVersionDto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
   // Fetched each time it opens, so a fresh edit shows.
   useEffect(() => {
     if (!open) {
       return;
     }
     let live = true;
-    setLoading(true);
     void commentHistory(postId, commentId).then((result) => {
       if (!live) return;
-      setLoading(false);
       if (result.ok) {
         setVersions(result.data);
         setError(null);
@@ -602,7 +598,7 @@ function CommentHistory({
   return (
     <Modal open={open} onClose={onClose} title="Edit history" titleId={titleId}>
       <div className="stack">
-        {loading && !versions ? <p className="muted">Loading…</p> : null}
+        {!versions && !error ? <p className="muted">Loading…</p> : null}
         {error ? (
           <p className="error" role="alert">
             {error}
