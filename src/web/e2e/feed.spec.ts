@@ -106,6 +106,25 @@ test("Premium members choose a longer range and narrow trends to an area", async
   await expect(trends.getByLabel("From")).toBeVisible();
 });
 
+test("hashtags in posts link to the tag's page, and Trending shows tags and places", async ({ page }) => {
+  await page.goto("/");
+  const trending = page.locator(".card", {
+    has: page.getByRole("heading", { name: "Trending", exact: true }),
+  });
+  await expect(trending.getByRole("link", { name: /#M62/ })).toContainText("12 posts today");
+  await expect(trending.getByText("Leeds · 9 posts today")).toBeVisible();
+
+  await page.getByRole("link", { name: "#Undertaking" }).first().click();
+  await expect(page).toHaveURL(/\/tag\/undertaking$/);
+  await expect(page.getByRole("heading", { name: "#Undertaking" })).toBeVisible();
+  await expect(page.getByText("1 post", { exact: true })).toBeVisible();
+  await expect(page.getByText("Undertaking a lorry on the M62")).toBeVisible();
+  await expect(page.getByText("Parked across two disabled bays, again")).toHaveCount(0);
+
+  await page.goto("/tag/nothinghere");
+  await expect(page.getByRole("heading", { name: "No posts with #nothinghere yet" })).toBeVisible();
+});
+
 test("category tabs filter the feed, with an empty state", async ({ page }) => {
   await page.goto("/");
   await page

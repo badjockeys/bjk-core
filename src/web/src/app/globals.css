@@ -914,6 +914,23 @@ p {
   font-weight: 600;
 }
 
+.tw-title {
+  display: block;
+}
+
+.tw-desc {
+  margin: 0;
+}
+
+.hashtag {
+  color: var(--brand-tint-text);
+  font-weight: 500;
+}
+
+.hashtag:hover {
+  text-decoration: underline;
+}
+
 .tw-ctx {
   display: flex;
   gap: 14px;
@@ -1984,6 +2001,35 @@ dialog.composer-dialog::backdrop {
 .cmp-label {
   font-size: 13px;
   color: var(--muted);
+}
+
+/* Hashtag suggestions under the title and description (UI step 5). */
+.tag-suggest {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(17, 17, 17, 0.12);
+  max-width: 320px;
+}
+
+.tag-suggest li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.tag-suggest li b {
+  font-weight: 600;
+}
+
+.tag-suggest-on {
+  background: var(--brand-tint);
 }
 
 .cmp-req {
@@ -3084,6 +3130,11 @@ dialog.composer-dialog::backdrop {
 .reel-author span {
   font-weight: 400;
   opacity: 0.8;
+}
+
+.reel-text .hashtag {
+  color: #ffffff;
+  font-weight: 600;
 }
 
 .reel-text {

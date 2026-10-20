@@ -3,6 +3,7 @@ import type { Viewer } from "@/lib/viewer";
 import { feedPage } from "@/lib/feed";
 
 import { AppShell, FooterLinks } from "./AppShell";
+import { TrendingPanel } from "./TrendingPanel";
 import { TrendsPanel } from "./TrendsPanel";
 import { CategoryTabs } from "./CategoryTabs";
 import { EmptyCategory, Feed } from "./Feed";
@@ -34,6 +35,7 @@ export async function FeedPage({
       fab
       aside={
         <>
+          <TrendingPanel />
           <TrendsPanel />
           <FooterLinks />
         </>
