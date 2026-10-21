@@ -8,7 +8,7 @@ using BJK.Modules.Shared.Observability;
 //
 // The API host owns the database schema, so start the API at least once before the worker.
 
-const string ConnectionStringName = "AppDatabase";
+const string ConnectionStringName = "BadJockeysDatabase";
 
 var builder = Host.CreateApplicationBuilder(args);
 

@@ -26,7 +26,6 @@ COPY --from=build /app ./
 COPY --from=build /opt/bjk/models /opt/bjk/models
 ENV Media__Redaction__FaceModelPath=/opt/bjk/models/face_detection_yunet_2026may.onnx \
     Media__Redaction__PlateModelPath=/opt/bjk/models/license_plate_detection_lpd_yunet_2023mar.onnx \
-    Media__SensitiveDetection__Enabled=true \
     Media__SensitiveDetection__ModelPath=/opt/bjk/models/clip-vit-b32-vision-quantized.onnx
 # Settings come from environment variables (Container Apps secrets in Azure), never from files in the image.
 USER $APP_UID

@@ -12,13 +12,13 @@ Jobs and events between the API, the media workers and the identity server are d
 
 Each `.failed` table holds dead letters: messages given up on, with the error in their headers. `messaging.subscriptions` lists which queue subscribes to which topic. The API creates all of these on its first start (and the media worker creates `media.process` if it starts first).
 
-Retries wait 5, 10, 20... seconds (`Messaging:RetryDelay`, doubling up to `Messaging:MaxRetryDelay`). A worker that crashes mid-job stops renewing its lease on the message, so it's delivered again within about a minute (`Messaging:LeaseDuration`). Every delivery counts as an attempt, crashes included, so a file that crashes the worker every time still ends up `Failed` rather than looping.
+Retries wait 5, 10, 20... seconds (`Queues:RetryDelay`, doubling up to `Queues:MaxRetryDelay`). A worker that crashes mid-job stops renewing its lease on the message, so it's delivered again within about a minute (`Queues:LeaseDuration`). Every delivery counts as an attempt, crashes included, so a file that crashes the worker every time still ends up `Failed` rather than looping.
 
 The upload's job is queued in the same database transaction that sets the media to `Processing`, so a job is never lost and never queued for a change that was rolled back.
 
 ## The identity server's access
 
-The identity server writes user events into `bjk-core.user-events` through its own connection (`ConnectionStrings:Messaging` in the identity server) with a database user in `badjockeys` that may only read `messaging.subscriptions` and add rows to the `messaging` tables. It can't read the queues, delete anything, or touch the app's data. Create it once per environment (the Terraform will do this), after the API has started once:
+The identity server writes user events into `bjk-core.user-events` through its own connection (`ConnectionStrings:BadJockeysDatabase` in the identity server) with a database user in `badjockeys` that may only read `messaging.subscriptions` and add rows to the `messaging` tables. It can't read the queues, delete anything, or touch the app's data. Create it once per environment (the Terraform will do this), after the API has started once:
 
 ```sql
 -- In the master database: a SQL login for the identity server's messaging connection (password as a container secret).
