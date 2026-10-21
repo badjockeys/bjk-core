@@ -260,7 +260,7 @@ DECLARE @Posts TABLE (N int PRIMARY KEY, Id uniqueidentifier, At datetimeoffset)
     const sentAt = hours !== null && p.ago * 24 - hours > 24 ? ukTime(p.ago, p.time, 30 + hours * 60) : "NULL";
     const reactionCount = Object.values(p.reactions).flat().length;
     postRows.push(`('${id}', '${author}', ${q(p.title)}, ${q(p.text)}, ${q(p.types[0])}, ${flags}, ${ukTime(p.ago, p.time)}, ${lat}, ${lng}, ${q(place)},
-  N'Published', N'Ready', ${ukTime(p.ago, p.time, 22)}, ${bit(p.video)}, 0, 0, 0, ${p.video ? reactionCount + p.comments.length : 0}, N'None', N'None',
+  N'Published', N'Ready', ${ukTime(p.ago, p.time, 22)}, ${bit(Boolean(p.video))}, 0, 0, 0, ${p.video ? reactionCount + p.comments.length : 0}, N'None', N'None',
   ${bit(isDark(p.time))}, ${bit(p.reported)}, ${q(vType)}, ${q(vMake)}, ${q(vModel)}, ${q(vColour)}, ${closesAt}, ${sentAt}, ${ukTime(p.ago, p.time, 22)})`);
   }
   batched(
