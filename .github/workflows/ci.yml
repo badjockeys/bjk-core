@@ -139,6 +139,13 @@ jobs:
           SQL_CONTAINER: ${{ job.services.sql.id }}
         run: bash pipelines/scripts/reporting-check.sh
 
+      # The setup's example data (scripts/sql/example-data) against the same database, so a schema change that
+      # breaks it fails here.
+      - name: Example data
+        env:
+          SQL_CONTAINER: ${{ job.services.sql.id }}
+        run: bash pipelines/scripts/example-data-check.sh
+
       - name: Upload the Grafana log
         if: ${{ failure() && hashFiles('grafana.log') != '' }}
         uses: actions/upload-artifact@v4

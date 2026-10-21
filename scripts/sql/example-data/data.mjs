@@ -1,5 +1,6 @@
 // Example users and posts for a local Bad Jockeys, so the feed, map, profiles and notifications have something in
-// them. build-sql.mjs turns this into seed.sql; seed.mjs (run by the setup) uploads the photos and runs it.
+// them. generate.mjs grows these into the full set, build-sql.mjs turns that into SQL, and seed.mjs (run by the
+// setup) uploads the photos and clips and runs it.
 //
 // Every id starts with "e0000000", so a re-run can replace exactly this data and nothing else.
 

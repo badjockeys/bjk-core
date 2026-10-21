@@ -565,14 +565,16 @@ If you change `known-image-test.png`, update the two hashes in `scripts/sql/safe
 
 The setup fills a fresh install with example data, so the feed, map and notifications have something in them. Each run replaces it. To refresh it without the rest of the setup, run `node scripts/sql/example-data/seed.mjs` from bjk-core. That needs SQL Server and S3Mock running, and the identity server and API to have started once.
 
-It adds 8 example users and 26 posts around Prescot, Liverpool, Warrington, Manchester, Leeds and London. The posts come with reactions, comments and replies, vehicle details, and enough posts close together for the heat map. The photos are placeholder dashcam frames marked "Example clip", uploaded to S3Mock.
+It adds 108 example members and 300 posts across the UK, mostly around Merseyside, Manchester, Leeds and London. It takes about a minute: the first run also makes six short placeholder clips with ffmpeg (kept in `.local/example-videos`).
 
-- **Sign in as an example user:** for example `dave@example.test` (@dashcam_dave) or `priya@example.test` (@pedal_power_priya), password `BadJockeys!2026`. They're all adults who have passed the age check, with confirmed emails.
-- **Your own account** (`aaron.greenhalgh@badjockey.com`; change `OWNER_EMAIL` in `scripts/sql/example-data/data.mjs`) gets Premium+ through `Plans:Overrides` in the API's user secrets. Once it has a profile, Dashcam Dave also tags it as a passenger on one post: you'll see it under **Approve tags** and in the bell. If you sign up after the setup, run the setup again.
-- **What it touches:** only rows whose ids start `e0000000`.
-- **The SQL** is `scripts/sql/example-data/seed.sql`. After changing `data.mjs`, regenerate it with `node scripts/sql/example-data/build-sql.mjs`.
-
-There are no videos, so Reels stays empty.
+- **Posts:** every category, with vehicle details, and enough posts close together for the heat map. About half have photos (2 to 6 placeholder dashcam frames marked "Example clip") and the rest have one 8-second placeholder clip, so Reels has plenty in it. That follows the posting rule: up to 10 photos or one video.
+- **Activity:** reactions on posts and comments (Like, Angry, Shocked, Laugh), comments and replies (every member has written both), "Who's at fault?" and "How bad was it?" votes, followed posts, bookmarks, follows between members, views (some local, some from signed-out visitors) and shares.
+- **Members:** home areas (so local views and area alerts work), badges (all founding members, 8 trusted reporters, 18 local regulars), and a few with their own vote closing time. Some votes have closed, and the ones that closed in the last day get their results sent the first time the API's VoteResults job runs, so a few "Voting has closed" notifications turn up.
+- **Sign in as an example member:** for example `dave@example.test` (@dashcam_dave) or `priya@example.test` (@pedal_power_priya), password `BadJockeys!2026`. The generated members are `<handle>@example.test`; the seed prints the first few, and `SELECT Email FROM idsrv.auth.AspNetUsers WHERE Id LIKE 'e0000000%'` lists them all. They're all adults who have passed the age check, with confirmed emails.
+- **Your own account** (`aaron.greenhalgh@badjockey.com`; change `OWNER_EMAIL` in `scripts/sql/example-data/data.mjs`) gets Premium+ through `Plans:Overrides` in the API's user secrets. Once it has a profile, Dashcam Dave tags it as a passenger on one post (you'll see it under **Approve tags** and in the bell), it follows the hand-written members and a few more, and about 20 members follow it. If you sign up after the setup, run the setup again.
+- **What it touches:** only rows whose ids start `e0000000`, and what other people did to them.
+- **Changing it:** the hand-written members and posts are in `data.mjs`; `generate.mjs` grows them into the full set from a fixed random seed, so every run makes exactly the same data. `build-sql.mjs` turns that into SQL, which `seed.mjs` runs. To run the SQL by hand instead, write it to `seed.sql` (not committed) with `node scripts/sql/example-data/build-sql.mjs`.
+- **CI** applies the example data twice to its own database and checks the row counts (`pipelines/scripts/example-data-check.sh`), so a schema change that would break it fails there.
 
 ## Data and handy queries
 
