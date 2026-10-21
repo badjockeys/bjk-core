@@ -418,7 +418,7 @@ function ReelSlide({
             <CommentIcon />
             {post.commentCount}
           </Link>
-          <ShareButton path={href} title={post.title} />
+          <ShareButton path={href} title={post.title} postId={post.id} />
           <PostMoreMenu
             postId={post.id}
             title={post.title}

@@ -14,6 +14,8 @@ import { PostMedia } from "./PostMedia";
 import { PostMoreMenu } from "./PostMoreMenu";
 import { RoadBadge, WithPassengers } from "./PostPeople";
 import { ReactionCount } from "./ReactionCount";
+import { SaveButton } from "./SaveButton";
+import { SeenMarker } from "./SeenMarker";
 import { ShareButton } from "./ShareButton";
 
 const FEED_TEXT_LIMIT = 280;
@@ -34,6 +36,7 @@ export function PostCard({ post, viewer }: { post: PostDto; viewer: Viewer }) {
 
   return (
     <article className="tw" aria-labelledby={`post-${post.id}-title`}>
+      {post.status === "Published" && !isMine ? <SeenMarker postId={post.id} /> : null}
       {authorHref ? (
         <Link href={authorHref} tabIndex={-1} aria-hidden="true">
           <Avatar name={post.author.displayName} url={post.author.avatarUrl} />
@@ -112,7 +115,8 @@ export function PostCard({ post, viewer }: { post: PostDto; viewer: Viewer }) {
             mine={post.myReaction}
             signedIn={viewer.signedIn}
           />
-          <ShareButton path={href} title={post.title} />
+          <SaveButton postId={post.id} saved={post.isSaved ?? false} signedIn={viewer.signedIn} />
+          <ShareButton path={href} title={post.title} postId={post.id} />
         </div>
       </div>
     </article>

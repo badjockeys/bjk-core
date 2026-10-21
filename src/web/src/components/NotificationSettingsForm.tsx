@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { saveNotificationSettings } from "@/actions/notifications";
 import type { NotificationSettingDto } from "@/lib/types";
 
-/** A row per type with two switches: in the bell, and by email. Saved together. */
+/** A row per type with three switches: in the bell, by email, and as a push notification. Saved together. */
 export function NotificationSettingsForm({
   settings,
   email,
@@ -18,7 +18,7 @@ export function NotificationSettingsForm({
   const [error, setError] = useState<string | null>(null);
   const [saving, startSaving] = useTransition();
 
-  const change = (index: number, key: "inApp" | "email", value: boolean) => {
+  const change = (index: number, key: "inApp" | "email" | "push", value: boolean) => {
     setStatus(null);
     setRows((current) => current.map((row, i) => (i === index ? { ...row, [key]: value } : row)));
   };
@@ -50,6 +50,7 @@ export function NotificationSettingsForm({
             <th scope="col">Tell me when</th>
             <th scope="col">In the app</th>
             <th scope="col">By email</th>
+            <th scope="col">Push</th>
           </tr>
         </thead>
         <tbody>
@@ -72,6 +73,15 @@ export function NotificationSettingsForm({
                   aria-label={`${row.label}: by email`}
                   checked={row.email}
                   onChange={(e) => change(i, "email", e.target.checked)}
+                />
+              </td>
+              <td>
+                <input
+                  type="checkbox"
+                  className="switch"
+                  aria-label={`${row.label}: push`}
+                  checked={row.push}
+                  onChange={(e) => change(i, "push", e.target.checked)}
                 />
               </td>
             </tr>

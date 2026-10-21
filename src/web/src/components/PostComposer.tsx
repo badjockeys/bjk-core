@@ -28,9 +28,11 @@ import {
   MAX_PHOTO_BYTES,
   MAX_PHOTOS,
   MAX_VIDEO_SECONDS,
+  PHOTO_EXTENSIONS,
   PHOTO_TYPES,
   uploadFile,
   UploadError,
+  VIDEO_EXTENSIONS,
   VIDEO_TYPES,
   waitUntilReady,
 } from "@/lib/upload";
@@ -684,8 +686,8 @@ export function PostComposer({
         accept={
           // Before anything is chosen the first tile takes photos or a video; after that, more photos.
           items.length === 0
-            ? [...PHOTO_TYPES, ...VIDEO_TYPES].join(",") + ",.heic,.heif,.mov"
-            : PHOTO_TYPES.join(",") + ",.heic,.heif"
+            ? [...PHOTO_TYPES, ...VIDEO_TYPES, ...PHOTO_EXTENSIONS, ...VIDEO_EXTENSIONS].join(",")
+            : [...PHOTO_TYPES, ...PHOTO_EXTENSIONS].join(",")
         }
         multiple
         hidden
@@ -698,7 +700,7 @@ export function PostComposer({
       <input
         ref={videoInput}
         type="file"
-        accept={VIDEO_TYPES.join(",") + ",.mov"}
+        accept={[...VIDEO_TYPES, ...VIDEO_EXTENSIONS].join(",")}
         hidden
         data-testid="video-input"
         onChange={(e) => {

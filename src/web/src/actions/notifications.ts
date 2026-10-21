@@ -2,7 +2,7 @@
 
 import { api } from "@/lib/api";
 import type { ActionResult } from "@/lib/action-result";
-import type { NotificationDto, NotificationSettingDto, PagedResult } from "@/lib/types";
+import type { NotificationDto, NotificationSettingDto, PagedResult, PushSetupDto } from "@/lib/types";
 
 import { asUser } from "./run";
 
@@ -25,4 +25,23 @@ export async function saveNotificationSettings(
   settings: NotificationSettingDto[],
 ): Promise<ActionResult<NotificationSettingDto[]>> {
   return asUser((t) => api().notifications.updateSettings(t, settings));
+}
+
+/** Whether push notifications are available, and the key to subscribe this browser with. */
+export async function pushSetup(): Promise<ActionResult<PushSetupDto>> {
+  return asUser((t) => api().notifications.pushSetup(t));
+}
+
+/** Turn push on for this browser: what PushManager.subscribe returned. */
+export async function subscribePush(subscription: {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+}): Promise<ActionResult> {
+  return asUser((t) => api().notifications.subscribePush(t, subscription));
+}
+
+/** Turn push off for this browser. */
+export async function unsubscribePush(endpoint: string): Promise<ActionResult> {
+  return asUser((t) => api().notifications.unsubscribePush(t, endpoint));
 }

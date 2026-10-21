@@ -22,13 +22,13 @@ env:
   AWS_SECRET_ACCESS_KEY: ci-s3-secret
   AWS_DEFAULT_REGION: us-east-1
   # The same settings developers keep in user secrets (see user-secrets.template.json).
-  ConnectionStrings__AppDatabase: Server=localhost,1433;Database=badjockeys;User Id=sa;Password=Ci-Passw0rd-2026;TrustServerCertificate=True
+  ConnectionStrings__BadJockeysDatabase: Server=localhost,1433;Database=badjockeys;User Id=sa;Password=Ci-Passw0rd-2026;TrustServerCertificate=True
   Authentication__Authority: http://localhost:5999   # pipelines/scripts/fake-issuer.py, standing in for bjk-identity-server
   Authentication__RequireHttpsMetadata: "false"
   Cors__AllowedOrigins__0: http://localhost:3000
   # The queues are tables in the messaging schema of the same database. Short waits keep the smoke test quick.
-  Messaging__PollingInterval: "00:00:00.250"
-  Messaging__RetryDelay: "00:00:01"
+  Queues__PollingInterval: "00:00:00.250"
+  Queues__RetryDelay: "00:00:01"
   Captcha__TurnstileSecretKey: 1x0000000000000000000000000000000AA   # Cloudflare's public "always passes" test key
   # Adobe's S3Mock stands in for Cloudflare R2: both speak the S3 API.
   Media__Storage__ServiceUrl: http://localhost:9090
@@ -107,8 +107,9 @@ jobs:
           aws --endpoint-url http://localhost:9090 s3api create-bucket --bucket bjk-ci-public
           echo "Started $started"
 
-      # The face and number plate models the worker blurs with (the worker image downloads them the same way).
-      - name: Download the blurring models
+      # The face and number plate models the worker blurs with, and the CLIP content model (the worker image
+      # downloads them the same way).
+      - name: Download the blurring and content models
         run: sh pipelines/scripts/download-redaction-models.sh "$RUNNER_TEMP/models"
 
       - name: Start the stand-in token issuer
@@ -124,6 +125,7 @@ jobs:
           SQL_CONTAINER: ${{ job.services.sql.id }}
           Media__Redaction__FaceModelPath: ${{ runner.temp }}/models/face_detection_yunet_2026may.onnx
           Media__Redaction__PlateModelPath: ${{ runner.temp }}/models/license_plate_detection_lpd_yunet_2023mar.onnx
+          Media__SensitiveDetection__ModelPath: ${{ runner.temp }}/models/clip-vit-b32-vision-quantized.onnx
           Logging__Console__FormatterName: simple
           Logging__Console__FormatterOptions__SingleLine: "true"
           Logging__Console__FormatterOptions__ColorBehavior: Disabled
@@ -135,6 +137,13 @@ jobs:
         env:
           SQL_CONTAINER: ${{ job.services.sql.id }}
         run: bash pipelines/scripts/reporting-check.sh
+
+      # The setup's example data (scripts/sql/example-data) against the same database, so a schema change that
+      # breaks it fails here.
+      - name: Example data
+        env:
+          SQL_CONTAINER: ${{ job.services.sql.id }}
+        run: bash pipelines/scripts/example-data-check.sh
 
       - name: Upload the Grafana log
         if: ${{ failure() && hashFiles('grafana.log') != '' }}

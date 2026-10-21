@@ -316,6 +316,48 @@ function counts(map) {
 // Whether the request's caller passed the age check (set per request in api()).
 let callerAgeVerified = false;
 
+// Engagement (bjk-modules EngagementController): votes, followed posts, bookmarks, views and shares.
+const INTERACTION_TYPES = new Set([
+  "RoadRage",
+  "DangerousOvertaking",
+  "Tailgating",
+  "CuttingUp",
+  "Undertaking",
+  "ClosePass",
+]);
+const FAULT_CHOICES = ["FilmingDriver", "OtherRoadUser", "Both", "Nobody"];
+const SEVERITY_CHOICES = ["Minor", "Careless", "Dangerous", "Shocking"];
+function engagement() {
+  db.votes ??= new Map();
+  db.postFollows ??= new Set();
+  db.bookmarks ??= new Map();
+  db.views ??= new Map();
+  db.shares ??= new Map();
+  db.voteDuration ??= new Map();
+  return db;
+}
+function voteDto(p, viewer) {
+  const votes = engagement().votes.get(p.id) ?? new Map();
+  const kind = (p.types ?? [p.category]).some((t) => INTERACTION_TYPES.has(t)) ? "Fault" : "Severity";
+  const choices = kind === "Fault" ? FAULT_CHOICES : SEVERITY_CHOICES;
+  const mine = (viewer && votes.get(viewer)) ?? null;
+  const total = votes.size;
+  const isAuthor = viewer === p.authorId;
+  const show = isAuthor || mine !== null || (!viewer && total >= 10);
+  const results = {};
+  for (const c of choices) results[c] = [...votes.values()].filter((v) => v === c).length;
+  return {
+    kind,
+    choices,
+    total,
+    results: show ? results : null,
+    myChoice: mine,
+    isClosed: false,
+    closesAt: new Date(Date.parse(p.createdAt) + 7 * 86_400_000).toISOString(),
+    canVote: Boolean(viewer) && !isAuthor && p.status === "Published",
+  };
+}
+
 function postDto(p, viewer) {
   const reactions = db.reactions.get(p.id);
   const blurred = p.isSensitive && p.authorId !== viewer && !(viewer && callerAgeVerified);
@@ -362,6 +404,9 @@ function postDto(p, viewer) {
     requiresAgeVerification: blurred,
     sensitiveSource: p.isSensitive ? "Author" : "None",
     commentSetting: p.commentSetting ?? "Everyone",
+    vote: voteDto(p, viewer),
+    isFollowing: Boolean(viewer) && engagement().postFollows.has(`${p.id}:${viewer}`),
+    isSaved: Boolean(viewer) && (engagement().bookmarks.get(viewer) ?? []).includes(p.id),
   };
 }
 /** The commenter and the post's author see a comment the post's author hid; everyone else sees a placeholder. */
@@ -1069,8 +1114,38 @@ async function api(req, res, url) {
         label,
         inApp: chosen.get(type)?.inApp ?? inApp,
         email: chosen.get(type)?.email ?? email,
+        push: chosen.get(type)?.push ?? true,
       })),
     );
+  }
+  if (path === "/api/posts/views" && method === "POST") {
+    const { postIds } = await json();
+    const key = me ?? req.headers["x-viewer-id"] ?? "anonymous";
+    for (const id of postIds ?? []) {
+      const seen = engagement().views.get(id) ?? new Set();
+      seen.add(key);
+      engagement().views.set(id, seen);
+    }
+    return send(res, 204);
+  }
+  if (path === "/api/posts/bookmarks" && method === "GET") {
+    if (!requireUser()) return;
+    const ids = (engagement().bookmarks.get(me) ?? []).slice().reverse();
+    const items = ids.map((id) => db.posts.find((x) => x.id === id)).filter((x) => x && canSee(x, me));
+    return send(
+      res,
+      200,
+      page(items, url, (x) => postDto(x, me)),
+    );
+  }
+  if (path === "/api/posts/preferences") {
+    if (!requireUser()) return;
+    if (method === "PUT") engagement().voteDuration.set(me, (await json()).voteDuration);
+    return send(res, 200, { voteDuration: engagement().voteDuration.get(me) ?? "Days7" });
+  }
+  if (path === "/api/notifications/push" && method === "GET") {
+    if (!requireUser()) return;
+    return send(res, 200, { available: false, publicKey: null });
   }
   if (path === "/api/posts/tagged" && method === "GET") {
     if (!requireUser()) return;
@@ -1275,6 +1350,45 @@ async function api(req, res, url) {
     if (!requireUser()) return;
     if (!p || !canSee(p, me)) return problem(res, 404, `Post ${m[1]} was not found.`);
     const rest = m[2];
+    if (rest === "vote" && method === "PUT") {
+      const { choice } = await json();
+      const dto = voteDto(p, me);
+      if (!dto.canVote) return invalid(res, "Choice", "You can't vote on your own post.");
+      if (!dto.choices.includes(choice))
+        return invalid(res, "Choice", "That answer doesn't fit this post's vote.");
+      const votes = engagement().votes.get(p.id) ?? new Map();
+      votes.set(me, choice);
+      engagement().votes.set(p.id, votes);
+      return send(res, 200, voteDto(p, me));
+    }
+    if (rest === "follow") {
+      const key = `${p.id}:${me}`;
+      if (method === "PUT") engagement().postFollows.add(key);
+      else engagement().postFollows.delete(key);
+      return send(res, 200, { postId: p.id, following: method === "PUT" });
+    }
+    if (rest === "bookmark") {
+      const saved = (engagement().bookmarks.get(me) ?? []).filter((id) => id !== p.id);
+      if (method === "PUT") saved.push(p.id);
+      engagement().bookmarks.set(me, saved);
+      return send(res, 200, { postId: p.id, saved: method === "PUT" });
+    }
+    if (rest === "share" && method === "POST") {
+      engagement().shares.set(p.id, (engagement().shares.get(p.id) ?? 0) + 1);
+      return send(res, 204);
+    }
+    if (rest === "reach" && method === "GET") {
+      if (p.authorId !== me) return problem(res, 403, "Only the post's author can see its reach.");
+      const reactions = db.reactions.get(p.id);
+      return send(res, 200, {
+        postId: p.id,
+        views: engagement().views.get(p.id)?.size ?? 0,
+        localViews: 0,
+        reactions: reactions?.size ?? 0,
+        comments: db.comments.filter((c) => c.postId === p.id && c.status === "Visible").length,
+        shares: engagement().shares.get(p.id) ?? 0,
+      });
+    }
     if (rest === "passengers/me") {
       const tag = p.passengers.find((t) => t.userId === me);
       if (!tag) return problem(res, 404, "Passenger tag not found.");
@@ -1709,6 +1823,8 @@ const NOTIFICATION_TYPES = [
   ["CommentOnPost", "Comments on your posts", true, false],
   ["ReplyToComment", "Replies to your comments", true, false],
   ["ReactionOnPost", "Reactions to your posts", true, false],
+  ["CommentOnFollowedPost", "Comments on posts you follow", true, false],
+  ["VoteClosed", "Vote results", true, false],
 ];
 function notificationDto(n) {
   const actor = n.actorId ? author(n.actorId) : null;

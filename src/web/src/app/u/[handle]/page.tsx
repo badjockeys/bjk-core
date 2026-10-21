@@ -11,6 +11,7 @@ import { Feed } from "@/components/Feed";
 import { FollowButton } from "@/components/FollowButton";
 import { AccountIcon, CalendarIcon, PinIcon } from "@/components/icons";
 import { RoadBadge } from "@/components/PostPeople";
+import { ProfileBadges } from "@/components/ProfileBadges";
 import { ProfileMoreMenu } from "@/components/ProfileMoreMenu";
 import { ProfileReplies } from "@/components/ProfileReplies";
 import type { FeedSource } from "@/actions/posts";
@@ -152,6 +153,7 @@ export default async function ProfilePage({ params, searchParams }: Props) {
             {profile.followsYou ? <span className="follows-you">Follows you</span> : null}
           </span>
         </div>
+        <ProfileBadges badges={profile.badges} />
         {profile.bio ? <p className="post-text">{profile.bio}</p> : null}
         <div className="row row-wrap small muted" style={{ gap: 16 }}>
           {profile.location ? (

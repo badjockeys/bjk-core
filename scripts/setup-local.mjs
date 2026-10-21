@@ -13,16 +13,17 @@
 //   3. trusts the .NET HTTPS development certificate and exports it for Node.js
 //   4. starts SQL Server and S3Mock in Docker, as the group "bad-jockeys" (bjk-core's docker-compose.yml)
 //   5. loads the .NET user secrets for the identity server and the API (the media worker shares the API's)
-//   6. downloads the face and number plate blurring models into bjk-core/.local/models
+//   6. downloads the face and number plate blurring models and the CLIP content model into bjk-core/.local/models
 //   7. builds the .NET apps and installs the web app's packages
 //   8. adds example users and posts (scripts/sql/example-data), starting the identity server and the API for a
-//      moment first so their databases exist, and gives the owner account its plan (Plans:Overrides)
+//      moment first so their databases exist, and gives the owner account its plan (Plans:Overrides); adds the
+//      harmless online safety test entries (scripts/sql/safety-test) and says which checks work on this machine
 //
 // Needs the tools installed and bjk-identity-server cloned next to bjk-core: scripts/setup/setup.ps1 (Windows) and
 // scripts/setup/setup.sh (macOS) do both, then run this. Uses only Node.js built-ins.
 
 import { spawn, spawnSync } from "node:child_process";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, generateKeyPairSync, randomBytes } from "node:crypto";
 import { createServer } from "node:net";
 import { createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -32,6 +33,7 @@ import { removeOldGroups, startServices } from "./docker-services.mjs";
 import { OWNER_EMAIL, OWNER_PLAN } from "./sql/example-data/data.mjs";
 import { applyReporting, reportingPassword } from "./sql/reporting/apply.mjs";
 import { ownerId, seedExampleData } from "./sql/example-data/seed.mjs";
+import { safetyCoverage, seedSafetyTestData } from "./sql/safety-test/seed.mjs";
 
 const core = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const idsrv = resolve(core, "..", "bjk-identity-server");
@@ -40,21 +42,37 @@ const models = join(core, ".local", "models");
 const isWindows = process.platform === "win32";
 const configOnly = process.argv.includes("--config-only");
 
+// Pinned, SHA-256 checked; keep in step with pipelines/scripts/download-redaction-models.sh.
+const OPENCV_ZOO =
+  "https://media.githubusercontent.com/media/opencv/opencv_zoo/47534e27c9851bb1128ccc0102f1145e27f23f98/models";
 const MODELS = [
   {
     file: "face_detection_yunet_2026may.onnx",
-    path: "face_detection_yunet/face_detection_yunet_2026may.onnx",
+    url: `${OPENCV_ZOO}/face_detection_yunet/face_detection_yunet_2026may.onnx`,
     sha256: "ebafce4e3c118d6554634be5c27ab333b4c047a9a8c3faf1d7cf93101c22f0f0",
   },
   {
     file: "license_plate_detection_lpd_yunet_2023mar.onnx",
-    path: "license_plate_detection_yunet/license_plate_detection_lpd_yunet_2023mar.onnx",
+    url: `${OPENCV_ZOO}/license_plate_detection_yunet/license_plate_detection_lpd_yunet_2023mar.onnx`,
     sha256: "6d4978a7b6d25514d5e24811b82bfb511d166bdd8ca3b03aa63c1623d4d039c7",
   },
+  {
+    // OpenAI CLIP ViT-B/32 (MIT), Xenova's quantised ONNX export of the vision model: the nudity and graphic content check.
+    file: "clip-vit-b32-vision-quantized.onnx",
+    url: "https://huggingface.co/Xenova/clip-vit-base-patch32/resolve/d15189d7028b43f1d3e65039190477f6af591c2a/onnx/vision_model_quantized.onnx",
+    sha256: "583fd1110a514667812fee7d684952aaf82a99b959760c8d7dca7e0ab9839299",
+  },
+  {
+    // The identity server's head-turn liveness check (the age check); the version its YuNet decoder reads.
+    file: "face_detection_yunet_2023mar.onnx",
+    url: `${OPENCV_ZOO}/face_detection_yunet/face_detection_yunet_2023mar.onnx`,
+    sha256: "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4",
+  },
 ];
-// OpenCV Zoo pinned to one commit; keep in step with pipelines/scripts/download-redaction-models.sh.
-const MODEL_BASE =
-  "https://media.githubusercontent.com/media/opencv/opencv_zoo/47534e27c9851bb1128ccc0102f1145e27f23f98/models";
+
+/** The content check settings the setup writes into bjk-core/user-secrets.json: CLIP runs when ModelPath is set. */
+const sensitiveDetection = () => ({ ModelPath: join(models, MODELS[2].file) });
+const livenessModel = () => join(models, MODELS[3].file);
 
 const colour = (code, text) => (process.stdout.isTTY ? `\x1b[${code}m${text}\x1b[0m` : text);
 const step = (text) => console.log(`\n${colour("1;36", `== ${text}`)}`);
@@ -102,6 +120,14 @@ function sqlPassword() {
 }
 
 const secret = () => randomBytes(32).toString("base64url");
+
+/** A VAPID key pair for web push (P-256): the public key as an uncompressed point and the private scalar, base64url. */
+function vapidKeys() {
+  const { privateKey } = generateKeyPairSync("ec", { namedCurve: "prime256v1" });
+  const jwk = privateKey.export({ format: "jwk" });
+  const point = Buffer.concat([Buffer.from([4]), Buffer.from(jwk.x, "base64url"), Buffer.from(jwk.y, "base64url")]);
+  return { PublicKey: point.toString("base64url"), PrivateKey: jwk.d };
+}
 
 function checkTools() {
   step("Checking tools");
@@ -193,6 +219,138 @@ function writeIfMissing(file, content, label) {
   return true;
 }
 
+/** True for an empty value or a template placeholder such as "<only if ...>". */
+const unset = (value) => value === undefined || value === null || String(value).trim() === "" || String(value).trim().startsWith("<");
+
+/** Moves `from` to `to` inside `object` if `to` isn't there yet; always removes `from`. */
+function rename(object, from, to) {
+  if (!object || !(from in object)) return;
+  if (!(to in object)) object[to] = object[from];
+  delete object[from];
+}
+
+/**
+ * Email and SMS (both apps, 21 Oct): no Provider setting any more, SendGrid / Twilio when their keys are set. The
+ * templates' "<only if Provider is ...>" placeholders become empty, so nothing is mistaken for a key.
+ */
+function migrateMessagingProviders(json) {
+  if (json.Email) {
+    delete json.Email.Provider;
+    if (json.Email.SendGrid && unset(json.Email.SendGrid.ApiKey)) json.Email.SendGrid.ApiKey = "";
+  }
+  if (json.SMS) {
+    delete json.SMS.Provider;
+    for (const key of Object.keys(json.SMS.Twilio ?? {})) {
+      if (unset(json.SMS.Twilio[key])) json.SMS.Twilio[key] = "";
+    }
+  }
+}
+
+/**
+ * Takes the "//" notes from the template, so a migrated file explains its settings in today's words, and drops
+ * sections left with nothing but a note.
+ */
+function refreshNotes(json, template) {
+  for (const [key, value] of Object.entries(json)) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) continue;
+    const match = template?.[key];
+    refreshNotes(value, match && typeof match === "object" ? match : undefined);
+    if (match && typeof match === "object" && "//" in match) value["//"] = match["//"];
+    else if (match && typeof match === "object") delete value["//"];
+    const keys = Object.keys(value);
+    if (keys.length > 0 && keys.every((k) => k === "//")) delete json[key];
+  }
+}
+
+/** Brings an existing bjk-core/user-secrets.json up to the current names (safe to run again). */
+function migrateCoreSecrets(file) {
+  if (!existsSync(file)) return;
+  const before = readFileSync(file, "utf8");
+  const json = JSON.parse(before);
+  rename(json.ConnectionStrings, "AppDatabase", "BadJockeysDatabase");
+  if (json.Messaging) {
+    const queues = { ...(json.Queues ?? {}), ...json.Messaging };
+    rename(queues, "UserEventsQueue", "UserEvents");
+    rename(queues, "MediaEventsQueue", "MediaEvents");
+    delete queues.ConnectionStringName;
+    delete queues.CreateTables;
+    json.Queues = queues;
+    delete json.Messaging;
+  }
+  if (json.Media?.Queue) {
+    if (json.Media.Queue.QueueName) json.Queues = { ...(json.Queues ?? {}), MediaProcessing: json.Media.Queue.QueueName };
+    delete json.Media.Queue;
+  }
+  if (json.Media) {
+    const current = json.Media.SensitiveDetection ?? {};
+    for (const key of ["Enabled", "Provider", "InputWidth", "InputHeight", "Mean", "Std", "Output", "SensitiveClasses"]) delete current[key];
+    if (unset(current.ModelPath)) current.ModelPath = sensitiveDetection().ModelPath;
+    json.Media.SensitiveDetection = current;
+  }
+  migrateMessagingProviders(json);
+  if (json.Captcha) delete json.Captcha.Provider;
+  if (json.Screening) {
+    // The classifier now runs whenever Endpoint is set: keep it only if it was switched on.
+    if (json.Screening.Provider !== "Http") delete json.Screening.Endpoint;
+    delete json.Screening.Provider;
+  }
+  // False is the default everywhere, so it needn't be in the file.
+  if (json.Safety?.RequireAgeVerification === false) delete json.Safety.RequireAgeVerification;
+  if (json.Safety && Object.keys(json.Safety).length === 0) delete json.Safety;
+  if (!json.Notifications?.Push?.PublicKey) {
+    // Files made before web push existed: a key pair for this computer.
+    json.Notifications = { ...(json.Notifications ?? {}) };
+    json.Notifications.Push = { Subject: "mailto:support@badjockeys.com", ...(json.Notifications.Push ?? {}), ...vapidKeys() };
+  }
+  refreshNotes(json, JSON.parse(readFileSync(join(core, "user-secrets.template.json"), "utf8")));
+  const after = `${JSON.stringify(json, null, 2)}\n`;
+  if (after !== before) {
+    writeFileSync(file, after);
+    ok("bjk-core/user-secrets.json: brought up to date (BadJockeysDatabase, Queues, no provider switches)");
+  }
+}
+
+/**
+ * Brings an existing bjk-identity-server/user-secrets.json up to the current names. Only once that checkout has the
+ * new settings itself (its template has BadJockeysDatabase): older identity server code still reads the old names.
+ */
+function migrateIdentitySecrets(file) {
+  if (!existsSync(file)) return;
+  if (!readFileSync(join(idsrv, "user-secrets.template.json"), "utf8").includes('"BadJockeysDatabase"')) {
+    console.log("bjk-identity-server/user-secrets.json: left as it is until bjk-identity-server is updated (git pull)");
+    return;
+  }
+  const before = readFileSync(file, "utf8");
+  const json = JSON.parse(before);
+  rename(json.ConnectionStrings, "Messaging", "BadJockeysDatabase");
+  delete json.Messaging;
+  if (json.SignUp) delete json.SignUp.TrustCloudflareCountryHeader;
+  migrateMessagingProviders(json);
+  const age = json.AgeAssurance;
+  if (age && (age.Estimator || age.Document || age.Liveness?.Provider !== undefined)) {
+    const yunet = age.Liveness?.YuNet ?? {};
+    const { YuNet, Provider, Development, ...livenessRest } = age.Liveness ?? {};
+    json.AgeAssurance = {
+      ...Object.fromEntries(Object.entries(age).filter(([key]) => !["Liveness", "Estimator", "Document", "Yoti", "Development"].includes(key))),
+      Liveness: { ...livenessRest, ...Object.fromEntries(Object.entries(yunet).filter(([key]) => key !== "ModelPath")), ModelPath: unset(yunet.ModelPath) ? livenessModel() : yunet.ModelPath },
+      Yoti: age.Yoti ?? { SdkId: "", PrivateKey: "" },
+      Development: {
+        LivenessPasses: age.Liveness?.Development?.Pass ?? true,
+        EstimatedAge: age.Estimator?.Development?.Age ?? 30,
+        DocumentAge: age.Document?.Development?.Age ?? 30,
+      },
+    };
+  } else if (age?.Liveness && unset(age.Liveness.ModelPath)) {
+    age.Liveness.ModelPath = livenessModel();
+  }
+  refreshNotes(json, JSON.parse(readFileSync(join(idsrv, "user-secrets.template.json"), "utf8")));
+  const after = `${JSON.stringify(json, null, 2)}\n`;
+  if (after !== before) {
+    writeFileSync(file, after);
+    ok("bjk-identity-server/user-secrets.json: brought up to date (BadJockeysDatabase, Yoti, no provider switches)");
+  }
+}
+
 function createConfig() {
   step("Creating your local config files");
   if (!existsSync(join(idsrv, "user-secrets.template.json"))) {
@@ -237,6 +395,8 @@ function createConfig() {
     fromTemplate(join(idsrv, "user-secrets.template.json"), (json) => {
       // Placeholder until you've registered: put your confirmed email here to become the first admin.
       if (json.Admin) json.Admin.BootstrapEmails = [];
+      // The real head-turn check, with the model downloaded below.
+      if (json.AgeAssurance?.Liveness) json.AgeAssurance.Liveness.ModelPath = livenessModel();
     }),
     "bjk-identity-server/user-secrets.json",
   );
@@ -245,14 +405,20 @@ function createConfig() {
     join(core, "user-secrets.json"),
     fromTemplate(join(core, "user-secrets.template.json"), (json) => {
       if (json.Reels) json.Reels.ViewerKeySecret = secret();
+      json.Notifications = { ...(json.Notifications ?? {}) };
+      json.Notifications.Push = { ...(json.Notifications.Push ?? {}), ...vapidKeys() };
       json.Media.Redaction = {
         ...(json.Media.Redaction ?? {}),
         FaceModelPath: join(models, MODELS[0].file),
         PlateModelPath: join(models, MODELS[1].file),
       };
+      json.Media.SensitiveDetection = { ...(json.Media.SensitiveDetection ?? {}), ...sensitiveDetection() };
     }),
     "bjk-core/user-secrets.json",
   );
+
+  migrateCoreSecrets(join(core, "user-secrets.json"));
+  migrateIdentitySecrets(join(idsrv, "user-secrets.json"));
 
   // Earlier templates pointed the web app at the API's http address, which redirects to https; Node.js drops the
   // sign-in token on that redirect, so every signed-in call got 401. Move existing files to the https address.
@@ -309,7 +475,7 @@ function loadSecrets() {
 }
 
 async function downloadModels() {
-  step("Downloading the face and number plate blurring models");
+  step("Downloading the blurring models, the CLIP content model and the liveness model (about 100 MB)");
   mkdirSync(models, { recursive: true });
   const sha256 = (buffer) => createHash("sha256").update(buffer).digest("hex");
   for (const model of MODELS) {
@@ -318,7 +484,7 @@ async function downloadModels() {
       console.log(`${model.file}: already there`);
       continue;
     }
-    const response = await fetch(`${MODEL_BASE}/${model.path}`);
+    const response = await fetch(model.url);
     if (!response.ok) fail(`Downloading ${model.file} failed: HTTP ${response.status}.`);
     const buffer = Buffer.from(await response.arrayBuffer());
     if (sha256(buffer) !== model.sha256) fail(`${model.file} doesn't match its expected SHA-256, so it wasn't saved.`);
@@ -418,6 +584,7 @@ async function exampleData() {
     }
 
     await seedExampleData();
+    seedSafetyTestData();
 
     const owner = ownerId();
     if (owner) {
@@ -461,6 +628,7 @@ if (configOnly) {
   build();
   await exampleData();
   reporting();
+  safetyCoverage();
   console.log(
     `\n${colour("1;32", "Setup complete.")} In VS Code: Terminal > Run Task... > "Run Bad Jockeys", then open http://localhost:3000`,
   );

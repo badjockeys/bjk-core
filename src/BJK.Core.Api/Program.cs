@@ -13,7 +13,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using NSwag;
 using NSwag.Generation.Processors.Security;
 
-const string ConnectionStringName = "AppDatabase";
+const string ConnectionStringName = "BadJockeysDatabase";
 
 var builder = WebApplication.CreateBuilder(args);
 

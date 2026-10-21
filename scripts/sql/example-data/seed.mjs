@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// Fills a LOCAL Bad Jockeys with example users and posts: uploads the placeholder photos to S3Mock, then runs
-// seed.sql. The setup (scripts/setup-local.mjs) runs it; you can also run it on its own to refresh the data:
+// Fills a LOCAL Bad Jockeys with example users and posts: uploads the placeholder photos and clips to S3Mock, then
+// runs the SQL from build-sql.mjs. The clips are made once with ffmpeg (which the setup installs) and kept in
+// bjk-core/.local/example-videos. The setup (scripts/setup-local.mjs) runs it; you can also run it on its own to refresh the data:
 //
 //   node scripts/sql/example-data/seed.mjs
 //
@@ -8,11 +9,12 @@
 // once so their databases exist. Only ever talks to localhost.
 
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { ids, OWNER_EMAIL, PASSWORD, posts, users } from "./data.mjs";
+import { buildSql } from "./build-sql.mjs";
+import { ids, OWNER_EMAIL, PASSWORD } from "./data.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const core = resolve(here, "..", "..", "..");
@@ -37,7 +39,7 @@ function sqlPassword() {
 }
 
 /** Runs T-SQL in the local SQL Server container and returns what sqlcmd printed. */
-function sqlcmd(sql, extraArgs = []) {
+export function sqlcmd(sql, extraArgs = []) {
   try {
     return execFileSync(
       "docker",
@@ -125,34 +127,86 @@ function frame(post, photo, dark) {
 </svg>`;
 }
 
-async function uploadPhotos() {
-  let count = 0;
+async function put(key, contentType, body) {
+  let response;
+  try {
+    response = await fetch(`${S3}/${BUCKET}/${key}`, { method: "PUT", headers: { "Content-Type": contentType }, body });
+  } catch {
+    fail(`Couldn't reach S3Mock at ${S3}. Start it with: node scripts/start-docker.mjs`);
+  }
+  if (!response.ok) fail(`S3Mock refused ${key} (${response.status}). Is the bucket ${BUCKET} there?`);
+}
+
+// --- Placeholder dashcam clips (MP4) ---
+
+// Six 8-second clips: day and night, each with a vehicle cutting across, pulling in from the left, or closing in.
+const CLIP_MOVES = [
+  { colour: "0xc62f2f", x: "1300-t*190", y: "430+t*12" },
+  { colour: "0x2457a6", x: "-220+t*170", y: "470" },
+  { colour: "0xf2f2f2", x: "530+t*10", y: "380+t*35" },
+];
+const clipName = (dark, move) => `${dark ? "night" : "day"}-${move}.mp4`;
+
+/** Makes the clips with ffmpeg the first time; after that they're reused from .local/example-videos. */
+function makeClips() {
+  const folder = join(core, ".local", "example-videos");
+  mkdirSync(folder, { recursive: true });
+  for (const dark of [false, true]) {
+    CLIP_MOVES.forEach((move, i) => {
+      const file = join(folder, clipName(dark, i));
+      if (existsSync(file)) return;
+      const [sky, road] = dark ? ["0x0b1424", "0x2a2c30"] : ["0x8cc8ec", "0x5a5d62"];
+      try {
+        execFileSync(
+          "ffmpeg",
+          [
+            "-y", "-loglevel", "error",
+            "-f", "lavfi", "-i", `color=c=${sky}:s=1280x720:d=8:r=30`,
+            "-f", "lavfi", "-i", `color=c=${road}:s=1280x360:d=8:r=30`,
+            "-f", "lavfi", "-i", `color=c=${move.colour}:s=220x120:d=8:r=30`,
+            "-f", "lavfi", "-i", "color=c=0xe8e8e8:s=24x360:d=8:r=30",
+            "-filter_complex",
+            `[0][1]overlay=0:360[a];[a][3]overlay=628:360[b];[b][2]overlay=x='${move.x}':y='${move.y}':shortest=1`,
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "veryfast", "-crf", "30", "-an", "-movflags", "+faststart",
+            file,
+          ],
+          { stdio: ["ignore", "ignore", "pipe"] },
+        );
+      } catch (error) {
+        fail(`ffmpeg couldn't make the example clips:\n${error.stderr || error.message}\nCheck ffmpeg is installed (ffmpeg -version).`);
+      }
+    });
+  }
+  return folder;
+}
+
+async function uploadMedia(posts) {
+  const folder = makeClips();
+  let photos = 0;
+  let clips = 0;
   for (const post of posts) {
     const [h, m] = post.time.split(":").map(Number);
     const dark = h * 60 + m < 450 || h * 60 + m >= 1095;
+    if (post.video) {
+      const media = ids.mediaId(post.n, 1);
+      await put(`examples/${media}.svg`, "image/svg+xml", frame(post, 1, dark));
+      await put(`examples/${media}.mp4`, "video/mp4", readFileSync(join(folder, clipName(dark, post.n % CLIP_MOVES.length))));
+      clips++;
+      continue;
+    }
     for (let photo = 1; photo <= post.photos; photo++) {
-      const key = `examples/${ids.mediaId(post.n, photo)}.svg`;
-      let response;
-      try {
-        response = await fetch(`${S3}/${BUCKET}/${key}`, {
-          method: "PUT",
-          headers: { "Content-Type": "image/svg+xml" },
-          body: frame(post, photo, dark),
-        });
-      } catch {
-        fail(`Couldn't reach S3Mock at ${S3}. Start it with: node scripts/start-docker.mjs`);
-      }
-      if (!response.ok) fail(`S3Mock refused ${key} (${response.status}). Is the bucket ${BUCKET} there?`);
-      count++;
+      await put(`examples/${ids.mediaId(post.n, photo)}.svg`, "image/svg+xml", frame(post, photo, dark));
+      photos++;
     }
   }
-  console.log(`Uploaded ${count} example photos to ${S3}/${BUCKET}/examples/.`);
+  console.log(`Uploaded ${photos} example photos and ${clips} clips to ${S3}/${BUCKET}/examples/.`);
 }
 
-/** Uploads the photos and runs seed.sql. Throws with a readable message if something isn't running. */
+/** Uploads the photos and clips and runs the SQL. Throws with a readable message if something isn't running. */
 export async function seedExampleData() {
-  await uploadPhotos();
-  process.stdout.write(sqlcmd(readFileSync(join(here, "seed.sql"), "utf8")));
+  const { sql, users, posts } = buildSql();
+  await uploadMedia(posts);
+  process.stdout.write(sqlcmd(sql));
   console.log(`Sign in at the web app as any example user (password ${PASSWORD}), e.g. ${users[0].email}.`);
 }
 

@@ -391,3 +391,47 @@ export function BellIcon({ filled, ...p }: IconProps & { filled?: boolean }) {
     </Svg>
   );
 }
+
+export function BookmarkIcon({ on, ...p }: IconProps & { on?: boolean }) {
+  const c = on ? "#00B5E5" : MUTED;
+  return (
+    <Svg size={18} {...p}>
+      <path
+        d="M6 3h12v18l-6-4.5L6 21V3z"
+        fill={on ? c : "none"}
+        stroke={c}
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+export function EyeIcon(p: IconProps) {
+  return (
+    <Svg size={18} {...p}>
+      <path
+        d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"
+        fill="none"
+        stroke={MUTED}
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="12" r="3" fill="none" stroke={MUTED} strokeWidth="1.8" />
+    </Svg>
+  );
+}
+
+export function BadgeIcon(p: IconProps) {
+  return (
+    <Svg size={16} {...p}>
+      <path
+        d="M12 2l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 15.4l-5.2 2.7 1-5.8L3.5 8.2l5.9-.9L12 2z"
+        fill="#00B5E5"
+        stroke="#00B5E5"
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}

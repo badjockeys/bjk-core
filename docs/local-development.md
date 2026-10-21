@@ -184,6 +184,10 @@ How an upload works on your machine:
 4. The media worker downloads the original, converts it with ffmpeg, strips metadata such as GPS, writes the results to `bjk-dev-public`, and marks the media `Ready`.
 5. The web app shows the processed file from `http://localhost:9090/bjk-dev-public/...`.
 
+Accepted files: videos in MP4, MOV, M4V, 3GP, WebM, MKV or AVI, and photos in JPEG, PNG, HEIC/HEIF, WebP, AVIF, GIF, TIFF or BMP. An animated GIF becomes a still of its first frame.
+
+The web app uploads a file as soon as it's chosen, so uploads can be left behind (a closed tab, a photo removed before posting). Once an hour the API deletes uploads over `Media:UnusedOriginalRetention` (24 hours) old that aren't in a post, a draft or an avatar: all their files go, and the record is marked `Deleted`. Taking a photo out of a saved draft deletes it straight away, unless a post or another draft uses it.
+
 S3Mock doesn't check keys, so the `local` keys in the template work as they are. Files survive `docker compose stop` and restarts; `docker compose down -v` deletes them, together with the databases, so the two always stay in step.
 
 ### Using Cloudflare R2 instead (later)
@@ -225,7 +229,7 @@ The format is:
 }
 ```
 
-The identity server writes user events straight into the API's queue table in `badjockeys` (`ConnectionStrings:Messaging`). Until the API has started once and created it, the events wait in the identity server's outbox. The CAPTCHA key is Cloudflare's public test key, which always passes. The identity server's own guide (`bjk-identity-server/docs/local-development.md`) explains it, along with the email placeholder and the test clients.
+The identity server writes user events straight into the API's queue table in `badjockeys` (`ConnectionStrings:BadJockeysDatabase` in its user secrets). Until the API has started once and created it, the events wait in the identity server's outbox. The CAPTCHA key is Cloudflare's public test key, which always passes. The identity server's own guide (`bjk-identity-server/docs/local-development.md`) explains it, along with the email placeholder and the test clients.
 
 ### API
 
@@ -237,21 +241,26 @@ dotnet user-secrets set --project src/BJK.Core.Api < user-secrets.json
 dotnet user-secrets list --project src/BJK.Core.Api    # check they're all there
 ```
 
-The format is:
+The format is (`user-secrets.template.json`; the setup fills in the passwords, keys and model paths):
 
 ```json
 {
   "ConnectionStrings": {
-    "AppDatabase": "Server=localhost,1433;Database=badjockeys;User Id=sa;Password=<BJK_SQL_PASSWORD from bjk-core/.env>;TrustServerCertificate=True;MultipleActiveResultSets=true"
+    "BadJockeysDatabase": "Server=localhost,1433;Database=badjockeys;User Id=sa;Password=<BJK_SQL_PASSWORD from bjk-core/.env>;TrustServerCertificate=True;MultipleActiveResultSets=true"
   },
   "Authentication": {
+    "//": "The identity server.",
     "Authority": "https://localhost:5001"
   },
   "Cors": {
-    "AllowedOrigins": [ "http://localhost:3000" ]
+    "//": "The web app, which calls the API from the browser.",
+    "AllowedOrigins": [
+      "http://localhost:3000"
+    ]
   },
   "Media": {
     "Storage": {
+      "//": "S3Mock locally, Cloudflare R2 when deployed.",
       "ServiceUrl": "http://localhost:9090",
       "AccessKeyId": "local",
       "SecretAccessKey": "local",
@@ -259,39 +268,140 @@ The format is:
       "PublicBucket": "bjk-dev-public",
       "PublicBaseUrl": "http://localhost:9090/bjk-dev-public/"
     },
-    "Queue": {
-      "QueueName": "media.process"
-    },
     "Processing": {
       "FfmpegPath": "ffmpeg",
       "FfprobePath": "ffprobe"
+    },
+    "Redaction": {
+      "//": "Face and number plate blurring (YuNet models, run by the media worker). The setup downloads the models and sets the paths; without them every upload waits for review. The rest are the defaults: detections below MinConfidence are ignored, from ConfidentAt they're blurred without review; frames are analysed every DetectEveryNthFrame at most DetectionMaxSize px. ReviewEverything true sends every upload to a moderator (live at launch). ExecutionProvider Cpu (Cuda only on a GPU worker image).",
+      "FaceModelPath": "<set by the setup>",
+      "PlateModelPath": "<set by the setup>",
+      "FaceMinConfidence": 0.5,
+      "FaceConfidentAt": 0.8,
+      "PlateMinConfidence": 0.5,
+      "PlateConfidentAt": 0.8,
+      "BoxPadding": 0.25,
+      "DetectEveryNthFrame": 5,
+      "MaxMissedDetections": 3,
+      "PlateTiles": true,
+      "RemoveAudio": true,
+      "ReviewEverything": false,
+      "VideoTimeout": "00:25:00",
+      "InferenceThreads": 0,
+      "DetectionMaxSize": 640,
+      "ExecutionProvider": "Cpu",
+      "CudaDeviceId": 0
+    },
+    "SensitiveDetection": {
+      "//": "Nudity and graphic content checks (CLIP), on when ModelPath is set; the setup downloads the model and sets it. Without it a stand-in that flags mostly red pictures runs locally. Graphic content at or above Threshold is marked sensitive (shown blurred, queued for a moderator); nudity at or above NudityThreshold is held for a moderator. SampleEvery: score every Nth analysed video frame.",
+      "ModelPath": "<set by the setup: bjk-core/.local/models/clip-vit-b32-vision-quantized.onnx>",
+      "Threshold": 0.35,
+      "NudityThreshold": 0.3,
+      "SampleEvery": 3
+    },
+    "KnownImages": {
+      "//": "Checking uploads against known illegal images (PDQ, SHA-256, MD5 hashes in SQL). Locally only the harmless test entries (scripts/sql/safety-test). Always on when deployed.",
+      "Enabled": true,
+      "RefreshInterval": "00:05:00",
+      "PdqMaxDistance": 31,
+      "PdqMinQuality": 50,
+      "SyncInterval": "06:00:00"
+    }
+  },
+  "Email": {
+    "//": "SendGrid sends when SendGrid:ApiKey is set; empty (locally) = emails are written to the console. For live values see 'Going live' in docs/local-development.md.",
+    "FromAddress": "no-reply@badjockeys.local",
+    "SendGrid": {
+      "ApiKey": ""
+    }
+  },
+  "SMS": {
+    "//": "Twilio sends when its settings are set; empty (locally) = texts are written to the console.",
+    "Twilio": {
+      "AccountSid": "",
+      "ApiKeySid": "",
+      "ApiKeySecret": "",
+      "MessagingServiceSid": ""
     }
   },
   "Captcha": {
+    "//": "Cloudflare's public test secret, which accepts every token (the public report form sends X-Captcha-Token).",
     "TurnstileSecretKey": "1x0000000000000000000000000000000AA"
   },
-  "Safety": {
-    "RequireAgeVerification": false
+  "Screening": {
+    "//": "Text screening of posts and comments: the built-in keyword list always runs. Endpoint (optional) adds a classifier service (e.g. Detoxify); empty = keywords only. Scores from FlagThreshold publish but are flagged; from HoldThreshold they're held for review.",
+    "Endpoint": "",
+    "FlagThreshold": 0.5,
+    "HoldThreshold": 0.8,
+    "Timeout": "00:00:03"
   },
-  "Messaging": {
+  "BlockedUrls": {
+    "//": "Web addresses that can't be posted (the list is in SQL; locally the test entries). How often each API copy reloads the list, and how often it's synced from its sources.",
+    "RefreshInterval": "00:05:00",
+    "SyncInterval": "06:00:00"
+  },
+  "Reels": {
+    "//": "Daily reel plays per UK day: signed out and Free (Premium is unlimited). ViewerKeySecret hashes signed-out viewers (secret; the setup makes one).",
+    "DailyPlays": {
+      "Anonymous": 10,
+      "Free": 25
+    },
+    "ViewerKeySecret": "<generated by the setup>"
+  },
+  "Heatmap": {
+    "//": "Map squares with fewer than MinCellCount incidents are hidden. History in days by plan.",
+    "MinCellCount": 3,
+    "HistoryDays": {
+      "Free": 7,
+      "Premium": 365,
+      "PremiumPlus": 1826
+    }
+  },
+  "Plans": {
+    "//": "Billing isn't built: until the identity server issues the plan claim, give accounts a plan here (user id -> free | premium | premium_plus). The setup adds yours as premium_plus.",
+    "Overrides": {}
+  },
+  "Notifications": {
+    "//": "AppUrl: the web app's address, for links in notification emails. Push: web push (VAPID) keys, on when both are set; the setup makes a pair for this computer. Live: one pair per environment, never changed (see 'Going live').",
+    "AppUrl": "http://localhost:3000",
+    "Push": {
+      "PublicKey": "",
+      "PrivateKey": "",
+      "Subject": "mailto:support@badjockeys.com"
+    }
+  },
+  "Queues": {
+    "//": "Optional; defaults shown. The queues are tables in the messaging schema of BadJockeysDatabase (see docs/messaging.md).",
     "PollingInterval": "00:00:01",
-    "UserEventsQueue": "bjk-core.user-events",
-    "MediaEventsQueue": "bjk-core.media-events"
+    "UserEvents": "bjk-core.user-events",
+    "MediaEvents": "bjk-core.media-events",
+    "MediaProcessing": "media.process"
   }
 }
 ```
 
+There are no provider switches: a service is used when its settings are filled in. When they're empty, your machine uses a stand-in (and the log says so), and a deployed environment refuses to start, naming the setting.
+
 | Setting | What it is |
 |---|---|
-| `ConnectionStrings:AppDatabase` | The main app database `badjockeys`, on the same SQL Server as `idsrv` |
+| `ConnectionStrings:BadJockeysDatabase` | The main app database `badjockeys`, on the same SQL Server as `idsrv` |
 | `Authentication:Authority` | The identity server that issues the tokens the API accepts |
 | `Cors:AllowedOrigins` | The web app's address, so the browser can call the API |
 | `Media:Storage:*` | Local S3Mock and its two buckets (step 5), or R2 later |
-| `Media:Queue:QueueName` | The queue for processing jobs; created automatically |
 | `Media:Processing:FfmpegPath`, `FfprobePath` | Where ffmpeg is. `ffmpeg` and `ffprobe` work if they're on your `PATH`; otherwise use the full path, e.g. `/opt/homebrew/bin/ffmpeg` |
+| `Media:Redaction:FaceModelPath`, `PlateModelPath` | The blurring models (set by the setup). Without them every upload goes to `NeedsReview` |
+| `Media:SensitiveDetection:*` | The CLIP model for the nudity and graphic content checks (set by the setup; without it a stand-in that flags mostly red pictures runs locally), and its thresholds |
+| `Media:Redaction:*` (the rest) | How blurring decides: confidence thresholds, how often frames are analysed, `ReviewEverything` (false locally, true live at launch), CPU or GPU |
+| `Media:KnownImages:*`, `BlockedUrls:*` | The known illegal image check and blocked web addresses: on, with the harmless test entries locally (see "Online safety checks") |
+| `Screening:*` | Text screening: the keyword list, plus a classifier when `Endpoint` is set (empty locally) |
+| `Email:SendGrid:ApiKey` | Empty: emails are written to the console, not sent. Set: SendGrid sends them |
+| `SMS:Twilio:*` | Empty: texts are written to the console. Set: Twilio sends them |
 | `Captcha:TurnstileSecretKey` | Cloudflare's test secret, for the public report form |
-| `Safety:RequireAgeVerification` | `false` locally, so writes don't need the identity server's `age_verified` claim |
-| `Messaging:*` | Optional. The queues are tables in `AppDatabase` (schema `messaging`), created automatically. `UserEventsQueue` receives account deactivations, reactivations and deletions from the identity server; `MediaEventsQueue` receives media ready/failed for Posts |
+| `Reels:*`, `Heatmap:*`, `Plans:Overrides` | Daily plays and the viewer key secret (made by the setup); the heat map's limits; plans for test accounts until billing exists (the setup gives yours Premium+) |
+| `Notifications:AppUrl`, `Notifications:Push:*` | The web app's address for email links; this computer's web push key pair (made by the setup) |
+| `Queues:*` | Optional. The queues are tables in `BadJockeysDatabase` (schema `messaging`), created automatically. `UserEvents` receives account deactivations, reactivations and deletions from the identity server; `MediaEvents` receives media ready/failed for Posts; `MediaProcessing` holds the worker's jobs |
+
+**Older files.** If your `user-secrets.json` was made before 21 Oct 2026, the setup renames its settings for you (`AppDatabase` → `BadJockeysDatabase`, `Messaging` → `Queues`, the `Provider` and `Enabled` switches removed) and does the same for the identity server's once that repo is up to date.
 
 Some settings are optional:
 
@@ -302,10 +412,8 @@ Some settings are optional:
 | `Media:MaxImageBytes` | 25 MB |
 | `Media:MaxVideoDurationSeconds` | 30 |
 | `Media:UploadUrlLifetime` | `00:15:00` |
-| `Media:UnusedOriginalRetention` | `1.00:00:00` (24 hours; originals are deleted once a post is published) |
-| `Email:Provider`, `SMS:Provider` | `Log`: emails and texts are written to the console, not sent |
+| `Media:UnusedOriginalRetention` | `1.00:00:00` (24 hours; originals are deleted once a post is published, and uploads nothing uses are deleted after this long) |
 | `Media:Processing:MaxConcurrentJobs` | 1 |
-| `Media:Redaction:FaceModelPath`, `PlateModelPath` | Unset: blurring can't run, so every upload goes to `NeedsReview`. The setup script downloads the models to `bjk-core/.local/models` and sets these for you. By hand: `pipelines/scripts/download-redaction-models.sh ~/bjk-models` (macOS and Linux), then point these at the two `.onnx` files |
 | `Media:Processing:VideoHeight`, `VideoCrf` | 720, 23 |
 | `Media:Processing:ImageMaxSize`, `ThumbnailMaxSize` | 2048, 640 pixels |
 
@@ -352,24 +460,22 @@ If you add a setting, add it to `user-secrets.template.json` (or `.env.local.exa
 
 ### Going live
 
-On your machine nothing needs a supplier account: S3Mock stands in for R2, email and texts go to the console (`Provider: Log`), the CAPTCHA uses Cloudflare's test keys, and maps use OpenStreetMap's public tiles. These are what a deployed environment must change. Secrets are container secrets; everything else is a container setting (Terraform). Nothing needs a cloud-specific service such as Key Vault. Nested keys become environment variables with `__`, e.g. `Email__SendGrid__ApiKey`. The identity server's list is in its README.
+On your machine nothing needs a supplier account: S3Mock stands in for R2, email and texts go to the console (no SendGrid or Twilio keys), the CAPTCHA uses Cloudflare's test keys, and maps use OpenStreetMap's public tiles. These are what a deployed environment must change. Secrets are container secrets; everything else is a container setting (Terraform). Nothing needs a cloud-specific service such as Key Vault. Nested keys become environment variables with `__`, e.g. `Email__SendGrid__ApiKey`. The identity server's list is in its README.
 
-**Outside Development the apps refuse to start** until every required setting below is set to a live value (no `Log` providers, test keys, http addresses or `<...>` placeholders), listing everything that's missing at once. `--check-settings` runs the same check without starting: e.g. `dotnet BJK.Core.Api.dll --check-settings` with an environment's settings exits 1 and lists the problems. The deploy pipeline runs it before deploying.
+**Outside Development the apps refuse to start** until every required setting below is set to a live value (no missing keys, test keys, http addresses or `<...>` placeholders), listing everything that's missing at once. `--check-settings` runs the same check without starting: e.g. `dotnet BJK.Core.Api.dll --check-settings` with an environment's settings exits 1 and lists the problems. The deploy pipeline runs it before deploying.
 
 **API and media worker** (they share their settings):
 
 | Setting | Live value | Still needed |
 |---|---|---|
-| `ConnectionStrings:AppDatabase` (secret) | Azure SQL `badjockeys` with the API's own SQL login, `Encrypt=True` | The live server |
+| `ConnectionStrings:BadJockeysDatabase` (secret) | Azure SQL `badjockeys` with the API's own SQL login, `Encrypt=True` | The live server |
 | `MediatR:LicenseKey` (secret) | The licence key | Get one |
 | `Authentication:Authority` | The identity server, e.g. `https://auth.badjockeys.com` | The live domain |
 | `Cors:AllowedOrigins` | The web app, e.g. `https://badjockeys.com` | The live domain |
 | `ApiDocs:Enabled` | `false`, unless the API reference should be public | |
-| `Email:Provider` | `SendGrid` | A SendGrid account |
-| `Email:SendGrid:ApiKey` (secret) | A key with Mail Send only | A SendGrid account |
+| `Email:SendGrid:ApiKey` (secret) | **Required**: a key with Mail Send only (without it emails are only logged) | A SendGrid account |
 | `Email:FromAddress`, `Email:ReplyToAddress`, `Email:LogoUrl` | e.g. `no-reply@badjockeys.com` (verified domain), `support@badjockeys.com`, a PNG logo URL | Domain verified in SendGrid |
-| `SMS:Provider` | `Twilio` | A Twilio account |
-| `SMS:Twilio:AccountSid`, `ApiKeySid`, `ApiKeySecret` (secret), `MessagingServiceSid` | An API key rather than the auth token; a Messaging Service rather than one number | A Twilio account; the UK sender ID registered |
+| `SMS:Twilio:AccountSid`, `ApiKeySid`, `ApiKeySecret` (secret), `MessagingServiceSid` | **Required**. An API key rather than the auth token; a Messaging Service rather than one number | A Twilio account; the UK sender ID registered |
 | `Media:Storage:ServiceUrl` | `https://<account id>.r2.cloudflarestorage.com` | A Cloudflare account |
 | `Media:Storage:AccessKeyId`, `SecretAccessKey` (secrets) | An R2 token with Object Read & Write on the live buckets only | A Cloudflare account |
 | `Media:Storage:OriginalsBucket`, `PublicBucket`, `SensitiveBucket` | e.g. `bjk-live-originals` (CORS `PUT` from the web app, 90-day deletion rule), `bjk-live-public`, `bjk-live-sensitive` (private) | The buckets (Terraform) |
@@ -377,12 +483,17 @@ On your machine nothing needs a supplier account: S3Mock stands in for R2, email
 | `Media:Processing:FfmpegPath`, `FfprobePath` | Paths in the worker image, e.g. `/usr/bin/ffmpeg` | |
 | `Media:Redaction:FaceModelPath`, `PlateModelPath` | Paths to the two models in the worker image | The models in the image |
 | `Media:Redaction:ReviewEverything` | `true` at launch, so a moderator checks every upload | |
-| `Media:SensitiveDetection:Enabled`, `ModelPath` | `false` until a model is chosen | **A gore and injury model** (not chosen yet) |
+| `Media:SensitiveDetection:ModelPath` | **Required**: the CLIP model's path in the worker image (the image sets it) | |
+| `Media:SensitiveDetection:Threshold`, `NudityThreshold` | Optional: 0.35 and 0.3; tune from the recorded scores | |
+| `Media:KnownImages:Enabled` | Must not be `false` (on by default) | **IWF membership** for the real hash list (until then only moderators' hashes are checked) |
+| IWF Hash List and URL List | Synced into SQL by the worker and API once an adapter is written against the IWF's API | **IWF membership**, and their API details and test credentials |
 | `Captcha:TurnstileSecretKey` (secret) | The real Turnstile widget's secret | A Cloudflare account |
-| `Screening:Provider` | `Keywords` (built in), or `Http` with `Endpoint` for a classifier | Optional |
+| `Screening:Endpoint` | Optional: a classifier service (e.g. Detoxify); without it the built-in keyword list only | Optional |
 | `Reels:ViewerKeySecret` (secret) | A long random string (`openssl rand -base64 48`) | |
 | `Plans:Overrides` | Empty | **Stripe billing** (not built yet) |
 | `Notifications:AppUrl`, `Posts:AppUrl` | The web app, e.g. `https://badjockeys.com` | The live domain |
+| `Notifications:Push:PublicKey`, `PrivateKey` (secret) | **Required**: a VAPID key pair made once per environment and never changed (changing it stops every phone's push subscription). Make one with `node -e "const k=require('crypto').generateKeyPairSync('ec',{namedCurve:'prime256v1'}).privateKey.export({format:'jwk'});console.log(Buffer.concat([Buffer.from([4]),Buffer.from(k.x,'base64url'),Buffer.from(k.y,'base64url')]).toString('base64url'),k.d)"` (public key first) | |
+| `Notifications:Push:Subject` | `mailto:support@badjockeys.com` (the default): who push services contact about problems | |
 | `Posts:ReportsInbox` (from bjk-modules #30) | `support@badjockeys.com` (the default) | The mailbox must exist |
 | `Heatmap:VehicleMinCellCount`, `Heatmap:ModelFilterMinSpanKm` | Optional: defaults 5 and 10 | |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | Grafana Cloud's OTLP address (https) | **A Grafana Cloud stack** |
@@ -466,7 +577,7 @@ On Windows (PowerShell): `$env:NODE_EXTRA_CA_CERTS="$HOME\.aspnet\dev-cert.pem";
 Open http://localhost:3000. **Join** goes to the identity server's sign-up page (email, password and date of birth),
 then back to the web app to create your profile. Posting and commenting need a confirmed email address: the
 confirmation link is in the identity server's console. The age check is only needed to view posts tagged sensitive;
-locally it uses development stand-ins that always pass (`AgeAssurance` in the identity server's user secrets).
+locally it uses the real head-turn check and stand-ins for Yoti that answer age 30 (`AgeAssurance` in the identity server's user secrets).
 
 | Command (in `src/web`) | Does |
 |---|---|
@@ -523,18 +634,47 @@ Ask for the API's scopes when you sign in with the identity server's local test 
 
 Posting and commenting also need a confirmed email address (confirm it from the link in the identity server's console).
 
+## Online safety checks
+
+What runs on your machine, and what doesn't. The setup prints the same summary at the end.
+
+| Check | On your machine | Deployed |
+|---|---|---|
+| Face and number plate blurring | On (YuNet models, downloaded by the setup) | On |
+| Nudity | On (CLIP model, downloaded by the setup). Scores at or above 0.3 hold the upload for a moderator | On |
+| Graphic content (blood, injuries) | On (the same CLIP run). Scores at or above 0.35 mark it sensitive: shown blurred, queued for a moderator | On |
+| Known illegal images | On, against **test entries only**: the hashes of `scripts/sql/safety-test/known-image-test.png` | Moderators' hashes; the **IWF Hash List** once we're members |
+| Blocked web addresses | On, against **one test entry**: `blocked-url-test.example` | Moderators' entries; the **IWF URL List** once we're members |
+| Threats, slurs and abuse in text | Built-in keyword list (the Detoxify classifier isn't run locally) | Keyword list, plus Detoxify if `Screening:Endpoint` is set |
+| Personal details in text | On (plates, phone numbers, emails, street addresses, social handles) | On |
+
+**Nothing on your machine is ever checked against the real IWF lists**, and nothing needs to be kept up to date here: the lists live in SQL (`media.KnownImageHashes`, `posts.BlockedUrls`) and, when deployed, a sync job fetches each provider's list over its API every 6 hours. Locally the only entries are the `Test` rows the setup adds.
+
+**Try it.**
+
+- **Known image:** post `scripts/sql/safety-test/known-image-test.png` (a yellow and black "TEST IMAGE" card; it's harmless). The upload fails with "This file can't be posted.", nothing is published, and the match appears in `badjockeys.media.KnownImageMatches` (and `GET /api/admin/known-images/matches` as an admin). A resized or re-saved copy is caught too, by its perceptual hash. Uploads are checked by the media worker, so it must be running.
+- **Blocked address:** write a post or comment containing `blocked-url-test.example/anything`. It's held for review (only you see it) with the label `blocked_url`.
+- **Nudity and graphic content:** the scores of every upload are in `badjockeys.media.Media` (`NudityScore`, `SensitiveScore`). Don't test with real explicit or gory pictures; ordinary dashcam footage should score near 0.
+- **Re-add the test entries** (for example after resetting the database): `node scripts/sql/safety-test/seed.mjs`.
+
+**IWF test environment.** The IWF doesn't publish a public sandbox for its lists. When we join, ask them for test credentials and a test feed (or a set of test hashes and URLs) for DEV and QA, so the first real sync isn't in production. The code is ready for that: each list is a "source" with its own sync, and DEV and QA can point at the test feed while production uses the live one. Until then, DEV and QA use the same `Test` entries as your machine.
+
+If you change `known-image-test.png`, update the two hashes in `scripts/sql/safety-test/seed.mjs`: the SHA-256 (`shasum -a 256`) and the PDQ hash (upload the new picture and read `PerceptualHashes` for it in `badjockeys.media.Media`).
+
 ## Example users and posts
 
 The setup fills a fresh install with example data, so the feed, map and notifications have something in them. Each run replaces it. To refresh it without the rest of the setup, run `node scripts/sql/example-data/seed.mjs` from bjk-core. That needs SQL Server and S3Mock running, and the identity server and API to have started once.
 
-It adds 8 example users and 26 posts around Prescot, Liverpool, Warrington, Manchester, Leeds and London. The posts come with reactions, comments and replies, vehicle details, and enough posts close together for the heat map. The photos are placeholder dashcam frames marked "Example clip", uploaded to S3Mock.
+It adds 108 example members and 300 posts across the UK, mostly around Merseyside, Manchester, Leeds and London. It takes about a minute: the first run also makes six short placeholder clips with ffmpeg (kept in `.local/example-videos`).
 
-- **Sign in as an example user:** for example `dave@example.test` (@dashcam_dave) or `priya@example.test` (@pedal_power_priya), password `BadJockeys!2026`. They're all adults who have passed the age check, with confirmed emails.
-- **Your own account** (`aaron.greenhalgh@badjockey.com`; change `OWNER_EMAIL` in `scripts/sql/example-data/data.mjs`) gets Premium+ through `Plans:Overrides` in the API's user secrets. Once it has a profile, Dashcam Dave also tags it as a passenger on one post: you'll see it under **Approve tags** and in the bell. If you sign up after the setup, run the setup again.
-- **What it touches:** only rows whose ids start `e0000000`.
-- **The SQL** is `scripts/sql/example-data/seed.sql`. After changing `data.mjs`, regenerate it with `node scripts/sql/example-data/build-sql.mjs`.
-
-There are no videos, so Reels stays empty.
+- **Posts:** every category, with vehicle details, and enough posts close together for the heat map. About half have photos (2 to 6 placeholder dashcam frames marked "Example clip") and the rest have one 8-second placeholder clip, so Reels has plenty in it. That follows the posting rule: up to 10 photos or one video.
+- **Activity:** reactions on posts and comments (Like, Angry, Shocked, Laugh), comments and replies (every member has written both), "Who's at fault?" and "How bad was it?" votes, followed posts, bookmarks, follows between members, views (some local, some from signed-out visitors) and shares.
+- **Members:** home areas (so local views and area alerts work), badges (all founding members, 8 trusted reporters, 18 local regulars), and a few with their own vote closing time. Some votes have closed, and the ones that closed in the last day get their results sent the first time the API's VoteResults job runs, so a few "Voting has closed" notifications turn up.
+- **Sign in as an example member:** for example `dave@example.test` (@dashcam_dave) or `priya@example.test` (@pedal_power_priya), password `BadJockeys!2026`. The generated members are `<handle>@example.test`; the seed prints the first few, and `SELECT Email FROM idsrv.auth.AspNetUsers WHERE Id LIKE 'e0000000%'` lists them all. They're all adults who have passed the age check, with confirmed emails.
+- **Your own account** (`aaron.greenhalgh@badjockey.com`; change `OWNER_EMAIL` in `scripts/sql/example-data/data.mjs`) gets Premium+ through `Plans:Overrides` in the API's user secrets. Once it has a profile, Dashcam Dave tags it as a passenger on one post (you'll see it under **Approve tags** and in the bell), it follows the hand-written members and a few more, and about 20 members follow it. If you sign up after the setup, run the setup again.
+- **What it touches:** only rows whose ids start `e0000000`, and what other people did to them.
+- **Changing it:** the hand-written members and posts are in `data.mjs`; `generate.mjs` grows them into the full set from a fixed random seed, so every run makes exactly the same data. `build-sql.mjs` turns that into SQL, which `seed.mjs` runs. To run the SQL by hand instead, write it to `seed.sql` (not committed) with `node scripts/sql/example-data/build-sql.mjs`.
+- **CI** applies the example data twice to its own database and checks the row counts (`pipelines/scripts/example-data-check.sh`), so a schema change that would break it fails there.
 
 ## Data and handy queries
 

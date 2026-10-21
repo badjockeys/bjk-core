@@ -8,6 +8,7 @@
 import {
   AreaClient,
   DraftsClient,
+  EngagementClient,
   HashtagsClient,
   HeatmapClient,
   MediaClient,
@@ -35,6 +36,8 @@ import type {
   ReportReason,
   TimelineRequest,
   RoadUser,
+  VoteChoice,
+  VoteDuration,
 } from "./types";
 import type { CreatePostRequest } from "./types";
 
@@ -227,6 +230,31 @@ export function endpoints(api: ApiClient) {
       /** On your own post: who can comment (everyone, or nobody). */
       setCommentSetting: (token: string, postId: string, setting: CommentSetting) =>
         posts(token).posts_SetCommentSetting(postId, { setting }),
+    },
+    engagement: {
+      /** Vote on a post, or change your vote, until it closes. */
+      vote: (token: string, postId: string, choice: VoteChoice) =>
+        client(EngagementClient, { token }).engagement_Vote(postId, { choice }),
+      follow: (token: string, postId: string) =>
+        client(EngagementClient, { token }).engagement_Follow(postId),
+      unfollow: (token: string, postId: string) =>
+        client(EngagementClient, { token }).engagement_Unfollow(postId),
+      save: (token: string, postId: string) => client(EngagementClient, { token }).engagement_Save(postId),
+      unsave: (token: string, postId: string) =>
+        client(EngagementClient, { token }).engagement_Unsave(postId),
+      bookmarks: (token: string, page = 1, pageSize = 20) =>
+        client(EngagementClient, { token }).engagement_Bookmarks(page, pageSize),
+      /** Count that the viewer saw these posts (once per viewer per post). Signed-out viewers by their viewer id. */
+      views: (token: string | null, viewerId: string | null, postIds: string[]) =>
+        client(EngagementClient, { token, headers: viewer(viewerId) }).engagement_RecordViews({ postIds }),
+      /** Count a share (once per viewer per post per day). */
+      share: (token: string | null, viewerId: string | null, postId: string) =>
+        client(EngagementClient, { token, headers: viewer(viewerId) }).engagement_RecordShare(postId),
+      /** Views, local views, reactions, comments and shares: the author only. */
+      reach: (token: string, postId: string) => client(EngagementClient, { token }).engagement_Reach(postId),
+      preferences: (token: string) => client(EngagementClient, { token }).engagement_GetPreferences(),
+      setVoteDuration: (token: string, voteDuration: VoteDuration) =>
+        client(EngagementClient, { token }).engagement_SetPreferences({ voteDuration }),
     },
     drafts: {
       list: (token: string) => client(DraftsClient, { token }).drafts_List(),
@@ -430,8 +458,14 @@ export function endpoints(api: ApiClient) {
       clearHomeArea: (token: string) => client(AreaClient, { token }).area_Clear(),
       updateSettings: (token: string, settings: NotificationSettingDto[]) =>
         client(NotificationsClient, { token }).notifications_UpdateSettings({
-          settings: settings.map(({ type, inApp, email }) => ({ type, inApp, email })),
+          settings: settings.map(({ type, inApp, email, push }) => ({ type, inApp, email, push })),
         }),
+      /** Whether web push is available, and the key browsers subscribe with. */
+      pushSetup: (token: string) => client(NotificationsClient, { token }).notifications_PushSetup(),
+      subscribePush: (token: string, subscription: { endpoint: string; p256dh: string; auth: string }) =>
+        client(NotificationsClient, { token }).notifications_Subscribe(subscription),
+      unsubscribePush: (token: string, endpoint: string) =>
+        client(NotificationsClient, { token }).notifications_Unsubscribe({ endpoint }),
     },
   };
 }

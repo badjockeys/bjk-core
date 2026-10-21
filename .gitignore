@@ -27,3 +27,6 @@ out/
 
 # Local tools and downloads (e.g. the blurring models from scripts/setup-local.mjs)
 .local/
+
+# Example data SQL (built by scripts/sql/example-data/build-sql.mjs when you want to run it by hand)
+scripts/sql/example-data/seed.sql

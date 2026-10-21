@@ -23,15 +23,50 @@ const EXTENSION_TYPES: Record<string, string> = {
   webp: "image/webp",
   heic: "image/heic",
   heif: "image/heif",
+  avif: "image/avif",
+  gif: "image/gif",
+  tif: "image/tiff",
+  tiff: "image/tiff",
+  bmp: "image/bmp",
   mp4: "video/mp4",
-  m4v: "video/mp4",
+  m4v: "video/x-m4v",
   mov: "video/quicktime",
   "3gp": "video/3gpp",
+  webm: "video/webm",
+  mkv: "video/x-matroska",
+  avi: "video/x-msvideo",
 };
 
 /** The types the API accepts (BJK.Modules.Media MediaFormats). */
-export const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
-export const VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/3gpp"];
+export const PHOTO_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+  "image/avif",
+  "image/gif",
+  "image/tiff",
+  "image/bmp",
+  "image/x-ms-bmp",
+];
+export const VIDEO_TYPES = [
+  "video/mp4",
+  "video/quicktime",
+  "video/3gpp",
+  "video/x-m4v",
+  "video/webm",
+  "video/x-matroska",
+  "video/x-msvideo",
+  "video/avi",
+  "video/msvideo",
+];
+/**
+ * Extensions added to the file pickers' accept lists, for files the browser or OS doesn't give a media type
+ * (HEIC from phones, MKV, M4V and MOV on some systems), so they aren't greyed out.
+ */
+export const PHOTO_EXTENSIONS = [".heic", ".heif", ".avif", ".tif", ".tiff", ".bmp"];
+export const VIDEO_EXTENSIONS = [".mov", ".m4v", ".mkv", ".webm", ".avi", ".3gp"];
 export const MAX_PHOTOS = 10;
 export const MAX_PHOTO_BYTES = 25 * 1024 * 1024;
 export const MAX_VIDEO_SECONDS = 30;

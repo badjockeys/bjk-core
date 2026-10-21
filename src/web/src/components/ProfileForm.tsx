@@ -8,7 +8,14 @@ import { checkHandle, createProfile, setAvatar, updateProfile } from "@/actions/
 import { followBlocker } from "@/lib/blockers";
 import { shrinkPhoto } from "@/lib/image-resize";
 import type { PlaceDto, ProfileDto, RoadUser } from "@/lib/types";
-import { contentTypeOf, MAX_PHOTO_BYTES, PHOTO_TYPES, uploadFile, waitUntilReady } from "@/lib/upload";
+import {
+  contentTypeOf,
+  MAX_PHOTO_BYTES,
+  PHOTO_EXTENSIONS,
+  PHOTO_TYPES,
+  uploadFile,
+  waitUntilReady,
+} from "@/lib/upload";
 
 import { Avatar } from "./Avatar";
 import { TickIcon } from "./icons";
@@ -176,7 +183,9 @@ export function ProfileForm({
       }
 
       setStatus(null);
-      router.push(mode === "create" ? returnTo : `/@${saved.data.handle}`);
+      router.push(
+        mode === "create" ? `/welcome?returnTo=${encodeURIComponent(returnTo)}` : `/@${saved.data.handle}`,
+      );
       router.refresh();
     });
   };
@@ -207,7 +216,7 @@ export function ProfileForm({
         <input
           ref={fileInput}
           type="file"
-          accept={PHOTO_TYPES.join(",")}
+          accept={[...PHOTO_TYPES, ...PHOTO_EXTENSIONS].join(",")}
           hidden
           onChange={(e) => {
             choosePhoto(e.target.files?.[0]);
