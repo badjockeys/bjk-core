@@ -3682,3 +3682,43 @@ dialog.composer-dialog::backdrop {
   padding: 0;
   list-style: none;
 }
+
+/* AI suggestions in the composer: "Looks like: ..." type chips and "Suggest a description". */
+.cmp-suggest {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.cmp-chip-suggest {
+  border: 1px dashed var(--brand);
+  background: var(--brand-tint);
+  color: var(--brand-tint-text);
+}
+
+.cmp-describe {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.cmp-describe > p {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.cmp-draft {
+  flex-basis: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #ffffff;
+}
+
+.cmp-draft p {
+  margin: 0 0 6px;
+}

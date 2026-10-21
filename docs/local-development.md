@@ -661,6 +661,20 @@ What runs on your machine, and what doesn't. The setup prints the same summary a
 
 If you change `known-image-test.png`, update the two hashes in `scripts/sql/safety-test/seed.mjs`: the SHA-256 (`shasum -a 256`) and the PDQ hash (upload the new picture and read `PerceptualHashes` for it in `badjockeys.media.Media`).
 
+## AI suggestions
+
+Three helpers in the composer. They only ever suggest: the person confirms or edits everything. They run on our own servers (or your machine), never a third-party AI service.
+
+| Helper | How it works | Locally |
+|---|---|---|
+| **"Looks like: ..." type chips** | When every photo or the video is ready, the API compares the CLIP summary the media worker kept while blurring them with written descriptions of each type (`POST /api/posts/type-suggestions`). Tap a chip to add the type | Works as deployed (the setup downloads CLIP) |
+| **Trim suggestion** | For videos over 30 seconds, the trim screen measures loudness and how much the picture changes, in the browser, and starts the handles on the 30 seconds with the most going on | Works as deployed |
+| **"Suggest a description"** | Sends up to 6 blurred pictures and the details filled in to Qwen3-VL (a vision language model) on our own GPU; fills an empty title and description, or offers the draft to use instead. 10 a day each | A stand-in writes a fixed example draft, unless Ollama is set up (below) |
+
+**Using the real description model on your Mac.** Install [Ollama](https://ollama.com), run `ollama pull qwen3-vl:8b` (about 6 GB; an Apple Silicon Mac with 16 GB or more is best), then run the setup again: it sets `Media:Describe:Endpoint` to `http://localhost:11434/v1` and `Media:Describe:Model` to `qwen3-vl:8b`. A draft takes 10 to 30 seconds on a laptop. To go back to the stand-in, empty `Media:Describe:Endpoint` in `user-secrets.json` and run the setup.
+
+**When deployed** the description model runs in its own container on a serverless GPU (vLLM serving Qwen3-VL-8B), and `Media:Describe:Endpoint` is its internal address: the media worker won't start without it.
+
 ## Example users and posts
 
 The setup fills a fresh install with example data, so the feed, map and notifications have something in them. Each run replaces it. To refresh it without the rest of the setup, run `node scripts/sql/example-data/seed.mjs` from bjk-core. That needs SQL Server and S3Mock running, and the identity server and API to have started once.

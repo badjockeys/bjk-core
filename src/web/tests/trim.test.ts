@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { initialSelection, isWholeVideo, moveEdge, targetSize } from "@/lib/trim";
+import {
+  initialSelection,
+  interestScores,
+  isWholeVideo,
+  moveEdge,
+  suggestSelection,
+  targetSize,
+} from "@/lib/trim";
 
 describe("trim rules", () => {
   it("starts with the first 30 seconds", () => {
@@ -31,5 +38,33 @@ describe("trim rules", () => {
     expect(targetSize(1080, 1920)).toEqual({ width: 720, height: 1280 });
     expect(targetSize(1280, 720)).toBeNull();
     expect(targetSize(640, 360)).toBeNull();
+  });
+});
+
+describe("trim suggestions", () => {
+  it("picks the 30 seconds around the spikes, with a lead-in", () => {
+    // 120 seconds measured every half second: quiet, then a horn and a swerve at 70 seconds.
+    const loudness = Array.from({ length: 240 }, (_, i) => (i >= 140 && i <= 144 ? 80 : 40 + (i % 3)));
+    const change = Array.from({ length: 240 }, (_, i) => (i >= 141 && i <= 146 ? 30 : 2));
+    const scores = interestScores(loudness, change);
+
+    const clip = suggestSelection(scores, 0.5, 120);
+
+    expect(clip).not.toBeNull();
+    expect(clip!.end - clip!.start).toBe(30);
+    expect(clip!.start).toBeLessThanOrEqual(66);
+    expect(clip!.end).toBeGreaterThanOrEqual(74);
+  });
+
+  it("suggests nothing when nothing stands out or the video is short", () => {
+    const flat = interestScores(new Array(240).fill(40), new Array(240).fill(2));
+    expect(suggestSelection(flat, 0.5, 120)).toBeNull();
+    expect(suggestSelection([5, 5, 5], 0.5, 20)).toBeNull();
+  });
+
+  it("never runs past the end of the video", () => {
+    const scores = Array.from({ length: 120 }, (_, i) => (i > 115 ? 10 : 0));
+    const clip = suggestSelection(scores, 0.5, 60);
+    expect(clip).toEqual({ start: 30, end: 60 });
   });
 });
