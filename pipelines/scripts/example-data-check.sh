@@ -51,6 +51,16 @@ node --input-type=module -e '
 ' "$RUNNER_TEMP/seed.sql" "$RUNNER_TEMP/expected.json"
 echo "SQL: $(wc -c < "$RUNNER_TEMP/seed.sql") bytes"
 
+# The smoke test's own members use some of the same handles (dashcam_dave); rename theirs out of the way.
+handles=$(node --input-type=module -e '
+  import { buildExampleData } from "./scripts/sql/example-data/generate.mjs";
+  console.log(buildExampleData().users.map((u) => `N${String.fromCharCode(39)}${u.handle}${String.fromCharCode(39)}`).join(", "));
+')
+sql <<SQL
+UPDATE badjockeys.profiles.Profiles SET Handle = LEFT(N'smoke_' + Handle, 30)
+WHERE Id NOT LIKE 'e0000000%' AND Handle IN ($handles);
+SQL
+
 echo "--- apply it twice"
 for run in 1 2; do
   start=$(date +%s)
