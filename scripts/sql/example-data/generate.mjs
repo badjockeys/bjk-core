@@ -20,7 +20,9 @@ function mulberry32(seed) {
   };
 }
 
-const random = mulberry32(20261021);
+const SEED = 20261021;
+// Restarted by buildExampleData, so every call (not just the first in a process) makes the same data.
+let random = mulberry32(SEED);
 const int = (min, max) => min + Math.floor(random() * (max - min + 1));
 const pick = (list) => list[Math.floor(random() * list.length)];
 const chance = (p) => random() < p;
@@ -311,6 +313,7 @@ function km(lat1, lng1, lat2, lng2) {
  * never later than a day before now.
  */
 export function buildExampleData() {
+  random = mulberry32(SEED);
   const users = [...handUsers, ...generatedUsers(100)];
   const posts = [...handPosts.map((p) => ({ ...p })), ...generatedPosts(users, 274, handPosts.length + 1)];
   const userNs = users.map((u) => u.n);
