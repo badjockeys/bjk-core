@@ -87,7 +87,7 @@
         "command": "node",
         "args": [
           "${workspaceFolder:bjk-core}/scripts/start-docker.mjs",
-          "--open-reports"
+          "--open-kibana"
         ],
         "problemMatcher": [],
         "presentation": {

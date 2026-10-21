@@ -1,12 +1,12 @@
 # The services Bad Jockeys needs on your machine, in one Docker group called "bad-jockeys". The apps themselves
 # (identity server, API, media worker, web app) run outside Docker; see docs/local-development.md.
 #
-#   docker compose up -d --wait   starts them and waits until SQL Server is healthy
+#   docker compose up -d --wait   starts them and waits until they're all ready (Kibana takes a minute or two)
 #   docker compose stop           stops them and keeps the data
-#   docker compose down -v        removes them and ALL local data (databases, queues, uploaded files)
+#   docker compose down -v        removes them and ALL local data (databases, queues, uploaded files, logs)
 #
-# The sa password comes from .env (git-ignored) next to this file; scripts/setup-local.mjs creates it, or copy
-# .env.example to .env. You rarely need these commands: the setup, "Run Bad Jockeys" and F5 start them for you.
+# The passwords come from .env (git-ignored) next to this file; scripts/setup-local.mjs creates it, or copy
+# .env.example to .env and fill it in. You rarely need these commands: the setup, "Run Bad Jockeys" and F5 start them for you.
 name: bad-jockeys
 
 services:
@@ -48,48 +48,112 @@ services:
     volumes:
       - s3-data:/data
 
-  # Grafana's all-in-one OpenTelemetry stack for local logs, traces and metrics: an OpenTelemetry collector, Loki
-  # (logs), Tempo (traces) and Prometheus (metrics), the same parts Grafana Cloud runs. The apps send to it on
-  # http://localhost:4318 (OTEL_EXPORTER_OTLP_ENDPOINT in their launchSettings.json); our Grafana below reads it. Data
-  # is kept only while the container runs. Its own Grafana isn't published: use http://localhost:3300.
-  lgtm:
-    image: grafana/otel-lgtm:0.29.1
-    container_name: bad-jockeys-otel
+  # Logs, traces and metrics: Elasticsearch stores them, Kibana shows them (http://localhost:5601, sign in as
+  # "elastic" with BJK_ELASTIC_PASSWORD from .env), and Elastic's OpenTelemetry collector (EDOT) receives them from the
+  # apps on http://localhost:4318 (OTEL_EXPORTER_OTLP_ENDPOINT in their launchSettings.json and src/web/.env.local).
+  # The same version as Elastic Cloud when deployed, where only the apps' OTLP address and key change. Free (basic)
+  # licence; data is kept in the elastic-data volume. The setup adds the three BJK_ELASTIC_/BJK_KIBANA_ values to .env.
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.5.5
+    container_name: bad-jockeys-elasticsearch
+    environment:
+      discovery.type: single-node
+      ELASTIC_PASSWORD: ${BJK_ELASTIC_PASSWORD:?Run the setup (node scripts/setup-local.mjs) to add BJK_ELASTIC_PASSWORD to bjk-core/.env}
+      xpack.security.enabled: "true"
+      xpack.security.http.ssl.enabled: "false"
+      xpack.license.self_generated.type: basic
+      xpack.ml.enabled: "false"
+      # 1 GB is plenty for one developer. UseSVE=0 works around a JVM crash on some Apple Silicon Macs (JDK-8345296);
+      # IgnoreUnrecognizedVMOptions makes Intel machines skip it.
+      ES_JAVA_OPTS: -Xms1g -Xmx1g -XX:+IgnoreUnrecognizedVMOptions -XX:UseSVE=0
+      # Keep working on a nearly full laptop disk (the defaults stop writes at 95%).
+      cluster.routing.allocation.disk.watermark.low: 1gb
+      cluster.routing.allocation.disk.watermark.high: 1gb
+      cluster.routing.allocation.disk.watermark.flood_stage: 1gb
     ports:
-      - "4317:4317"
-      - "4318:4318"
+      - "127.0.0.1:9200:9200"
+    volumes:
+      - elastic-data:/usr/share/elasticsearch/data
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -f -o /dev/null -u \"elastic:$$ELASTIC_PASSWORD\" http://localhost:9200/_cluster/health"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
     restart: unless-stopped
 
-  # Grafana: the reports (src/reporting). It reads only the reporting views in both databases, through the read-only
-  # bjk_reporting login (scripts/sql/reporting/apply.mjs creates both). http://localhost:3300: anyone on this
-  # computer can view; admin / admin to edit (edits aren't kept: change the JSON in src/reporting instead).
-  grafana:
-    image: grafana/grafana-oss:13.0.2
-    container_name: bad-jockeys-grafana
-    ports:
-      - "3300:3000"
-    environment:
-      BJK_REPORTING_SQL_SERVER: sql:1433
-      BJK_REPORTING_PASSWORD: ${BJK_REPORTING_PASSWORD:-not-set-run-the-setup}
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
-      GF_AUTH_ANONYMOUS_ENABLED: "true"
-      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
-      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/bad-jockeys.json
-      GF_USERS_DEFAULT_THEME: light
-      GF_ANALYTICS_REPORTING_ENABLED: "false"
-      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
-      GF_NEWS_NEWS_FEED_ENABLED: "false"
-    volumes:
-      - ./src/reporting/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./src/reporting/grafana/dashboards:/etc/grafana/dashboards:ro
-      - grafana-data:/var/lib/grafana
+  # Sets the password Kibana signs in to Elasticsearch with (the built-in kibana_system user), then stops. Kibana
+  # can't use the "elastic" superuser.
+  kibana-setup:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.5.5
+    container_name: bad-jockeys-kibana-setup
     depends_on:
-      - sql
-      - lgtm
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      ELASTIC_PASSWORD: ${BJK_ELASTIC_PASSWORD}
+      KIBANA_PASSWORD: ${BJK_KIBANA_PASSWORD:?Run the setup (node scripts/setup-local.mjs) to add BJK_KIBANA_PASSWORD to bjk-core/.env}
+    command: >
+      bash -c '
+        for _ in $$(seq 1 30); do
+          curl -s -u "elastic:$$ELASTIC_PASSWORD" -X POST http://elasticsearch:9200/_security/user/kibana_system/_password
+            -H "Content-Type: application/json" -d "{\"password\":\"$$KIBANA_PASSWORD\"}" | grep -q "^{}" && exit 0;
+          sleep 2;
+        done;
+        echo "Could not set the kibana_system password"; exit 1'
+    restart: "no"
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:9.5.5
+    container_name: bad-jockeys-kibana
+    depends_on:
+      kibana-setup:
+        condition: service_completed_successfully
+    environment:
+      SERVER_NAME: kibana
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+      ELASTICSEARCH_USERNAME: kibana_system
+      ELASTICSEARCH_PASSWORD: ${BJK_KIBANA_PASSWORD}
+      # Needed for alert rules and connectors; any 32+ characters, kept the same between restarts.
+      XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY: ${BJK_KIBANA_ENCRYPTION_KEY:?Run the setup (node scripts/setup-local.mjs) to add BJK_KIBANA_ENCRYPTION_KEY to bjk-core/.env}
+      # Open on the Observability view (services, logs, traces) rather than search.
+      XPACK_SPACES_DEFAULTSOLUTION: oblt
+      TELEMETRY_OPTIN: "false"
+    ports:
+      - "127.0.0.1:5601:5601"
+    volumes:
+      - kibana-data:/usr/share/kibana/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -I http://localhost:5601/api/status | grep -q -E 'HTTP/1.1 (200|401)'"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+    restart: unless-stopped
+
+  # Elastic's distribution of the OpenTelemetry collector: takes OTLP from the apps and writes it to Elasticsearch in
+  # OpenTelemetry's own format, adding the summaries Kibana's service views need (src/observability/edot-collector.yml).
+  otel-collector:
+    image: docker.elastic.co/elastic-agent/elastic-otel-collector:9.5.5
+    container_name: bad-jockeys-otel-collector
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    environment:
+      ELASTIC_ENDPOINT: http://elasticsearch:9200
+      ELASTIC_PASSWORD: ${BJK_ELASTIC_PASSWORD}
+    volumes:
+      - ./src/observability/edot-collector.yml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "127.0.0.1:4317:4317"
+      - "127.0.0.1:4318:4318"
     restart: unless-stopped
 
 volumes:
   sql-data:
   s3-data:
-  grafana-data:
+  elastic-data:
+  kibana-data:

@@ -114,16 +114,16 @@
         "cwd": "${workspaceFolder}"
       },
       "problemMatcher": [],
-      "detail": "Stops SQL Server, S3Mock and Grafana (Docker group bad-jockeys), keeping their data"
+      "detail": "Stops SQL Server, S3Mock, Elasticsearch, Kibana and the collector (Docker group bad-jockeys), keeping their data"
     },
     {
       "label": "Start Docker services",
-      "detail": "Opens Docker Desktop if needed, starts SQL Server, S3Mock and Grafana, and opens the reports",
+      "detail": "Opens Docker Desktop if needed, starts SQL Server and S3Mock, starts the Elastic containers alongside, and opens Kibana",
       "type": "process",
       "command": "node",
       "args": [
         "${workspaceFolder}/scripts/start-docker.mjs",
-        "--open-reports"
+        "--open-kibana"
       ],
       "problemMatcher": [],
       "presentation": {

@@ -10,8 +10,7 @@ This guide gets the whole platform running on your machine:
 | Media worker (converts uploads with ffmpeg) | bjk-core, `src/BJK.Core.MediaWorker` | .NET + ffmpeg | no address, reads the queue |
 | Web app | bjk-core, `src/web` | Node.js (Next.js) | http://localhost:3000 |
 | File storage | bjk-core (`docker-compose.yml`): S3Mock, standing in for Cloudflare R2 | Docker, group `bad-jockeys` | http://localhost:9090 |
-| Reports, logs and traces (Grafana) | bjk-core (`docker-compose.yml`, `src/reporting`) | Docker, group `bad-jockeys` | http://localhost:3300 |
-| Logs, traces and metrics store (`otel-lgtm`: OpenTelemetry collector, Loki, Tempo, Prometheus) | bjk-core (`docker-compose.yml`) | Docker, group `bad-jockeys` | OTLP on `localhost:4317` / `4318` |
+| Logs, traces and metrics (Elasticsearch, Kibana and Elastic's OpenTelemetry collector) | bjk-core (`docker-compose.yml`, `src/observability`) | Docker, group `bad-jockeys` | Kibana http://localhost:5601; OTLP on `localhost:4317` / `4318` |
 
 > **Status (19 Oct 2026):** everything in the table runs: the identity server, the API, the media worker and the web app (`src/web`).
 
@@ -53,14 +52,14 @@ Expect to approve a few things: Windows UAC prompts or your Mac password for ins
 - checks the tools, and access to the package feed. It uses the `NuGetPackageSourceCredentials_badjockeys` variable if you've set one ([step 3](#3-give-nuget-access-to-the-bad-jockeys-package-feed)); otherwise it takes your GitHub CLI sign-in and saves it in your user-level `NuGet.Config`, so every terminal and editor can restore the packages;
 - creates your git-ignored config files from the templates, with your own SQL password and secrets (`bjk-core/.env`, `bjk-identity-server/user-secrets.json`, `bjk-core/user-secrets.json`, `src/web/.env.local`); files you already have are left alone;
 - trusts the HTTPS development certificate and exports it for Node.js;
-- starts SQL Server and S3Mock in Docker (the `bad-jockeys` group, replacing the old layout's two groups if they're there) and waits for SQL Server to be healthy;
+- starts SQL Server, S3Mock, Elasticsearch, Kibana and the OpenTelemetry collector in Docker (the `bad-jockeys` group, replacing the old layout's two groups and the old Grafana containers if they're there) and waits until they're all ready;
 - loads the .NET user secrets (replacing what was there for the identity server and the API);
 - downloads the face and number plate blurring models into `bjk-core/.local/models` (git-ignored), checking each file's SHA-256;
 - builds the .NET apps and installs the web app's packages.
 
 `node scripts/setup-local.mjs --config-only` just creates the config files.
 
-To debug, use VS Code's **Run and Debug** panel instead: pick **"Bad Jockeys"** and press F5 to start SQL Server and S3Mock in Docker (opening Docker Desktop first if it's closed, and waiting for it), then build and start all four with the debugger attached (breakpoints work in the .NET code and in the web app's server code), and the web app opens in your browser when it's ready. Shift+F5 stops them all. Each app is also there on its own ("Identity server", "API", "Media worker", "Web app"), to restart just one. The web app and the media worker wait for the apps they depend on, as with the task. The .NET ones also make sure Docker is running first, so they work on their own too. If Docker can't be started (say it's still updating), it stops with a message saying so, before any app tries to connect. "Run Bad Jockeys" (Terminal → Run Task…) does the same without the debugger, Docker check included.
+To debug, use VS Code's **Run and Debug** panel instead: pick **"Bad Jockeys"** and press F5 to start SQL Server and S3Mock in Docker (opening Docker Desktop first if it's closed, and waiting for it; Elasticsearch, Kibana and the collector start alongside without holding things up, and Kibana opens in your browser when it's ready), then build and start all four with the debugger attached (breakpoints work in the .NET code and in the web app's server code), and the web app opens in your browser when it's ready. Shift+F5 stops them all. Each app is also there on its own ("Identity server", "API", "Media worker", "Web app"), to restart just one. The web app and the media worker wait for the apps they depend on, as with the task. The .NET ones also make sure Docker is running first, so they work on their own too. If Docker can't be started (say it's still updating), it stops with a message saying so, before any app tries to connect. "Run Bad Jockeys" (Terminal → Run Task…) does the same without the debugger, Docker check included.
 
 "Run Bad Jockeys" starts the identity server, the API, the media worker and the web app, each in its own terminal. Nothing starts before what it needs: the web app waits until the identity server and the API answer, and the media worker waits for the API (which creates the database and queues it reads). Started on its own without them, each waits up to 5 minutes, then says which app to start. Other tasks: "Start Docker services" and "Stop Docker services". Steps 1 to 8 below explain everything the scripts do, if you'd rather do it by hand or something goes wrong.
 
@@ -496,9 +495,9 @@ On your machine nothing needs a supplier account: S3Mock stands in for R2, email
 | `Notifications:Push:Subject` | `mailto:support@badjockeys.com` (the default): who push services contact about problems | |
 | `Posts:ReportsInbox` (from bjk-modules #30) | `support@badjockeys.com` (the default) | The mailbox must exist |
 | `Heatmap:VehicleMinCellCount`, `Heatmap:ModelFilterMinSpanKm` | Optional: defaults 5 and 10 | |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | Grafana Cloud's OTLP address (https) | **A Grafana Cloud stack** |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | The Elastic Cloud project's managed OTLP endpoint (https) | **An Elastic Cloud Serverless Observability project** |
 | `OTEL_EXPORTER_OTLP_PROTOCOL` | `http/protobuf` | |
-| `OTEL_EXPORTER_OTLP_HEADERS` (secret) | `Authorization=Basic <base64 of instance id:token>`, from the stack's OpenTelemetry page | **A Grafana Cloud stack** |
+| `OTEL_EXPORTER_OTLP_HEADERS` (secret) | `Authorization=ApiKey <key>`, an ingest-only API key from the project | **An Elastic Cloud Serverless Observability project** |
 
 The API also needs outbound HTTPS to `api.postcodes.io` (place names; no key).
 
@@ -515,7 +514,7 @@ The API also needs outbound HTTPS to `api.postcodes.io` (place names; no key).
 | `TURNSTILE_SITE_KEY` | The real Turnstile widget's site key | A Cloudflare account |
 | `MEDIA_ORIGINS`, `UPLOAD_ORIGINS` | The public media domain, and `https://<account id>.r2.cloudflarestorage.com` | A Cloudflare account |
 | `MAP_TILE_URL`, `MAP_ATTRIBUTION` | A tile provider's URL and attribution (OpenStreetMap's public tiles aren't allowed for heavy use) | **A map tile provider** |
-| `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL`, `OTEL_EXPORTER_OTLP_HEADERS` (secret) | The same as the API's | **A Grafana Cloud stack** |
+| `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL`, `OTEL_EXPORTER_OTLP_HEADERS` (secret) | The same as the API's | **An Elastic Cloud Serverless Observability project** |
 
 ## 7. Run the back end
 
@@ -712,35 +711,36 @@ Every person has one id. A user's profile id equals their sign-in account id (th
 
 ## Reports
 
-Two Grafana dashboards, at **http://localhost:3300** (no sign-in needed to view; `admin` / `admin` to edit). F5 ("Bad Jockeys") and the task "Run Bad Jockeys" open them in your browser once Grafana is up, alongside the web app:
+The counts-only `reporting` views behind the reports are kept and applied locally; there's no local report viewer (Grafana was removed on 21 Oct 2026). When deployed, **Power BI** reads them (Live only, after launch).
 
-- **Identity server:** accounts now (active, deactivated, email confirmed, two-step on, locked out, age-checked, under 18), sign-ups and deactivations per day, age bands, how people sign in (password or Google, Apple, Facebook), age checks, staff roles, and account changes still waiting to reach the app.
-- **Bad Jockeys** (the home page): posts now and per day, people active in the last 30 days, features in use (drafts, area alerts, passenger tags), posts by type, top places, when incidents happen, uploads and processing times, faces and plates blurred, queues and failed jobs, comments, reactions and reel plays, reports (per day, open and overdue, decision times) and moderation actions.
-
-How it fits together:
-
-- **Counts only.** Grafana reads only the `reporting` schema in each database: views that count and group (`scripts/sql/reporting/idsrv.sql` and `badjockeys.sql`). They never return emails, names, handles, ids, dates of birth or report details. Place names are the public ones shown on posts.
-- **Read-only login.** Grafana signs in as `bjk_reporting`, which can read those views and nothing else, not even the tables behind them. Its password is `BJK_REPORTING_PASSWORD` in `bjk-core/.env`; the setup creates it.
-- **Grafana** runs in the `bad-jockeys` Docker group. Its data sources and dashboards come from `src/reporting/grafana` (provisioned, so they can't drift). To change a dashboard, edit it in Grafana as admin, then **Export → Save to file** and replace the JSON in `src/reporting/grafana/dashboards`; edits made only in Grafana are lost when it restarts.
+- **Counts only.** The views in the `reporting` schema of each database (`scripts/sql/reporting/idsrv.sql` and `badjockeys.sql`) count and group. They never return emails, names, handles, ids, dates of birth or report details. Place names are the public ones shown on posts.
+- **Read-only login.** Reports sign in as `bjk_reporting`, which can read those views and nothing else, not even the tables behind them. Locally its password is `BJK_REPORTING_PASSWORD` in `bjk-core/.env`; the setup creates it. To look at a view, connect your SQL tool as `bjk_reporting` (or `sa`) and `SELECT * FROM reporting.<Name>`.
 - **After pulling changes to the views**, or if the setup couldn't apply them (the identity server and API must each have started once, so both databases exist): `node scripts/sql/reporting/apply.mjs`.
-- **Adding a report:** add or change a view in the matching `scripts/sql/reporting/*.sql` (counts only, `CREATE OR ALTER VIEW reporting.<Name>`), apply it, then add a panel. CI applies every view, checks `bjk_reporting` can read each one but not the tables, starts Grafana and runs every panel's query.
-- **Logs, traces and app health** are in the same Grafana: see below.
+- **Adding a report:** add or change a view in the matching `scripts/sql/reporting/*.sql` (counts only, `CREATE OR ALTER VIEW reporting.<Name>`) and apply it. CI applies every view twice and checks `bjk_reporting` can read each one but not the tables.
 
-When deployed, the same dashboards run in **Grafana Cloud**, which reads the databases through its Private Data Source Connect agent (a small container next to the apps, outbound only), with Google sign-in for badjockeys.com; `bjk_reporting` is a contained database user in each Azure SQL database, its password a container secret.
+## Logs, traces and metrics
 
-### Logs, traces and app health
+The identity server, the API, the media worker and the web app's server send their logs, traces and metrics through **OpenTelemetry** to **Elastic**. Locally that's three containers in the `bad-jockeys` Docker group, all version 9.5.5 on Elastic's free licence:
 
-The identity server, the API, the media worker and the web app's server send their logs, traces and metrics through **OpenTelemetry** to the `otel-lgtm` container (Grafana's all-in-one OpenTelemetry collector, Loki, Tempo and Prometheus: the same parts Grafana Cloud runs). It's in the `bad-jockeys` Docker group, and the apps find it through `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318` (the .NET apps' `launchSettings.json`, the web app's `.env.local`; add the two `OTEL_` lines from `.env.local.example` to an older `.env.local`).
+| Container | What it does | Address |
+|---|---|---|
+| `otel-collector` | Elastic's OpenTelemetry collector (EDOT): receives from the apps and writes to Elasticsearch, adding the service summaries Kibana shows (`src/observability/edot-collector.yml`) | OTLP on `localhost:4317` (gRPC) and `4318` (HTTP) |
+| `elasticsearch` | Stores everything, in the `elastic-data` volume, so it survives restarts | http://localhost:9200 |
+| `kibana` | Search and charts | **http://localhost:5601** |
 
-In Grafana at http://localhost:3300:
+The apps find the collector through `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318` (the .NET apps' `launchSettings.json`, the web app's `.env.local`). Sign in to Kibana as **`elastic`** with `BJK_ELASTIC_PASSWORD` from `bjk-core/.env`; the setup creates it, along with `BJK_KIBANA_PASSWORD` (Kibana's own login to Elasticsearch) and `BJK_KIBANA_ENCRYPTION_KEY` (for saved alert rules). An older `.env` gets them the next time you run the setup or press F5. Never change them afterwards: Elasticsearch keeps the password it first started with. If you must, `docker compose down` and `docker volume rm bad-jockeys_elastic-data bad-jockeys_kibana-data` first (this deletes the stored logs).
 
-- **App health** dashboard: requests per second, server errors, the slowest endpoints, errors and warnings logged, failed jobs, and the latest errors. Pick a service at the top.
-- **Explore → Logs:** search any app's logs, e.g. `{service_name="bjk-core-api"} | severity_text="Error"`. A log line's trace id opens the request's trace.
-- **Explore → Traces:** one request's path through the app, its SQL calls and outgoing calls, with timings.
+F5 ("Bad Jockeys") and the task "Run Bad Jockeys" start the apps as soon as SQL Server is ready, start the Elastic containers alongside (Kibana takes a minute or two the first time; progress in `.local/elastic-start.log`), and open Kibana when it answers. Elasticsearch needs about 1.5 GB of memory and Kibana about 1 GB, so give Docker Desktop at least 6 GB.
 
-Logs never contain emails, names or IP addresses, URLs' query string values are redacted, and SQL text isn't recorded. Data is kept only while the container runs. Apps started by the setup, or without `OTEL_EXPORTER_OTLP_ENDPOINT`, send nothing.
+In Kibana:
 
-When deployed, the same apps send to **Grafana Cloud** instead: only `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL` (`http/protobuf`) and `OTEL_EXPORTER_OTLP_HEADERS` (its key, a secret) change, and outside Development the .NET apps refuse to start without an https address. The App health dashboard picks its data sources from the list at the top, so it imports into Grafana Cloud as it is.
+- **Observability → Applications → Service inventory:** each app (`bjk-identity-server`, `bjk-core-api`, `bjk-media-worker`, `bjk-web`) with throughput, latency and error rate; open one for its slowest endpoints, errors and individual traces (a request's path through the app, its SQL calls and outgoing calls, with timings).
+- **Discover** (or **Observability → Logs**): search any app's logs, e.g. `service.name : "bjk-core-api" and severity_text : "Error"`. A log line's trace id links to its trace.
+- **Observability → Alerts → Manage rules:** alert rules, e.g. error rate or failed jobs. The free licence only offers the server log and index connectors locally; email and Teams alerts are set up in Elastic Cloud.
+
+Logs never contain emails, names or IP addresses, URLs' query string values are redacted, and SQL text isn't recorded. Apps started by the setup, or without `OTEL_EXPORTER_OTLP_ENDPOINT`, send nothing.
+
+When deployed, there's no collector of ours: the apps send straight to **Elastic Cloud**'s managed OTLP endpoint (Serverless Observability). Only `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL` (`http/protobuf`) and `OTEL_EXPORTER_OTLP_HEADERS` (`Authorization=ApiKey <key>`, a secret) change, and outside Development the .NET apps refuse to start without an https address. Alerts there notify by email or Teams.
 
 ## Database changes
 

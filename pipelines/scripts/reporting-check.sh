@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-# Checks the reports (scripts/sql/reporting, src/reporting) against real databases, after the smoke test has run the
+# Checks the reporting views (scripts/sql/reporting) against real databases, after the smoke test has run the
 # API so the badjockeys database and its queue tables exist. The idsrv database isn't in this CI, so a stand-in with
 # the identity server's columns (the ones the views read) is created first.
 #   1. Both sets of views and the bjk_reporting login apply cleanly (twice: they must be safe to re-run).
 #   2. bjk_reporting can read every reporting view, and can't read a table.
-#   3. Grafana starts with the provisioned data sources and dashboards, and its app data source connects.
 # Needs SQL_CONTAINER (the SQL Server service container) and SQL_PASSWORD.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -57,49 +56,3 @@ if sql -U bjk_reporting -P "$REPORTING_PASSWORD" -d badjockeys -Q "SELECT TOP (1
   fail "bjk_reporting could read posts.Posts: it must only see the reporting views."
 fi
 echo "ok  bjk_reporting can't read the tables"
-
-echo "--- Grafana"
-image=$(sed -n 's/^ *image: \(grafana\/grafana-oss:[^ ]*\)$/\1/p' docker-compose.yml)
-network=$(docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}' "$SQL_CONTAINER")
-docker run -d --name ci-grafana --network "$network" -p 3300:3000 \
-  -e BJK_REPORTING_SQL_SERVER="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$SQL_CONTAINER"):1433" \
-  -e BJK_REPORTING_PASSWORD="$REPORTING_PASSWORD" \
-  -e GF_SECURITY_ADMIN_PASSWORD=ci-admin \
-  -v "$PWD/src/reporting/grafana/provisioning:/etc/grafana/provisioning:ro" \
-  -v "$PWD/src/reporting/grafana/dashboards:/etc/grafana/dashboards:ro" \
-  "$image" > /dev/null
-trap 'docker logs ci-grafana > grafana.log 2>&1 || true; docker rm -f ci-grafana > /dev/null 2>&1 || true' EXIT
-for _ in $(seq 1 60); do curl -fs http://localhost:3300/api/health > /dev/null && break; sleep 2; done
-curl -fs http://localhost:3300/api/health > /dev/null || fail "Grafana didn't start (see grafana.log)."
-auth=(-u admin:ci-admin)
-count=$(curl -fs "${auth[@]}" "http://localhost:3300/api/search?tag=bad-jockeys" | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))')
-[ "$count" = "3" ] || fail "Expected 3 provisioned dashboards, found $count."
-echo "ok  Grafana provisioned the three dashboards"
-for uid in bjk-app bjk-idsrv; do
-  result=$(curl -s "${auth[@]}" "http://localhost:3300/api/datasources/uid/$uid/health")
-  grep -q '"status":"OK"' <<< "$result" || fail "Grafana's $uid data source can't connect: $result"
-  echo "ok  data source $uid connects as bjk_reporting"
-done
-
-# Every database panel's query runs against its data source.
-python3 - <<'PY' || fail "A dashboard query failed."
-import json, glob, urllib.request, base64
-token = base64.b64encode(b"admin:ci-admin").decode()
-for path in sorted(glob.glob("src/reporting/grafana/dashboards/*.json")):
-    dash = json.load(open(path))
-    for panel in dash["panels"]:
-        for target in panel.get("targets", []):
-            # Only the database queries: logs and metrics come from otel-lgtm, which CI doesn't run.
-            if target.get("datasource", {}).get("type") != "mssql":
-                continue
-            body = json.dumps({"queries": [dict(target, intervalMs=86400000, maxDataPoints=500)], "from": "now-90d", "to": "now"}).encode()
-            request = urllib.request.Request("http://localhost:3300/api/ds/query", body, {"Content-Type": "application/json", "Authorization": f"Basic {token}"})
-            try:
-                result = json.load(urllib.request.urlopen(request))
-            except urllib.error.HTTPError as error:
-                raise SystemExit(f"{dash['title']} / {panel['title']}: HTTP {error.code} {error.read().decode()[:400]}")
-            error = result["results"]["A"].get("error")
-            if error:
-                raise SystemExit(f"{dash['title']} / {panel['title']}: {error}")
-    print(f"ok  {dash['title']}: every database query runs")
-PY

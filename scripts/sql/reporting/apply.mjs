@@ -1,11 +1,10 @@
-// Creates (or updates) the reporting views Grafana reads, in both databases, and the read-only bjk_reporting login,
+// Creates (or updates) the reporting views the reports read (Power BI when deployed), in both databases, and the read-only bjk_reporting login,
 // in the local SQL Server container. The setup runs it; run it yourself after pulling changes to the views:
 //
 //   node scripts/sql/reporting/apply.mjs
 //
 // The identity server and the API must each have started once, so both databases (and the queue tables) exist.
-// The login's password is BJK_REPORTING_PASSWORD in bjk-core/.env (added there if missing); Grafana reads it from
-// the same file.
+// The login's password is BJK_REPORTING_PASSWORD in bjk-core/.env (added there if missing).
 
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
@@ -68,7 +67,7 @@ export function applyReporting() {
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     applyReporting();
-    console.log("Reporting views and the bjk_reporting login are up to date. Grafana: http://localhost:3300");
+    console.log("Reporting views and the bjk_reporting login are up to date.");
   } catch (error) {
     console.error(`The reporting views couldn't be applied:\n${error.message}`);
     process.exit(1);

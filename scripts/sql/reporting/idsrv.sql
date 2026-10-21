@@ -1,6 +1,6 @@
--- Reporting views for the identity server's database (idsrv). Grafana reads only these, through the read-only
--- bjk_reporting login: counts and groupings, never emails, names, ids or dates of birth. Safe to run again.
--- Applied by scripts/sql/reporting/apply.mjs (the setup does it locally).
+-- Reporting views for the identity server's database (idsrv). Reports (Power BI when deployed) read only these,
+-- through the read-only bjk_reporting login: counts and groupings, never emails, names, ids or dates of birth. Safe
+-- to run again. Applied by scripts/sql/reporting/apply.mjs (the setup does it locally).
 SET NOCOUNT ON;
 GO
 IF SCHEMA_ID(N'reporting') IS NULL EXEC (N'CREATE SCHEMA reporting AUTHORIZATION dbo');

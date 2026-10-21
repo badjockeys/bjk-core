@@ -17,8 +17,8 @@ const string ConnectionStringName = "BadJockeysDatabase";
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Logs, traces and metrics over OTLP: locally the otel-lgtm container (launchSettings.json), Grafana Cloud when
-// deployed. See "Logs, traces and metrics" in the bjk-modules README.
+// Logs, traces and metrics over OTLP: locally Elastic's OpenTelemetry collector in the Docker group
+// (launchSettings.json), Elastic Cloud when deployed. See "Logs, traces and metrics" in the bjk-modules README.
 builder.AddBjkObservability("bjk-core-api");
 
 // --- Who may call ---

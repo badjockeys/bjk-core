@@ -11,7 +11,8 @@
 //      (bjk-core/.env, bjk-identity-server/user-secrets.json, bjk-core/user-secrets.json, src/web/.env.local);
 //      files that already exist are left alone
 //   3. trusts the .NET HTTPS development certificate and exports it for Node.js
-//   4. starts SQL Server and S3Mock in Docker, as the group "bad-jockeys" (bjk-core's docker-compose.yml)
+//   4. starts SQL Server, S3Mock, Elasticsearch, Kibana and the OpenTelemetry collector in Docker, as the group
+//      "bad-jockeys" (bjk-core's docker-compose.yml)
 //   5. loads the .NET user secrets for the identity server and the API (the media worker shares the API's)
 //   6. downloads the face and number plate blurring models and the CLIP content model into bjk-core/.local/models
 //   7. builds the .NET apps and installs the web app's packages
@@ -30,6 +31,7 @@ import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { removeOldGroups, startServices } from "./docker-services.mjs";
+import { ensureElasticEnv, readEnvValue } from "./elastic-env.mjs";
 import { OWNER_EMAIL, OWNER_PLAN } from "./sql/example-data/data.mjs";
 import { applyReporting, reportingPassword } from "./sql/reporting/apply.mjs";
 import { ownerId, seedExampleData } from "./sql/example-data/seed.mjs";
@@ -404,8 +406,10 @@ function createConfig() {
     writeIfMissing(envFile, env, carried ? "bjk-core/.env (SQL password carried over from bjk-identity-server/.env)" : "bjk-core/.env");
   }
 
-  // The reports' read-only login (Grafana reads it from .env too).
+  // The reports' read-only login, and the Elastic containers' passwords and key.
   reportingPassword();
+  const addedElastic = ensureElasticEnv(core);
+  if (addedElastic.length) ok(`bjk-core/.env: added ${addedElastic.join(", ")} for Elasticsearch and Kibana`);
 
   const fromTemplate = (template, edit) => {
     const text = readFileSync(template, "utf8")
@@ -480,15 +484,18 @@ function trustCertificate() {
 }
 
 function startDocker() {
-  step("Starting SQL Server and S3Mock (Docker group bad-jockeys)");
+  step("Starting SQL Server, S3Mock, Elasticsearch, Kibana and the OpenTelemetry collector (Docker group bad-jockeys)");
   removeOldGroups();
-  if (!startServices(core)) {
+  if (!startServices(core, { wait: true })) {
     fail(
-      "SQL Server or S3Mock didn't start. Run 'docker compose logs' in bjk-core to see why." +
-        (process.platform === "darwin" ? " On Apple Silicon, check Rosetta is on in Docker Desktop's settings." : ""),
+      "A Docker service didn't start. Run 'docker compose ps' and 'docker compose logs <service>' in bjk-core to see why." +
+        (process.platform === "darwin"
+          ? " On Apple Silicon, check Rosetta is on in Docker Desktop's settings. Elasticsearch needs about 2 GB of Docker's memory."
+          : ""),
     );
   }
-  ok("SQL Server is healthy and S3Mock is running");
+  ok("SQL Server is healthy, S3Mock is running, and Kibana is at http://localhost:5601");
+  ok(`Sign in to Kibana as elastic, password ${readEnvValue(core, "BJK_ELASTIC_PASSWORD")} (BJK_ELASTIC_PASSWORD in bjk-core/.env)`);
 }
 
 function loadSecrets() {
@@ -635,7 +642,7 @@ function reporting() {
   step("Setting up the reports");
   try {
     applyReporting();
-    ok("Reporting views and the read-only bjk_reporting login are ready. Reports: http://localhost:3300");
+    ok("Reporting views and the read-only bjk_reporting login are ready (Power BI reads them when deployed).");
   } catch (error) {
     console.warn(
       colour("33", `The reporting views weren't applied: ${error.message}\nRun node scripts/sql/reporting/apply.mjs once the API and identity server have started.`),
