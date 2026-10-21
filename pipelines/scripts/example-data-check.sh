@@ -54,7 +54,13 @@ echo "SQL: $(wc -c < "$RUNNER_TEMP/seed.sql") bytes"
 echo "--- apply it twice"
 for run in 1 2; do
   start=$(date +%s)
-  sql < "$RUNNER_TEMP/seed.sql" | tail -3 || fail "The example data SQL failed (run $run)."
+  if ! sql < "$RUNNER_TEMP/seed.sql" > "$RUNNER_TEMP/seed.log" 2>&1; then
+    # sqlcmd prints errors as "Msg ..., Line n" followed by the message: make each an annotation.
+    grep -A1 '^Msg ' "$RUNNER_TEMP/seed.log" | grep -v '^--$' | paste -d ' ' - - | head -5 | sed 's/^/::error title=Example data SQL::/' || true
+    tail -5 "$RUNNER_TEMP/seed.log"
+    fail "The example data SQL failed (run $run)."
+  fi
+  tail -3 "$RUNNER_TEMP/seed.log"
   echo "Run $run took $(( $(date +%s) - start ))s"
 done
 
