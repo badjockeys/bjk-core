@@ -1,6 +1,6 @@
 # Messaging: queues in SQL Server
 
-Jobs and events between the API, the media workers and the identity server are durable queues stored in SQL Server, in the `messaging` schema of the app database (`badjockeys`). There's no separate message broker: the queues are covered by the zone-redundant Azure SQL database's redundancy and backups, cost nothing extra, and run wherever SQL Server runs. The code is in bjk-modules (`BJK.Modules.Shared.Messaging`, using Rebus and Rebus.SqlServer, both MIT); its README has the full design ("Messaging (SQL Server queues)").
+Jobs and events between the API, the media workers and the identity server are durable queues stored in SQL Server, in the `messaging` schema of the app database (`badjockeys`). There's no separate message broker: the queues are covered by the zone-redundant Azure SQL database's redundancy and backups, cost nothing extra, and run wherever SQL Server runs. The code is in bjk-modules (`BJK.Modules.Queues`, using Rebus and Rebus.SqlServer, both MIT); its README has the full design ("Messaging (SQL Server queues)").
 
 ## The queues
 
