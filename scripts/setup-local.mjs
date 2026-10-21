@@ -262,6 +262,33 @@ function refreshNotes(json, template) {
   }
 }
 
+/** The description model's name in Ollama (Qwen3-VL-8B-Instruct, Apache-2.0). */
+const OLLAMA_MODEL = "qwen3-vl:8b";
+
+/**
+ * "Suggest a description" uses a real model when Ollama is installed and has the model (ollama pull qwen3-vl:8b,
+ * about 6 GB; best on an Apple Silicon Mac with 16 GB or more). Otherwise the stand-in writes a fixed example draft.
+ * Never downloads the model itself: it's big, so that's the person's choice.
+ */
+function useOllamaIfThere(file) {
+  if (!existsSync(file)) return;
+  const json = JSON.parse(readFileSync(file, "utf8"));
+  const describe = json.Media?.Describe ?? {};
+  if (!unset(describe.Endpoint)) return;
+  const models = output("ollama", ["list"]);
+  if (!models) {
+    console.log(`"Suggest a description" will use the stand-in. For the real model: install Ollama, then ollama pull ${OLLAMA_MODEL}, and run the setup again.`);
+    return;
+  }
+  if (!models.includes(OLLAMA_MODEL)) {
+    console.log(`Ollama is installed. For "Suggest a description" with the real model: ollama pull ${OLLAMA_MODEL} (about 6 GB), then run the setup again.`);
+    return;
+  }
+  json.Media = { ...(json.Media ?? {}), Describe: { ...describe, Endpoint: "http://localhost:11434/v1", Model: OLLAMA_MODEL } };
+  writeFileSync(file, `${JSON.stringify(json, null, 2)}\n`);
+  ok(`bjk-core/user-secrets.json: "Suggest a description" uses ${OLLAMA_MODEL} in Ollama`);
+}
+
 /** Brings an existing bjk-core/user-secrets.json up to the current names (safe to run again). */
 function migrateCoreSecrets(file) {
   if (!existsSync(file)) return;
@@ -419,6 +446,7 @@ function createConfig() {
 
   migrateCoreSecrets(join(core, "user-secrets.json"));
   migrateIdentitySecrets(join(idsrv, "user-secrets.json"));
+  useOllamaIfThere(join(core, "user-secrets.json"));
 
   // Earlier templates pointed the web app at the API's http address, which redirects to https; Node.js drops the
   // sign-in token on that redirect, so every signed-in call got 401. Move existing files to the https address.

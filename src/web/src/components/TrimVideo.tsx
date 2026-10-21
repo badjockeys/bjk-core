@@ -43,6 +43,10 @@ export function TrimVideo({
   const [current, setCurrent] = useState(0);
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // The handles start on the busiest 30 seconds of a longer video, unless the person has already moved them.
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggested, setSuggested] = useState(false);
+  const touched = useRef(false);
 
   // The preview's object URL is released when the person leaves this screen.
   const onBack = () => {
@@ -57,7 +61,31 @@ export function TrimVideo({
   const length = meta?.duration ?? 0;
   const selected = selection.end - selection.start;
 
+  const findMoment = async (d: number) => {
+    if (d <= MAX_CLIP_SECONDS + 0.5) {
+      return;
+    }
+    setSuggesting(true);
+    try {
+      // Loaded only now, like the converter.
+      const { suggestClip } = await import("@/lib/trim-suggest");
+      const clip = await suggestClip(file, d);
+      if (clip && !touched.current) {
+        setSelection(clip);
+        setSuggested(true);
+        if (video.current) {
+          video.current.currentTime = clip.start;
+        }
+      }
+    } catch {
+      // No suggestion: the handles stay on the first 30 seconds.
+    } finally {
+      setSuggesting(false);
+    }
+  };
+
   const move = (edge: "start" | "end", value: number) => {
+    touched.current = true;
     const next = moveEdge(selection, edge, value, length);
     setSelection(next);
     if (video.current) {
@@ -144,6 +172,7 @@ export function TrimVideo({
             const d = Number.isFinite(v.duration) ? v.duration : 0;
             setMeta({ duration: d, width: v.videoWidth, height: v.videoHeight });
             setSelection(initialSelection(d));
+            void findMoment(d);
           }}
           onTimeUpdate={(e) => {
             const v = e.currentTarget;
@@ -199,6 +228,16 @@ export function TrimVideo({
           <span>Drag the edges to choose the moment</span>
           <span>{formatDuration(length)}</span>
         </div>
+        {suggesting ? (
+          <p className="small muted" role="status">
+            Finding the moment…
+          </p>
+        ) : suggested ? (
+          <p className="small muted" role="status">
+            We&apos;ve started on the 30 seconds with the most going on. Move the edges if it&apos;s not the
+            right bit.
+          </p>
+        ) : null}
       </div>
 
       <div className="notice">
