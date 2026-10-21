@@ -93,5 +93,5 @@ actual=$(echo "$actual" | tr -d '[:space:]')
 expected=$(jq -r '[.Profiles, .Posts, .Comments, .Reactions, .PostVotes, .PostViews, .Follows, .Bookmarks, .VideoPosts] | map(tostring) | join("|")' "$RUNNER_TEMP/expected.json")
 echo "Expected $expected"
 echo "Actual   $actual"
-[ "$actual" = "$expected" ] || fail "Example data counts don't match (profiles|posts|comments|reactions|votes|views|follows|bookmarks|videos)."
+[ "$actual" = "$expected" ] || fail "Example data counts (profiles|posts|comments|reactions|votes|views|follows|bookmarks|videos): expected $expected, got $actual."
 echo "Example data OK."
