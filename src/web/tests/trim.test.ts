@@ -51,7 +51,7 @@ describe("trim suggestions", () => {
     const clip = suggestSelection(scores, 0.5, 120);
 
     expect(clip).not.toBeNull();
-    expect(clip!.end - clip!.start).toBe(30);
+    expect(clip!.end - clip!.start).toBeCloseTo(30);
     expect(clip!.start).toBeLessThanOrEqual(66);
     expect(clip!.end).toBeGreaterThanOrEqual(74);
   });

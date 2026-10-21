@@ -30,23 +30,26 @@ export function TypeSuggestionChips({
   onAdd: (type: IncidentCategory) => void;
   onShown: (types: IncidentCategory[]) => void;
 }) {
-  const [suggestions, setSuggestions] = useState<IncidentCategory[]>([]);
   const key = mediaIds.join(",");
+  // The suggestions for one set of media; a different set (or none ready) shows nothing until it has its own.
+  const [result, setResult] = useState<{ key: string; types: IncidentCategory[] }>({ key: "", types: [] });
+  const suggestions = result.key === key ? result.types : [];
   const shown = useRef(onShown);
-  shown.current = onShown;
+  useEffect(() => {
+    shown.current = onShown;
+  });
 
   useEffect(() => {
     if (!key) {
-      setSuggestions([]);
       return;
     }
     let cancelled = false;
-    void suggestTypes(key.split(",")).then((result) => {
-      if (cancelled || !result.ok) {
+    void suggestTypes(key.split(",")).then((answer) => {
+      if (cancelled || !answer.ok) {
         return;
       }
-      const types = result.data.suggestions.map((s) => s.type);
-      setSuggestions(types);
+      const types = answer.data.suggestions.map((s) => s.type);
+      setResult({ key, types });
       if (types.length > 0) {
         shown.current(types);
       }
