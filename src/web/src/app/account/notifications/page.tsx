@@ -5,6 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { AreaAlertsForm } from "@/components/AreaAlertsForm";
 import { BackButton } from "@/components/BackButton";
 import { NotificationSettingsForm } from "@/components/NotificationSettingsForm";
+import { PushToggle } from "@/components/PushToggle";
 import { api } from "@/lib/api";
 import { getAccessToken, getViewer } from "@/lib/auth";
 import { signInPath } from "@/lib/paths";
@@ -12,7 +13,7 @@ import type { AreaSettingsDto, NotificationSettingDto } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Notification settings", robots: { index: false } };
 
-/** What goes in the bell and what's also emailed, per type. */
+/** Push on this device, then what goes in the bell, what's emailed and what's pushed, per type. */
 export default async function NotificationSettingsPage() {
   const viewer = await getViewer();
   if (!viewer.signedIn) {
@@ -28,6 +29,7 @@ export default async function NotificationSettingsPage() {
           <h1 className="h2">Notifications</h1>
         </div>
       </header>
+      <PushToggle />
       {settings ? (
         <NotificationSettingsForm settings={settings} email={viewer.emailVerified ? viewer.email : null} />
       ) : (

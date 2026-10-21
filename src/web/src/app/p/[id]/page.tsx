@@ -15,7 +15,13 @@ import { PostMoreMenu } from "@/components/PostMoreMenu";
 import { RoadBadge, WithPassengers } from "@/components/PostPeople";
 import { ProcessingWatcher } from "@/components/ProcessingWatcher";
 import { isBlurred } from "@/components/PostMedia";
+import { FollowPostButton } from "@/components/FollowPostButton";
+import { ReachStats } from "@/components/ReachStats";
 import { ReactionBar } from "@/components/ReactionBar";
+import { SaveButton } from "@/components/SaveButton";
+import { SeenMarker } from "@/components/SeenMarker";
+import { ShareButton } from "@/components/ShareButton";
+import { VotePanel } from "@/components/VotePanel";
 import { SensitiveCover } from "@/components/SensitiveCover";
 import { TagRequest } from "@/components/TagRequest";
 import { appealPost } from "@/actions/posts";
@@ -206,13 +212,29 @@ export default async function PostPage({ params, searchParams }: Props) {
         ) : null}
 
         {!processing && post.status === "Published" ? (
-          <ReactionBar
-            postId={post.id}
-            counts={post.reactions}
-            mine={post.myReaction}
-            signedIn={viewer.signedIn}
-          />
+          <>
+            <ReactionBar
+              postId={post.id}
+              counts={post.reactions}
+              mine={post.myReaction}
+              signedIn={viewer.signedIn}
+            />
+            {post.vote ? (
+              <VotePanel postId={post.id} initial={post.vote} signedIn={viewer.signedIn} isMine={isMine} />
+            ) : null}
+            <div className="row row-wrap post-tools">
+              <FollowPostButton
+                postId={post.id}
+                following={post.isFollowing ?? false}
+                signedIn={viewer.signedIn}
+              />
+              <SaveButton postId={post.id} saved={post.isSaved ?? false} signedIn={viewer.signedIn} />
+              <ShareButton path={here} title={post.title} postId={post.id} />
+            </div>
+            {isMine ? null : <SeenMarker postId={post.id} immediate />}
+          </>
         ) : null}
+        {isMine && !processing && post.status === "Published" ? <ReachStats postId={post.id} /> : null}
       </article>
 
       {viewer.signedIn && !post.commentsRequireSignIn ? (

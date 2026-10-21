@@ -1382,7 +1382,7 @@ export class NotificationsClient {
     }
 
     /**
-     * Your settings for each type of notification: in the bell, and by email.
+     * Your settings for each type of notification: in the bell, by email and as a push.
      */
     notifications_Settings(signal?: AbortSignal): Promise<NotificationSettingDto[]> {
         let url_ = this.baseUrl + "/api/notifications/settings";
@@ -1463,6 +1463,131 @@ export class NotificationsClient {
             });
         }
         return Promise.resolve<NotificationSettingDto[]>(null as any);
+    }
+
+    /**
+     * Whether push notifications are available here, and the public key to subscribe a browser with.
+     */
+    notifications_PushSetup(signal?: AbortSignal): Promise<PushSetupDto> {
+        let url_ = this.baseUrl + "/api/notifications/push";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processNotifications_PushSetup(_response);
+        });
+    }
+
+    protected processNotifications_PushSetup(response: Response): Promise<PushSetupDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PushSetupDto;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PushSetupDto>(null as any);
+    }
+
+    /**
+     * Turn push notifications on for this browser (what PushManager.subscribe returned).
+     */
+    notifications_Subscribe(command: SubscribePushCommand, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/notifications/push";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(command);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processNotifications_Subscribe(_response);
+        });
+    }
+
+    protected processNotifications_Subscribe(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    /**
+     * Turn push notifications off for this browser.
+     */
+    notifications_Unsubscribe(command: UnsubscribePushCommand, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/notifications/push/unsubscribe";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(command);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processNotifications_Unsubscribe(_response);
+        });
+    }
+
+    protected processNotifications_Unsubscribe(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
     }
 }
 
@@ -2844,6 +2969,523 @@ export class DraftsClient {
             });
         }
         return Promise.resolve<DraftLimitsDto>(null as any);
+    }
+}
+
+export class EngagementClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * Vote on a post ("Who's at fault?" or "How bad was it?", see the post's vote.kind and
+    vote.choices), or change your vote, until it closes. Not on your own post. Returns the vote with results.
+     */
+    engagement_Vote(id: string, request: VoteRequest, signal?: AbortSignal): Promise<VoteSummaryDto> {
+        let url_ = this.baseUrl + "/api/posts/{id}/vote";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processEngagement_Vote(_response);
+        });
+    }
+
+    protected processEngagement_Vote(response: Response): Promise<VoteSummaryDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as VoteSummaryDto;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<VoteSummaryDto>(null as any);
+    }
+
+    /**
+     * Follow a post: you'll be told about new comments and the vote result.
+     */
+    engagement_Follow(id: string, signal?: AbortSignal): Promise<PostFollowStateDto> {
+        let url_ = this.baseUrl + "/api/posts/{id}/follow";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "PUT",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processEngagement_Follow(_response);
+        });
+    }
+
+    protected processEngagement_Follow(response: Response): Promise<PostFollowStateDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PostFollowStateDto;
+            return result200;
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PostFollowStateDto>(null as any);
+    }
+
+    /**
+     * Stop following a post.
+     */
+    engagement_Unfollow(id: string, signal?: AbortSignal): Promise<PostFollowStateDto> {
+        let url_ = this.baseUrl + "/api/posts/{id}/follow";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processEngagement_Unfollow(_response);
+        });
+    }
+
+    protected processEngagement_Unfollow(response: Response): Promise<PostFollowStateDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PostFollowStateDto;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PostFollowStateDto>(null as any);
+    }
+
+    /**
+     * Save a post to your bookmarks (only you can see them).
+     */
+    engagement_Save(id: string, signal?: AbortSignal): Promise<BookmarkStateDto> {
+        let url_ = this.baseUrl + "/api/posts/{id}/bookmark";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "PUT",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processEngagement_Save(_response);
+        });
+    }
+
+    protected processEngagement_Save(response: Response): Promise<BookmarkStateDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as BookmarkStateDto;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<BookmarkStateDto>(null as any);
+    }
+
+    /**
+     * Remove a post from your bookmarks.
+     */
+    engagement_Unsave(id: string, signal?: AbortSignal): Promise<BookmarkStateDto> {
+        let url_ = this.baseUrl + "/api/posts/{id}/bookmark";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processEngagement_Unsave(_response);
+        });
+    }
+
+    protected processEngagement_Unsave(response: Response): Promise<BookmarkStateDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as BookmarkStateDto;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<BookmarkStateDto>(null as any);
+    }
+
+    /**
+     * Your saved posts, most recently saved first.
+     * @param page (optional) 
+     * @param pageSize (optional) 
+     */
+    engagement_Bookmarks(page?: number | undefined, pageSize?: number | undefined, signal?: AbortSignal): Promise<PagedResultOfPostDto> {
+        let url_ = this.baseUrl + "/api/posts/bookmarks?";
+        if (page === null)
+            throw new globalThis.Error("The parameter 'page' cannot be null.");
+        else if (page !== undefined)
+            url_ += "page=" + encodeURIComponent("" + page) + "&";
+        if (pageSize === null)
+            throw new globalThis.Error("The parameter 'pageSize' cannot be null.");
+        else if (pageSize !== undefined)
+            url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processEngagement_Bookmarks(_response);
+        });
+    }
+
+    protected processEngagement_Bookmarks(response: Response): Promise<PagedResultOfPostDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PagedResultOfPostDto;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PagedResultOfPostDto>(null as any);
+    }
+
+    /**
+     * Count that the viewer saw these posts (in a feed for a second or more, or opened): once per viewer per post.
+    Anyone; signed-out viewers send X-Viewer-Id as for reels.
+     */
+    engagement_RecordViews(request: ViewsRequest, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/posts/views";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processEngagement_RecordViews(_response);
+        });
+    }
+
+    protected processEngagement_RecordViews(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    /**
+     * Count that the viewer shared a post (share sheet or copied link): once per viewer per day.
+     */
+    engagement_RecordShare(id: string, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/posts/{id}/share";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "POST",
+            signal,
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processEngagement_RecordShare(_response);
+        });
+    }
+
+    protected processEngagement_RecordShare(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    /**
+     * How far your post reached: unique views, local views, reactions, comments and shares. Its author only.
+     */
+    engagement_Reach(id: string, signal?: AbortSignal): Promise<PostReachDto> {
+        let url_ = this.baseUrl + "/api/posts/{id}/reach";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processEngagement_Reach(_response);
+        });
+    }
+
+    protected processEngagement_Reach(response: Response): Promise<PostReachDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PostReachDto;
+            return result200;
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PostReachDto>(null as any);
+    }
+
+    /**
+     * Your settings for your own posts: when votes on them close.
+     */
+    engagement_GetPreferences(signal?: AbortSignal): Promise<AuthorPreferencesDto> {
+        let url_ = this.baseUrl + "/api/posts/preferences";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processEngagement_GetPreferences(_response);
+        });
+    }
+
+    protected processEngagement_GetPreferences(response: Response): Promise<AuthorPreferencesDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as AuthorPreferencesDto;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<AuthorPreferencesDto>(null as any);
+    }
+
+    /**
+     * Change when votes on your new posts close: 48 hours, 7 days or never.
+     */
+    engagement_SetPreferences(request: SetAuthorPreferencesCommand, signal?: AbortSignal): Promise<AuthorPreferencesDto> {
+        let url_ = this.baseUrl + "/api/posts/preferences";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processEngagement_SetPreferences(_response);
+        });
+    }
+
+    protected processEngagement_SetPreferences(response: Response): Promise<AuthorPreferencesDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as AuthorPreferencesDto;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<AuthorPreferencesDto>(null as any);
     }
 }
 
@@ -5593,6 +6235,124 @@ export class AdminProfilesClient {
         }
         return Promise.resolve<ProfileDto>(null as any);
     }
+
+    /**
+     * Give a profile the Trusted reporter badge. A reason is required.
+     */
+    adminProfiles_AwardBadge(handle: string, badge: Badge, request: ModerationReasonRequest2, signal?: AbortSignal): Promise<Badge[]> {
+        let url_ = this.baseUrl + "/api/admin/profiles/{handle}/badges/{badge}";
+        if (handle === undefined || handle === null)
+            throw new globalThis.Error("The parameter 'handle' must be defined.");
+        url_ = url_.replace("{handle}", encodeURIComponent("" + handle));
+        if (badge === undefined || badge === null)
+            throw new globalThis.Error("The parameter 'badge' must be defined.");
+        url_ = url_.replace("{badge}", encodeURIComponent("" + badge));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processAdminProfiles_AwardBadge(_response);
+        });
+    }
+
+    protected processAdminProfiles_AwardBadge(response: Response): Promise<Badge[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as Badge[];
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<Badge[]>(null as any);
+    }
+
+    /**
+     * Remove a badge from a profile. A reason is required.
+     */
+    adminProfiles_RemoveBadge(handle: string, badge: Badge, request: ModerationReasonRequest2, signal?: AbortSignal): Promise<Badge[]> {
+        let url_ = this.baseUrl + "/api/admin/profiles/{handle}/badges/{badge}";
+        if (handle === undefined || handle === null)
+            throw new globalThis.Error("The parameter 'handle' must be defined.");
+        url_ = url_.replace("{handle}", encodeURIComponent("" + handle));
+        if (badge === undefined || badge === null)
+            throw new globalThis.Error("The parameter 'badge' must be defined.");
+        url_ = url_.replace("{badge}", encodeURIComponent("" + badge));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "DELETE",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processAdminProfiles_RemoveBadge(_response);
+        });
+    }
+
+    protected processAdminProfiles_RemoveBadge(response: Response): Promise<Badge[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as Badge[];
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<Badge[]>(null as any);
+    }
 }
 
 export class ProfilesClient {
@@ -6708,7 +7468,7 @@ export interface NotificationDto {
 }
 
 /** What happened, for a notification. Stored by name: add new types at the end. */
-export type NotificationType = "PassengerTagged" | "PassengerAccepted" | "CommentOnPost" | "ReplyToComment" | "ReactionOnPost" | "AreaPost" | "NewFollower";
+export type NotificationType = "PassengerTagged" | "PassengerAccepted" | "CommentOnPost" | "ReplyToComment" | "ReactionOnPost" | "AreaPost" | "NewFollower" | "CommentOnFollowedPost" | "VoteClosed";
 
 /** Who did it. Handle is null if their profile has gone ("Former member"). */
 export interface NotificationActorDto {
@@ -6727,12 +7487,13 @@ export interface MarkNotificationsReadCommand {
     ids: string[] | null;
 }
 
-/** One type's setting: show it in the bell, and email it. */
+/** One type's setting: show it in the bell, email it, and push it to devices where push is on. */
 export interface NotificationSettingDto {
     type: NotificationType;
     label: string;
     inApp: boolean;
     email: boolean;
+    push: boolean;
 }
 
 /** Changes the signed-in user's settings for the types given; others stay as they are. */
@@ -6740,11 +7501,30 @@ export interface UpdateNotificationSettingsCommand {
     settings: NotificationSettingChange[];
 }
 
-/** A change to one type's setting. */
+/** A change to one type's setting. Push left out keeps the current push choice. */
 export interface NotificationSettingChange {
     type: NotificationType;
     inApp: boolean;
     email: boolean;
+    push: boolean | null;
+}
+
+/** Whether push notifications are available, and the key browsers subscribe with (the VAPID public key). When Available is false the app doesn't offer push. */
+export interface PushSetupDto {
+    available: boolean;
+    publicKey: string | null;
+}
+
+/** Turn push on for this browser: what the browser's PushManager.subscribe returned (its endpoint, and its p256dh and auth keys, base64url). Subscribing the same browser again updates it, and it becomes the signed-in user's. Someone with MaxPerUser devices loses their oldest. */
+export interface SubscribePushCommand {
+    endpoint: string;
+    p256dh: string;
+    auth: string;
+}
+
+/** Turn push off for this browser (its endpoint). Only your own devices; nothing happens otherwise. */
+export interface UnsubscribePushCommand {
+    endpoint: string;
 }
 
 export interface PagedResultOfReportDto {
@@ -6848,7 +7628,7 @@ export interface ScreenedPostDto {
     screeningLabels: string | null;
 }
 
-/** A post. IsSensitive posts (graphic injuries, serious crashes) go to everyone, but unless the viewer is an age-verified adult (token claim age_verified = "true"), the author or a moderator, their media come blurred and RequiresAgeVerification is true: show a "Sensitive" label over the blurred previews and offer the age check (or sign-in first, for logged-out viewers). SensitiveSource says who tagged it (Author, Moderator or Automatic detection). CommentsRequireSignIn is true for logged-out viewers: comments aren't shown to them (the count still is), so the app shows "Sign in to see comments". Status is HeldForReview or Hidden only for the author (and moderators). MediaState is Pending while the photos or video are still processing (show a "processing" badge; Media lists only the ready ones) and Failed, with MediaFailureReason, if the post can't be published; others only ever see Ready posts. Types are every type of bad driving on the post, shown as tags, the main one (Category) first. Passengers are the people tagged as being in the author's vehicle (see PassengerDto). */
+/** A post. IsSensitive posts (graphic injuries, serious crashes) go to everyone, but unless the viewer is an age-verified adult (token claim age_verified = "true"), the author or a moderator, their media come blurred and RequiresAgeVerification is true: show a "Sensitive" label over the blurred previews and offer the age check (or sign-in first, for logged-out viewers). SensitiveSource says who tagged it (Author, Moderator or Automatic detection). CommentsRequireSignIn is true for logged-out viewers: comments aren't shown to them (the count still is), so the app shows "Sign in to see comments". Status is HeldForReview or Hidden only for the author (and moderators). MediaState is Pending while the photos or video are still processing (show a "processing" badge; Media lists only the ready ones) and Failed, with MediaFailureReason, if the post can't be published; others only ever see Ready posts. Types are every type of bad driving on the post, shown as tags, the main one (Category) first. Passengers are the people tagged as being in the author's vehicle (see PassengerDto). Vote is the post's "Who's at fault?" or "How bad was it?" vote (see VoteSummaryDto). IsFollowing and IsSaved: whether the signed-in viewer follows the post and has bookmarked it. */
 export interface PostDto {
     id: string;
     author: AuthorDto;
@@ -6876,6 +7656,9 @@ export interface PostDto {
     vehicle: VehicleDto | null;
     reportedToPolice: boolean | null;
     commentSetting: CommentSetting;
+    vote: VoteSummaryDto | null;
+    isFollowing: boolean;
+    isSaved: boolean;
     /** True while the post waits for its photos or video: the app shows a "processing" indicator. */
     isProcessing: boolean;
 }
@@ -6949,6 +7732,24 @@ export type VehicleColour = "Black" | "White" | "Silver" | "Grey" | "Blue" | "Re
 
 /** Who can comment on a post, chosen by its author. Stored by name. */
 export type CommentSetting = "Everyone" | "Off" | "Following";
+
+/** A post's vote as the viewer may see it. Kind says which question it asks and Choices the answers in order. Results (votes per answer) is null while hidden: until the viewer votes, for everyone except the author; for signed-out visitors until there are PublicResultsAfter votes. Closed votes show results to everyone. ClosesAt is null when the vote never closes. */
+export interface VoteSummaryDto {
+    kind: VoteKind;
+    choices: VoteChoice[];
+    total: number;
+    results: { [key in VoteChoice]?: number; } | null;
+    myChoice: VoteChoice | null;
+    isClosed: boolean;
+    closesAt: string | null;
+    canVote: boolean;
+}
+
+/** Which question a post's vote asks (owner, 21 Oct 2026). Incidents between road users ask "Who's at fault?"; posts about one driver (bad parking, phone use, speeding, red lights, lane hogging, other) ask "How bad was it?". */
+export type VoteKind = "Fault" | "Severity";
+
+/** An answer to a post's vote. The first four answer Fault, the rest Severity. */
+export type VoteChoice = "FilmingDriver" | "OtherRoadUser" | "Both" | "Nobody" | "Minor" | "Careless" | "Dangerous" | "Shocking";
 
 /** The content screening queues moderators work through. */
 export type ScreeningQueue = "Held" | "Flagged";
@@ -7183,6 +7984,58 @@ export interface DraftLimitsDto {
     keptForDays: number;
 }
 
+/** Your answer to a post's vote. */
+export interface VoteRequest {
+    choice: VoteChoice;
+}
+
+/** Whether the caller follows a post now. */
+export interface PostFollowStateDto {
+    postId: string;
+    following: boolean;
+}
+
+/** Whether the caller has saved a post now. */
+export interface BookmarkStateDto {
+    postId: string;
+    saved: boolean;
+}
+
+export interface PagedResultOfPostDto {
+    items: PostDto[];
+    page: number;
+    pageSize: number;
+    totalCount: number;
+}
+
+/** Posts the viewer saw (1 to 50). */
+export interface ViewsRequest {
+    postIds: string[] | null;
+}
+
+/** How far a post reached, for its author (and moderators): unique viewers, viewers whose home area is within LocalKm km of where it happened, reactions, visible comments and shares. Counts only. */
+export interface PostReachDto {
+    postId: string;
+    views: number;
+    localViews: number;
+    reactions: number;
+    comments: number;
+    shares: number;
+}
+
+/** The caller's settings for their own posts. VoteDuration: when votes on new posts close. */
+export interface AuthorPreferencesDto {
+    voteDuration: VoteDuration;
+}
+
+/** When the vote on an author's posts closes. A setting each author chooses for their own posts. */
+export type VoteDuration = "Hours48" | "Days7" | "Never";
+
+/** Changes when votes on the caller's new posts close. Posts already made keep their closing time. */
+export interface SetAuthorPreferencesCommand {
+    voteDuration: VoteDuration;
+}
+
 /** A suggestion as # is typed: the tag as first written and how many posts used it. */
 export interface HashtagSuggestionDto {
     tag: string;
@@ -7258,13 +8111,6 @@ export interface CategoryShareDto {
 export interface PlaceCountDto {
     name: string;
     count: number;
-}
-
-export interface PagedResultOfPostDto {
-    items: PostDto[];
-    page: number;
-    pageSize: number;
-    totalCount: number;
 }
 
 /** Accept or decline being tagged as a passenger. */
@@ -7527,7 +8373,7 @@ export interface ModeratedProfileDto {
     deactivatedAt: string | null;
 }
 
-/** A profile. RoadUser (Driver, Cyclist or Both) is shown to others only if the user chose to show it; ShowRoadUser is only filled in for the user themselves (null for others). FollowerCount and FollowingCount count active profiles; IsFollowing (you follow them) and FollowsYou are null when signed out or for yourself. */
+/** A profile. RoadUser (Driver, Cyclist or Both) is shown to others only if the user chose to show it; ShowRoadUser is only filled in for the user themselves (null for others). FollowerCount and FollowingCount count active profiles; IsFollowing (you follow them) and FollowsYou are null when signed out or for yourself. Badges: Founding member, Trusted reporter, Local regular (never shown for under-18s). */
 export interface ProfileDto {
     id: string;
     handle: string;
@@ -7542,10 +8388,14 @@ export interface ProfileDto {
     followingCount: number;
     isFollowing: boolean | null;
     followsYou: boolean | null;
+    badges: Badge[] | null;
 }
 
 /** How someone mostly uses the road, if they choose to say. Stored by name. */
 export type RoadUser = "Driver" | "Cyclist" | "Both";
+
+/** Badges on a profile (owner, 21 Oct 2026). They reward quality, never posting volume: rewarding volume would encourage people to go looking for incidents. */
+export type Badge = "FoundingMember" | "TrustedReporter" | "LocalRegular";
 
 /** Why a moderator took an action. Recorded in the moderation audit log. */
 export interface ModerationReasonRequest2 {

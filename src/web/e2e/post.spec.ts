@@ -367,3 +367,30 @@ test("Free members can set a home area but alerts are Premium", async ({ page })
   await section.getByRole("option", { name: /Kirkstall/ }).click();
   await expect(section.getByText("Area alerts are part of Premium.")).toBeVisible();
 });
+
+test("vote on who's at fault, then save the post to bookmarks", async ({ page }) => {
+  await signIn(page, `/p/${SEED.videoPost}`);
+  const vote = page.getByRole("region", { name: "Who's at fault?" });
+  await expect(vote).toBeVisible();
+  await expect(vote.getByText("0 votes")).toBeVisible();
+
+  await vote.getByRole("button", { name: "The other road user" }).click();
+  await expect(vote.getByText("Your vote")).toBeVisible();
+  await expect(vote.getByText("100%")).toBeVisible();
+  await expect(vote.getByText("1 vote")).toBeVisible();
+
+  await page.getByRole("button", { name: "Save to bookmarks" }).click();
+  await expect(page.getByRole("button", { name: "Remove from bookmarks" })).toBeVisible();
+
+  await page.goto("/bookmarks");
+  await expect(page.getByRole("heading", { name: "Bookmarks" })).toBeVisible();
+  await expect(page.getByRole("article", { name: "Undertaking a lorry on the M62" })).toBeVisible();
+});
+
+test("new members get three welcome steps after making a profile", async ({ page }) => {
+  await signIn(page, "/welcome?step=3");
+  await expect(page.getByText("Step 3 of 3")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Posting a clip" })).toBeVisible();
+  await page.getByRole("link", { name: "Start browsing" }).click();
+  await expect(page).toHaveURL(/\/$/);
+});

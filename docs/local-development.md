@@ -392,6 +392,8 @@ On your machine nothing needs a supplier account: S3Mock stands in for R2, email
 | `Reels:ViewerKeySecret` (secret) | A long random string (`openssl rand -base64 48`) | |
 | `Plans:Overrides` | Empty | **Stripe billing** (not built yet) |
 | `Notifications:AppUrl`, `Posts:AppUrl` | The web app, e.g. `https://badjockeys.com` | The live domain |
+| `Notifications:Push:PublicKey`, `PrivateKey` (secret) | **Required**: a VAPID key pair made once per environment and never changed (changing it stops every phone's push subscription). Make one with `node -e "const k=require('crypto').generateKeyPairSync('ec',{namedCurve:'prime256v1'}).privateKey.export({format:'jwk'});console.log(Buffer.concat([Buffer.from([4]),Buffer.from(k.x,'base64url'),Buffer.from(k.y,'base64url')]).toString('base64url'),k.d)"` (public key first) | |
+| `Notifications:Push:Subject` | `mailto:support@badjockeys.com` (the default): who push services contact about problems | |
 | `Posts:ReportsInbox` (from bjk-modules #30) | `support@badjockeys.com` (the default) | The mailbox must exist |
 | `Heatmap:VehicleMinCellCount`, `Heatmap:ModelFilterMinSpanKm` | Optional: defaults 5 and 10 | |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | Grafana Cloud's OTLP address (https) | **A Grafana Cloud stack** |

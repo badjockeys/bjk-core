@@ -27,7 +27,8 @@ export type FeedSource =
   | { kind: "for-you" }
   | { kind: "following" }
   | { kind: "timeline"; id: string }
-  | { kind: "mine" };
+  | { kind: "mine" }
+  | { kind: "bookmarks" };
 
 /** The next page of a feed, for infinite scrolling. */
 export async function loadPosts(
@@ -38,6 +39,9 @@ export async function loadPosts(
   const safePage = Math.max(1, Math.floor(page));
   if (source.kind === "mine") {
     return asUser((t) => api().posts.mine(t, safePage));
+  }
+  if (source.kind === "bookmarks") {
+    return asUser((t) => api().engagement.bookmarks(t, safePage));
   }
   if (source.kind === "author") {
     return run(() => api().posts.list(token, { author: source.handle, page: safePage }));

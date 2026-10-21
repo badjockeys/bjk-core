@@ -76,10 +76,24 @@ export default async function AccountPage() {
           </span>
           <ChevronIcon />
         </Link>
+        <Link href="/bookmarks" className="list-item">
+          <span className="col" style={{ gap: 0 }}>
+            <span>Bookmarks</span>
+            <span className="small muted">Posts you&apos;ve saved. Only you can see them</span>
+          </span>
+          <ChevronIcon />
+        </Link>
+        <Link href="/account/posts" className="list-item">
+          <span className="col" style={{ gap: 0 }}>
+            <span>Votes on your posts</span>
+            <span className="small muted">When voting on your new posts closes</span>
+          </span>
+          <ChevronIcon />
+        </Link>
         <Link href="/account/notifications" className="list-item">
           <span className="col" style={{ gap: 0 }}>
             <span>Notifications</span>
-            <span className="small muted">What shows in the bell, and what&apos;s emailed</span>
+            <span className="small muted">What shows in the bell, what&apos;s emailed and push notifications</span>
           </span>
           <ChevronIcon />
         </Link>

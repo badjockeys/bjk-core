@@ -3516,3 +3516,169 @@ dialog.composer-dialog::backdrop {
   color: var(--ink);
   font-weight: 600;
 }
+
+/* --- Engagement (21 Oct 2026): votes, follow and save, reach, badges, welcome --- */
+
+.vote {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.vote-q {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.vote-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.vote-results {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vote-result {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 8px;
+  background: var(--soft);
+  overflow: hidden;
+}
+
+.vote-bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--fill);
+}
+
+.vote-mine .vote-bar {
+  background: var(--brand-tint);
+}
+
+.vote-label,
+.vote-pct {
+  position: relative;
+}
+
+.vote-pct {
+  font-weight: 600;
+}
+
+.vote-mine .vote-label {
+  font-weight: 600;
+  color: var(--brand-tint-text);
+}
+
+.vote-foot {
+  margin: 0;
+}
+
+.link-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--brand-tint-text);
+  font: inherit;
+  text-decoration: underline;
+}
+
+.post-tools {
+  gap: 8px;
+  margin-top: 12px;
+  align-items: center;
+}
+
+.post-tools .btn svg {
+  margin-right: 6px;
+}
+
+.reach {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.reach-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.reach-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.reach-grid dd {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 13px;
+  background: var(--brand-tint);
+  color: var(--brand-tint-text);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.fieldset-title {
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.welcome-tips {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.who-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

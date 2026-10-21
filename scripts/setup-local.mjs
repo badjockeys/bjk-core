@@ -23,7 +23,7 @@
 // scripts/setup/setup.sh (macOS) do both, then run this. Uses only Node.js built-ins.
 
 import { spawn, spawnSync } from "node:child_process";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, generateKeyPairSync, randomBytes } from "node:crypto";
 import { createServer } from "node:net";
 import { createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -113,6 +113,14 @@ function sqlPassword() {
 }
 
 const secret = () => randomBytes(32).toString("base64url");
+
+/** A VAPID key pair for web push (P-256): the public key as an uncompressed point and the private scalar, base64url. */
+function vapidKeys() {
+  const { privateKey } = generateKeyPairSync("ec", { namedCurve: "prime256v1" });
+  const jwk = privateKey.export({ format: "jwk" });
+  const point = Buffer.concat([Buffer.from([4]), Buffer.from(jwk.x, "base64url"), Buffer.from(jwk.y, "base64url")]);
+  return { PublicKey: point.toString("base64url"), PrivateKey: jwk.d };
+}
 
 function checkTools() {
   step("Checking tools");
@@ -256,6 +264,8 @@ function createConfig() {
     join(core, "user-secrets.json"),
     fromTemplate(join(core, "user-secrets.template.json"), (json) => {
       if (json.Reels) json.Reels.ViewerKeySecret = secret();
+      json.Notifications = { ...(json.Notifications ?? {}) };
+      json.Notifications.Push = { ...(json.Notifications.Push ?? {}), ...vapidKeys() };
       json.Media.Redaction = {
         ...(json.Media.Redaction ?? {}),
         FaceModelPath: join(models, MODELS[0].file),
@@ -275,6 +285,13 @@ function createConfig() {
       json.Media = { ...(json.Media ?? {}), SensitiveDetection: { ...(current ?? {}), ...sensitiveDetection() } };
       writeFileSync(coreSecrets, `${JSON.stringify(json, null, 2)}\n`);
       ok("bjk-core/user-secrets.json: nudity and graphic content checks turned on (Media:SensitiveDetection)");
+    }
+    // Files made before web push existed: add a key pair for this computer.
+    if (!json.Notifications?.Push?.PublicKey) {
+      json.Notifications = { ...(json.Notifications ?? {}) };
+      json.Notifications.Push = { Subject: "mailto:support@badjockeys.com", ...(json.Notifications.Push ?? {}), ...vapidKeys() };
+      writeFileSync(coreSecrets, `${JSON.stringify(json, null, 2)}\n`);
+      ok("bjk-core/user-secrets.json: web push keys added (Notifications:Push)");
     }
   }
 
