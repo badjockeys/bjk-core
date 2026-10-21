@@ -1,0 +1,31 @@
+# Temporary: regenerates the web app's API client for this branch. Removed before review.
+name: tmp-client
+on:
+  push:
+    branches: [feature/engagement]
+permissions:
+  contents: write
+  packages: read
+env:
+  NuGetPackageSourceCredentials_badjockeys: Username=${{ github.actor }};Password=${{ secrets.GITHUB_TOKEN }}
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+      - name: Build and regenerate
+        continue-on-error: true
+        run: |
+          exec > >(tee client.log) 2>&1
+          dotnet restore BJK.Core.slnx
+          dotnet build BJK.Core.slnx --configuration Release --no-restore -p:GenerateApiClient=true 2>&1 | grep -E "error|Build succeeded" | sort -u | head -80
+      - name: Push
+        if: ${{ always() }}
+        run: |
+          git add -f client.log
+          git add -A src/web/src/lib/generated || true
+          git -c user.name=ci -c user.email=ci@example.com commit -m "Regenerated API client"
+          git push origin HEAD:refs/heads/tmp/engagement-client --force
