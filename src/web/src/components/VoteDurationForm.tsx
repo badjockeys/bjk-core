@@ -34,8 +34,8 @@ export function VoteDurationForm({ initial }: { initial: VoteDuration }) {
     <form className="pad stack" onSubmit={save}>
       <p className="muted small">
         People can vote on each post: &ldquo;Who&apos;s at fault?&rdquo; for incidents between road users, or
-        &ldquo;How bad was it?&rdquo; for everything else. When voting closes, you and everyone following the post
-        are told the result. This applies to posts you make from now on.
+        &ldquo;How bad was it?&rdquo; for everything else. When voting closes, you and everyone following the
+        post are told the result. This applies to posts you make from now on.
       </p>
       <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0 }}>
         <legend className="fieldset-title">Voting on my posts closes</legend>

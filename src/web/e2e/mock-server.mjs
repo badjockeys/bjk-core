@@ -317,7 +317,14 @@ function counts(map) {
 let callerAgeVerified = false;
 
 // Engagement (bjk-modules EngagementController): votes, followed posts, bookmarks, views and shares.
-const INTERACTION_TYPES = new Set(["RoadRage", "DangerousOvertaking", "Tailgating", "CuttingUp", "Undertaking", "ClosePass"]);
+const INTERACTION_TYPES = new Set([
+  "RoadRage",
+  "DangerousOvertaking",
+  "Tailgating",
+  "CuttingUp",
+  "Undertaking",
+  "ClosePass",
+]);
 const FAULT_CHOICES = ["FilmingDriver", "OtherRoadUser", "Both", "Nobody"];
 const SEVERITY_CHOICES = ["Minor", "Careless", "Dangerous", "Shocking"];
 function engagement() {
@@ -1125,7 +1132,11 @@ async function api(req, res, url) {
     if (!requireUser()) return;
     const ids = (engagement().bookmarks.get(me) ?? []).slice().reverse();
     const items = ids.map((id) => db.posts.find((x) => x.id === id)).filter((x) => x && canSee(x, me));
-    return send(res, 200, page(items, url, (x) => postDto(x, me)));
+    return send(
+      res,
+      200,
+      page(items, url, (x) => postDto(x, me)),
+    );
   }
   if (path === "/api/posts/preferences") {
     if (!requireUser()) return;
@@ -1343,7 +1354,8 @@ async function api(req, res, url) {
       const { choice } = await json();
       const dto = voteDto(p, me);
       if (!dto.canVote) return invalid(res, "Choice", "You can't vote on your own post.");
-      if (!dto.choices.includes(choice)) return invalid(res, "Choice", "That answer doesn't fit this post's vote.");
+      if (!dto.choices.includes(choice))
+        return invalid(res, "Choice", "That answer doesn't fit this post's vote.");
       const votes = engagement().votes.get(p.id) ?? new Map();
       votes.set(me, choice);
       engagement().votes.set(p.id, votes);

@@ -183,7 +183,9 @@ export function ProfileForm({
       }
 
       setStatus(null);
-      router.push(mode === "create" ? `/welcome?returnTo=${encodeURIComponent(returnTo)}` : `/@${saved.data.handle}`);
+      router.push(
+        mode === "create" ? `/welcome?returnTo=${encodeURIComponent(returnTo)}` : `/@${saved.data.handle}`,
+      );
       router.refresh();
     });
   };

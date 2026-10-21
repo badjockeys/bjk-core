@@ -40,7 +40,9 @@ export function FollowPostButton({
         }
         return;
       }
-      toast(next ? "You'll hear about new comments and the vote result" : "You've stopped following this post");
+      toast(
+        next ? "You'll hear about new comments and the vote result" : "You've stopped following this post",
+      );
     });
   };
 

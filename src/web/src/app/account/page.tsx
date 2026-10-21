@@ -93,7 +93,9 @@ export default async function AccountPage() {
         <Link href="/account/notifications" className="list-item">
           <span className="col" style={{ gap: 0 }}>
             <span>Notifications</span>
-            <span className="small muted">What shows in the bell, what&apos;s emailed and push notifications</span>
+            <span className="small muted">
+              What shows in the bell, what&apos;s emailed and push notifications
+            </span>
           </span>
           <ChevronIcon />
         </Link>

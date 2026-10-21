@@ -58,7 +58,10 @@ export function votePercentages(results: Partial<Record<VoteChoice, number>>, ch
 }
 
 /** "Voting closes in 3 days", "closes in 5 hours", "Voting has closed", or null when it never closes. */
-export function voteClosingText(vote: Pick<VoteSummaryDto, "isClosed" | "closesAt">, now = Date.now()): string | null {
+export function voteClosingText(
+  vote: Pick<VoteSummaryDto, "isClosed" | "closesAt">,
+  now = Date.now(),
+): string | null {
   if (vote.isClosed) {
     return "Voting has closed";
   }

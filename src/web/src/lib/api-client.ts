@@ -36,6 +36,8 @@ import type {
   ReportReason,
   TimelineRequest,
   RoadUser,
+  VoteChoice,
+  VoteDuration,
 } from "./types";
 import type { CreatePostRequest } from "./types";
 
@@ -233,10 +235,13 @@ export function endpoints(api: ApiClient) {
       /** Vote on a post, or change your vote, until it closes. */
       vote: (token: string, postId: string, choice: VoteChoice) =>
         client(EngagementClient, { token }).engagement_Vote(postId, { choice }),
-      follow: (token: string, postId: string) => client(EngagementClient, { token }).engagement_Follow(postId),
-      unfollow: (token: string, postId: string) => client(EngagementClient, { token }).engagement_Unfollow(postId),
+      follow: (token: string, postId: string) =>
+        client(EngagementClient, { token }).engagement_Follow(postId),
+      unfollow: (token: string, postId: string) =>
+        client(EngagementClient, { token }).engagement_Unfollow(postId),
       save: (token: string, postId: string) => client(EngagementClient, { token }).engagement_Save(postId),
-      unsave: (token: string, postId: string) => client(EngagementClient, { token }).engagement_Unsave(postId),
+      unsave: (token: string, postId: string) =>
+        client(EngagementClient, { token }).engagement_Unsave(postId),
       bookmarks: (token: string, page = 1, pageSize = 20) =>
         client(EngagementClient, { token }).engagement_Bookmarks(page, pageSize),
       /** Count that the viewer saw these posts (once per viewer per post). Signed-out viewers by their viewer id. */

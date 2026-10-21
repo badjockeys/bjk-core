@@ -396,7 +396,13 @@ export function BookmarkIcon({ on, ...p }: IconProps & { on?: boolean }) {
   const c = on ? "#00B5E5" : MUTED;
   return (
     <Svg size={18} {...p}>
-      <path d="M6 3h12v18l-6-4.5L6 21V3z" fill={on ? c : "none"} stroke={c} strokeWidth="1.8" strokeLinejoin="round" />
+      <path
+        d="M6 3h12v18l-6-4.5L6 21V3z"
+        fill={on ? c : "none"}
+        stroke={c}
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
     </Svg>
   );
 }

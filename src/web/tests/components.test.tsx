@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { PostDto, PostMediaDto } from "@/lib/types";
+import type { PostDto, PostMediaDto, VoteSummaryDto } from "@/lib/types";
 import { ANONYMOUS, type Viewer } from "@/lib/viewer";
 
 const actions = vi.hoisted(() => ({
@@ -11,6 +11,9 @@ const actions = vi.hoisted(() => ({
   deletePost: vi.fn(),
   loadPosts: vi.fn(),
   blockUser: vi.fn(),
+  castVote: vi.fn(),
+  savePost: vi.fn(),
+  followPost: vi.fn(),
 }));
 
 vi.mock("@/actions/posts", () => ({
@@ -20,11 +23,20 @@ vi.mock("@/actions/posts", () => ({
   loadPosts: actions.loadPosts,
 }));
 vi.mock("@/actions/profiles", () => ({ blockUser: actions.blockUser }));
+vi.mock("@/actions/engagement", () => ({
+  castVote: actions.castVote,
+  savePost: actions.savePost,
+  followPost: actions.followPost,
+  recordViews: vi.fn(),
+  recordShare: vi.fn(),
+}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn(), back: vi.fn() }) }));
 
 import { PostCard } from "@/components/PostCard";
 import { ReactionBar } from "@/components/ReactionBar";
 import { ReportDialog } from "@/components/ReportDialog";
+import { SaveButton } from "@/components/SaveButton";
+import { VotePanel } from "@/components/VotePanel";
 
 function photo(mediaId: string, playbackUrl: string, thumbnailUrl: string): PostMediaDto {
   return {
@@ -79,6 +91,9 @@ const post: PostDto = {
   vehicle: null,
   reportedToPolice: null,
   commentSetting: "Everyone",
+  vote: null,
+  isFollowing: false,
+  isSaved: false,
   isProcessing: false,
 };
 
@@ -220,6 +235,49 @@ describe("ReactionBar", () => {
       expect(screen.getByRole("button", { name: "Angry 18" })).toHaveAttribute("aria-pressed", "true"),
     );
     expect(screen.getByRole("button", { name: "Like 9" })).toHaveAttribute("aria-pressed", "false");
+  });
+});
+
+describe("VotePanel", () => {
+  const vote: VoteSummaryDto = {
+    kind: "Fault",
+    choices: ["FilmingDriver", "OtherRoadUser", "Both", "Nobody"],
+    total: 3,
+    results: null,
+    myChoice: null,
+    isClosed: false,
+    closesAt: null,
+    canVote: true,
+  };
+
+  it("hides the results until you vote, then shows them with your answer", async () => {
+    actions.castVote.mockResolvedValueOnce({
+      ok: true,
+      data: { ...vote, total: 4, results: { FilmingDriver: 0, OtherRoadUser: 3, Both: 1, Nobody: 0 }, myChoice: "OtherRoadUser" },
+    });
+    render(<VotePanel postId="p1" initial={vote} signedIn isMine={false} />);
+
+    expect(screen.getByRole("heading", { name: "Who's at fault?" })).toBeVisible();
+    expect(screen.queryByText("75%")).toBeNull();
+    expect(screen.getByText(/Vote to see what others said/)).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "The other road user" }));
+    expect(actions.castVote).toHaveBeenCalledWith("p1", "OtherRoadUser");
+    expect(await screen.findByText("75%")).toBeVisible();
+    expect(screen.getByText("25%")).toBeVisible();
+    expect(screen.getByText(/Your vote/)).toBeVisible();
+    expect(screen.getByRole("button", { name: "Change my vote" })).toBeVisible();
+  });
+});
+
+describe("SaveButton", () => {
+  it("saves and puts it back if the server refuses", async () => {
+    actions.savePost.mockResolvedValueOnce({ ok: false, error: "Nope" });
+    render(<SaveButton postId="p1" saved={false} signedIn />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Save to bookmarks" }));
+    expect(actions.savePost).toHaveBeenCalledWith("p1", true);
+    expect(await screen.findByRole("button", { name: "Save to bookmarks" })).toHaveAttribute("aria-pressed", "false");
   });
 });
 

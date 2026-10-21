@@ -34,7 +34,9 @@ export async function ReachStats({ postId }: { postId: string }) {
           </div>
         ))}
       </dl>
-      <p className="small muted">Local views come from people whose home area is within 10 km of where it happened.</p>
+      <p className="small muted">
+        Local views come from people whose home area is within 10 km of where it happened.
+      </p>
     </section>
   );
 }
