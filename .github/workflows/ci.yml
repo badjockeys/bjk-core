@@ -148,12 +148,10 @@ jobs:
 
       # The smoke test's logs and traces reached Elasticsearch, and Kibana is up.
       - name: Logs and traces
-        if: ${{ !cancelled() }}
         run: bash pipelines/scripts/elastic-check.sh verify
 
       # The reports: the reporting views and read-only login against the database the smoke test left behind.
       - name: Reports
-        if: ${{ !cancelled() }}
         env:
           SQL_CONTAINER: ${{ job.services.sql.id }}
         run: bash pipelines/scripts/reporting-check.sh
