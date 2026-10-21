@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <PackageReference Include="BJK.Modules.Media" />
+    <PackageReference Include="BJK.Modules.Observability" />
     <PackageReference Include="BJK.Modules.Profiles" />
     <PackageReference Include="BJK.Modules.Posts" />
     <PackageReference Include="BJK.Modules.Notifications" />

@@ -6,7 +6,7 @@ using BJK.Modules.Posts;
 using BJK.Modules.Profiles;
 using BJK.Modules.Shared;
 using BJK.Modules.Shared.Configuration;
-using BJK.Modules.Shared.Observability;
+using BJK.Modules.Observability;
 using BJK.Modules.Shared.Security;
 using BJK.Modules.SMS;
 using Microsoft.AspNetCore.HttpOverrides;
