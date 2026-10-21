@@ -68,7 +68,7 @@ template {
 
 ## Watching the queues
 
-For a Grafana panel or alert (dead letters should stay at 0):
+For a report or a check (dead letters should stay at 0):
 
 ```sql
 SELECT t.name AS queue, p.rows AS messages

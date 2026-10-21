@@ -26,7 +26,7 @@ Going live: see [Going live](docs/local-development.md#going-live) for every set
 
 On your machine, SQL Server and file storage (S3Mock, standing in for Cloudflare R2, so no Cloudflare account is needed) run in Docker from this repo's `docker-compose.yml`, as one group called `bad-jockeys` (`docker compose up -d --wait`).
 
-Reports: Grafana runs in the same Docker group at http://localhost:3300, with an **Identity server** and a **Bad Jockeys** dashboard built from counts-only `reporting` views, read through a read-only login (see [Reports](docs/local-development.md#reports)).
+Logs, traces and metrics: the apps send them over OpenTelemetry to Elastic's collector in the same Docker group, which stores them in Elasticsearch; view them in **Kibana** at http://localhost:5601 (sign in as `elastic`, password `BJK_ELASTIC_PASSWORD` in `.env`). When deployed they go to Elastic Cloud. See [Logs, traces and metrics](docs/local-development.md#logs-traces-and-metrics).
 
 Jobs and events between the API, the media workers and the identity server go through durable queues stored in SQL Server (the `messaging` schema of `badjockeys`), not a separate broker: see [docs/messaging.md](docs/messaging.md), which also has the media worker's scaling rule.
 
@@ -64,5 +64,5 @@ Run it with `npm run dev` in `src/web` after copying `.env.local.example` to `.e
 server and API in `e2e/mock-server.mjs`) are the checks CI runs. `src/web/Dockerfile` builds the container
 (`docker build -t bjk-core-web src/web`).
 
-CI builds the API, worker and web container images, runs `pipelines/scripts/smoke-test.sh` and runs the web app's checks and end-to-end tests on every pull request. The smoke test runs against SQL Server and S3Mock (in place of Cloudflare R2), with `pipelines/scripts/fake-issuer.py` signing tokens in place of the identity server.
+CI builds the API, worker and web container images, runs `pipelines/scripts/smoke-test.sh` and runs the web app's checks and end-to-end tests on every pull request. The smoke test runs against SQL Server and S3Mock (in place of Cloudflare R2), with `pipelines/scripts/fake-issuer.py` signing tokens in place of the identity server. The apps send their logs, traces and metrics to the Elastic containers from `docker-compose.yml`, and `pipelines/scripts/elastic-check.sh` checks they arrived.
 

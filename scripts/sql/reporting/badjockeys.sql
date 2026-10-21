@@ -1,6 +1,6 @@
--- Reporting views for the app database (badjockeys). Grafana reads only these, through the read-only bjk_reporting
--- login: counts and groupings, never emails, handles, ids or report details. Place names are the public ones shown
--- on posts. Safe to run again. Applied by scripts/sql/reporting/apply.mjs (the setup does it locally).
+-- Reporting views for the app database (badjockeys). Reports (Power BI when deployed) read only these, through the
+-- read-only bjk_reporting login: counts and groupings, never emails, handles, ids or report details. Place names
+-- are the public ones shown on posts. Safe to run again. Applied by scripts/sql/reporting/apply.mjs (the setup does it locally).
 SET NOCOUNT ON;
 GO
 IF SCHEMA_ID(N'reporting') IS NULL EXEC (N'CREATE SCHEMA reporting AUTHORIZATION dbo');

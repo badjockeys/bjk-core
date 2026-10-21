@@ -1,4 +1,4 @@
--- The read-only login Grafana uses: it can read the reporting views in both databases and nothing else (no tables,
+-- The read-only login the reports (Power BI when deployed) use: it can read the reporting views in both databases and nothing else (no tables,
 -- no other schemas). Run as an admin; $(ReportingPassword) comes from apply.mjs. Safe to run again: it updates the
 -- password. In deployed environments the password is a container secret.
 SET NOCOUNT ON;

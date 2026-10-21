@@ -1,7 +1,10 @@
-// Shared by setup-local.mjs and start-docker.mjs: starts the "bad-jockeys" Docker group (SQL Server and S3Mock, from
-// bjk-core's docker-compose.yml), first clearing away the two groups it replaced. Uses only Node.js built-ins.
+// Shared by setup-local.mjs and start-docker.mjs: starts the "bad-jockeys" Docker group (bjk-core's
+// docker-compose.yml: SQL Server, S3Mock, and Elasticsearch, Kibana and the OpenTelemetry collector), first clearing
+// away the groups and containers it replaced. Uses only Node.js built-ins.
 
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import { mkdirSync, openSync } from "node:fs";
+import { join } from "node:path";
 
 /** The groups that used to hold SQL Server (bjk-identity-server's compose file) and S3Mock (bjk-core's, unnamed). */
 const OLD_GROUPS = [
@@ -37,7 +40,33 @@ export function removeOldGroups() {
   }
 }
 
-/** docker compose up -d --wait in bjk-core: returns true once SQL Server is healthy and S3Mock is running. */
-export function startServices(core) {
-  return spawnSync("docker", ["compose", "up", "-d", "--wait"], { cwd: core, stdio: "inherit" }).status === 0;
+/** The services the apps can't start without; the Elastic ones only receive logs, so the apps don't wait for them. */
+const ESSENTIAL = ["sql", "s3"];
+
+/** Grafana's containers, replaced by Elastic on 21 Oct 2026. Their volume (grafana-data) is left; it's tiny. */
+const REPLACED = ["bad-jockeys-otel", "bad-jockeys-grafana"];
+
+function removeReplaced() {
+  for (const name of REPLACED) {
+    if (quiet(["container", "inspect", name]).status === 0) {
+      console.log(`Removing the old ${name} container (logs and traces now go to Elastic).`);
+      quiet(["rm", "-f", name]);
+    }
+  }
+}
+
+/**
+ * Starts the whole group. With wait (the setup), returns true once everything is ready, Kibana included. Without it
+ * (F5 and "Run Bad Jockeys"), returns true once SQL Server is healthy and S3Mock is running, and starts the Elastic
+ * containers in the background (their output in .local/elastic-start.log), so the apps don't wait a minute for Kibana.
+ */
+export function startServices(core, { wait = false } = {}) {
+  removeReplaced();
+  const compose = (args, options) => spawnSync("docker", ["compose", ...args], { cwd: core, stdio: "inherit", ...options });
+  if (wait) return compose(["up", "-d", "--wait", "--remove-orphans"]).status === 0;
+  if (compose(["up", "-d", "--wait", ...ESSENTIAL]).status !== 0) return false;
+  mkdirSync(join(core, ".local"), { recursive: true });
+  const log = openSync(join(core, ".local", "elastic-start.log"), "w");
+  spawn("docker", ["compose", "up", "-d", "--remove-orphans"], { cwd: core, stdio: ["ignore", log, log], detached: true }).unref();
+  return true;
 }

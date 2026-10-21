@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-// Makes sure SQL Server and S3Mock are running before the apps start, on macOS, Windows or Linux.
+// Makes sure SQL Server and S3Mock are running before the apps start, on macOS, Windows or Linux, and starts
+// Elasticsearch, Kibana and the OpenTelemetry collector alongside without waiting for them.
 //
-//   node scripts/start-docker.mjs                  (add --open-reports to open Grafana in the browser once it's up)
+//   node scripts/start-docker.mjs                  (add --open-kibana to open Kibana in the browser once it's up)
 //
 // If Docker Desktop is closed, it opens it and waits (up to 3 minutes) for it to be ready, then starts the
 // "bad-jockeys" group (bjk-core's docker-compose.yml) and waits until it's up (SQL Server until it's healthy). When everything is
@@ -14,6 +15,7 @@ import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { removeOldGroups, startServices } from "./docker-services.mjs";
+import { ensureElasticEnv } from "./elastic-env.mjs";
 
 const core = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const WAIT_SECONDS = 180;
@@ -72,12 +74,16 @@ await ensureDocker();
 if (!existsSync(join(core, ".env"))) {
   fail("bjk-core/.env (the local SQL Server password) is missing. Run the setup first: node scripts/setup-local.mjs");
 }
+const added = ensureElasticEnv(core);
+if (added.length) console.log(`Added ${added.join(", ")} to bjk-core/.env for the Elastic containers.`);
 removeOldGroups();
 if (!startServices(core)) fail(`SQL Server or S3Mock didn't start. Run 'docker compose logs' in ${core} to see why.`);
-console.log("SQL Server, S3Mock and Grafana are running (Docker group bad-jockeys).");
+console.log("SQL Server and S3Mock are running; Elasticsearch, Kibana and the collector are starting (Docker group bad-jockeys).");
 
-// F5 and "Run Bad Jockeys": open the reports in the browser once Grafana answers, without holding up the apps.
-if (process.argv.includes("--open-reports")) {
-  spawn(process.execPath, [join(core, "scripts", "open-reports.mjs")], { stdio: "ignore", detached: true }).unref();
-  console.log("Reports: http://localhost:3300 (opens in your browser when Grafana is ready)");
+// F5 and "Run Bad Jockeys": open Kibana in the browser once it answers, without holding up the apps.
+// --open-reports is the old name, from before Grafana was replaced.
+if (process.argv.includes("--open-kibana") || process.argv.includes("--open-reports")) {
+  spawn(process.execPath, [join(core, "scripts", "open-kibana.mjs")], { stdio: "ignore", detached: true }).unref();
+  console.log("Logs and traces: http://localhost:5601 (opens in your browser when Kibana is ready; sign in as elastic,");
+  console.log("password BJK_ELASTIC_PASSWORD in bjk-core/.env)");
 }

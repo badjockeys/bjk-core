@@ -38,6 +38,11 @@ env:
   Media__Storage__OriginalsBucket: bjk-ci-originals
   Media__Storage__PublicBucket: bjk-ci-public
   Media__Storage__PublicBaseUrl: http://localhost:9090/bjk-ci-public/
+  # The local Elastic containers (docker-compose.yml) read these from a developer's .env.
+  BJK_SQL_PASSWORD: Ci-Passw0rd-2026
+  BJK_ELASTIC_PASSWORD: CiElastic2026x
+  BJK_KIBANA_PASSWORD: CiKibana2026x
+  BJK_KIBANA_ENCRYPTION_KEY: CiKibanaEncryptionKey2026abcdefghijklmn
 
 jobs:
   build:
@@ -118,6 +123,11 @@ jobs:
           nohup python3 pipelines/scripts/fake-issuer.py 5999 > issuer.log 2>&1 &
           for _ in $(seq 1 15); do curl -fs http://localhost:5999/.well-known/openid-configuration && break; sleep 1; done
 
+      # Elasticsearch, Kibana and Elastic's OpenTelemetry collector from docker-compose.yml, as on a developer's
+      # machine; the smoke test's apps send their logs, traces and metrics to it.
+      - name: Start the logs and traces containers
+        run: bash pipelines/scripts/elastic-check.sh start
+
       - name: End-to-end smoke test
         env:
           ASPNETCORE_ENVIRONMENT: Development
@@ -129,10 +139,18 @@ jobs:
           Logging__Console__FormatterName: simple
           Logging__Console__FormatterOptions__SingleLine: "true"
           Logging__Console__FormatterOptions__ColorBehavior: Disabled
+          OTEL_EXPORTER_OTLP_ENDPOINT: http://localhost:4318
+          OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+          OTEL_METRIC_EXPORT_INTERVAL: "5000"
+          OTEL_BSP_SCHEDULE_DELAY: "1000"
+          OTEL_BLRP_SCHEDULE_DELAY: "1000"
         run: bash pipelines/scripts/smoke-test.sh
 
-      # The reports: the reporting views and read-only login against the database the smoke test left behind, and
-      # Grafana with the provisioned data sources and dashboards, running every panel's query.
+      # The smoke test's logs and traces reached Elasticsearch, and Kibana is up.
+      - name: Logs and traces
+        run: bash pipelines/scripts/elastic-check.sh verify
+
+      # The reports: the reporting views and read-only login against the database the smoke test left behind.
       - name: Reports
         env:
           SQL_CONTAINER: ${{ job.services.sql.id }}
@@ -144,13 +162,6 @@ jobs:
         env:
           SQL_CONTAINER: ${{ job.services.sql.id }}
         run: bash pipelines/scripts/example-data-check.sh
-
-      - name: Upload the Grafana log
-        if: ${{ failure() && hashFiles('grafana.log') != '' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: grafana-log
-          path: grafana.log
 
       # The API reference NSwag generated from this build's controllers, to download or import into Postman.
       - name: Upload the OpenAPI document
