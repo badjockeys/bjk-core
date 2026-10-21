@@ -21,7 +21,7 @@ jobs:
         run: |
           exec > >(tee client.log) 2>&1
           dotnet restore BJK.Core.slnx
-          dotnet build BJK.Core.slnx --configuration Release --no-restore -p:GenerateApiClient=true 2>&1 | grep -E "error|Build succeeded" | sort -u | head -80
+          dotnet build BJK.Core.slnx --configuration Release --no-restore -p:GenerateApiClient=true -v:n 2>&1 | grep -iE -B2 -A30 "nswag|exception|error" | head -400
       - name: Push
         if: ${{ always() }}
         run: |
