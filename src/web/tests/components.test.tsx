@@ -253,7 +253,12 @@ describe("VotePanel", () => {
   it("hides the results until you vote, then shows them with your answer", async () => {
     actions.castVote.mockResolvedValueOnce({
       ok: true,
-      data: { ...vote, total: 4, results: { FilmingDriver: 0, OtherRoadUser: 3, Both: 1, Nobody: 0 }, myChoice: "OtherRoadUser" },
+      data: {
+        ...vote,
+        total: 4,
+        results: { FilmingDriver: 0, OtherRoadUser: 3, Both: 1, Nobody: 0 },
+        myChoice: "OtherRoadUser",
+      },
     });
     render(<VotePanel postId="p1" initial={vote} signedIn isMine={false} />);
 
@@ -277,7 +282,10 @@ describe("SaveButton", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Save to bookmarks" }));
     expect(actions.savePost).toHaveBeenCalledWith("p1", true);
-    expect(await screen.findByRole("button", { name: "Save to bookmarks" })).toHaveAttribute("aria-pressed", "false");
+    expect(await screen.findByRole("button", { name: "Save to bookmarks" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
   });
 });
 

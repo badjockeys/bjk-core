@@ -40,7 +40,9 @@ describe("voteClosingText", () => {
   });
 
   it("says when it has closed, and nothing when it never closes", () => {
-    expect(voteClosingText({ isClosed: true, closesAt: "2026-10-20T12:00:00Z" }, now)).toBe("Voting has closed");
+    expect(voteClosingText({ isClosed: true, closesAt: "2026-10-20T12:00:00Z" }, now)).toBe(
+      "Voting has closed",
+    );
     expect(voteClosingText({ isClosed: false, closesAt: null }, now)).toBeNull();
   });
 
@@ -68,15 +70,20 @@ describe("push", () => {
 
   it("asks iPhone users to add the site to the Home Screen first", () => {
     const iphone = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)";
-    expect(pushSupport({ hasServiceWorker: true, hasPushManager: true, userAgent: iphone, standalone: false })).toBe(
-      "install-first",
-    );
-    expect(pushSupport({ hasServiceWorker: true, hasPushManager: true, userAgent: iphone, standalone: true })).toBe(
-      "supported",
-    );
-    expect(pushSupport({ hasServiceWorker: false, hasPushManager: false, userAgent: "Firefox", standalone: false })).toBe(
-      "unsupported",
-    );
+    expect(
+      pushSupport({ hasServiceWorker: true, hasPushManager: true, userAgent: iphone, standalone: false }),
+    ).toBe("install-first");
+    expect(
+      pushSupport({ hasServiceWorker: true, hasPushManager: true, userAgent: iphone, standalone: true }),
+    ).toBe("supported");
+    expect(
+      pushSupport({
+        hasServiceWorker: false,
+        hasPushManager: false,
+        userAgent: "Firefox",
+        standalone: false,
+      }),
+    ).toBe("unsupported");
   });
 });
 
