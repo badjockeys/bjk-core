@@ -223,6 +223,7 @@ export default async function PostPage({ params, searchParams }: Props) {
           totalCount={post.commentCount}
           postAuthorId={post.author.id}
           commentsOff={post.commentSetting === "Off"}
+          followersOnly={post.commentSetting === "Following"}
           blockerNotice={commentBlocker(viewer, here)}
         />
       ) : (

@@ -1414,6 +1414,108 @@ p {
   font-weight: 600;
 }
 
+/* Following, Who to follow and timelines (UI step 6). */
+.btn-follow-on {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+
+.btn-follow-on .follow-hover {
+  display: none;
+}
+
+.btn-follow-on:hover .follow-label,
+.btn-follow-on:focus-visible .follow-label {
+  display: none;
+}
+
+.btn-follow-on:hover .follow-hover,
+.btn-follow-on:focus-visible .follow-hover {
+  display: inline;
+  color: var(--danger);
+}
+
+.follow-count:hover {
+  text-decoration: underline;
+}
+
+.follows-you {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--soft);
+  font-size: 12px;
+}
+
+.who {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 16px;
+}
+
+.who-person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.who-bio {
+  display: block;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.follow-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.who-row {
+  border-bottom: 1px solid var(--line);
+}
+
+.tab-add {
+  display: inline-flex;
+  align-items: center;
+}
+
+.timeline-about {
+  margin: 0;
+  padding-bottom: 0;
+}
+
+.timeline-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.timeline-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.timeline-form {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
 /* Category trends (UI step 4): range chips, optional area, and a row per type with a sparkline. */
 .trends-controls {
   display: flex;

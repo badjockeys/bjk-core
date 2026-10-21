@@ -45,6 +45,7 @@ export function Comments({
   blockerNotice,
   postAuthorId,
   commentsOff = false,
+  followersOnly = false,
 }: {
   postId: string;
   viewer: Viewer;
@@ -55,6 +56,8 @@ export function Comments({
   postAuthorId: string;
   /** The author turned comments off: nobody else can comment or reply. */
   commentsOff?: boolean;
+  /** "People I follow": only people the post's author follows can comment (the API refuses others). */
+  followersOnly?: boolean;
   /** Shown instead of the comment box when the viewer can't comment yet (age check, profile, email). */
   blockerNotice: React.ReactNode;
 }) {
@@ -118,6 +121,10 @@ export function Comments({
       {closed ? (
         <p className="notice" role="note">
           The author has turned comments off on this post.
+        </p>
+      ) : followersOnly && !isPostAuthor ? (
+        <p className="notice" role="note">
+          Only people the author follows can comment on this post.
         </p>
       ) : null}
       {closed
