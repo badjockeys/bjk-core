@@ -21,7 +21,9 @@ test("visitors watch their free reels, then are asked to join", async ({ page })
   // Each reel counts after 3 seconds of watching; the limit sheet is added once the second has counted.
   await page.waitForTimeout(4_000);
   await page.keyboard.press("ArrowDown");
-  await expect(page.getByRole("heading", { name: "That's today's 2 free reels" })).toBeAttached({ timeout: 15_000 });
+  await expect(page.getByRole("heading", { name: "That's today's 2 free reels" })).toBeAttached({
+    timeout: 15_000,
+  });
 
   await page.keyboard.press("ArrowDown");
   await expect(page.getByRole("heading", { name: "That's today's 2 free reels" })).toBeVisible();

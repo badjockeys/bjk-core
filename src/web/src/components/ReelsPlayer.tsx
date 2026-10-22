@@ -235,9 +235,7 @@ export function ReelsPlayer({
           <section className="reel reel-end" data-slide={posts.length}>
             <div className="reel-note">
               <strong>You&apos;re all caught up</strong>
-              <span>
-                That&apos;s every reel.
-              </span>
+              <span>That&apos;s every reel.</span>
               <Link href="/" className="btn btn-sm btn-light">
                 Back to the feed
               </Link>

@@ -352,17 +352,6 @@ export function endpoints(api: ApiClient) {
       get: (token: string, mediaId: string) => client(MediaClient, { token }).media_Get(mediaId),
       remove: (token: string, mediaId: string) => client(MediaClient, { token }).media_Delete(mediaId),
     },
-      ) =>
-        client(MediaClient, { token }).media_RequestDescription({
-          mediaIds,
-          types: context.types,
-          placeName: context.placeName,
-          incidentAt: context.incidentAt,
-          isDark: null,
-          vehicle: context.vehicle,
-        }),
-      getDescription: (token: string, id: string) => client(MediaClient, { token }).media_GetDescription(id),
-    },
     reels: {
       /** A page of reels. Logged-out viewers are counted by their viewer id. */
       list: (

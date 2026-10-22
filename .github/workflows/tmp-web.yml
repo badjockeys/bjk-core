@@ -42,7 +42,7 @@ jobs:
           git config user.name "tmp-web"
           git config user.email "noreply@anthropic.com"
           git checkout -b tmp/remove-ai-suggestions
-          grep -E "error|warn|FAIL|✗|×" dotnet.log | grep -v "warning NU" | head -80 > dotnet-errors.log || true
+          grep -v "warning NU" dotnet.log | tail -250 > dotnet-errors.log || true
           git add -A src/web dotnet-errors.log web.log
           git commit -m "tmp: web results" --allow-empty
           git push -f origin tmp/remove-ai-suggestions

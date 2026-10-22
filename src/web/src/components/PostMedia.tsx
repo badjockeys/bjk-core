@@ -92,7 +92,13 @@ export function PostMedia({ post, signedIn = false }: { post: PostDto; signedIn?
         <div key={photo.mediaId}>
           <img
             // The large first photo uses the feed copy; the smaller ones the 640 px thumbnail is enough for.
-            src={(index === 0 ? photo.feedUrl : null) ?? photo.thumbnailUrl ?? photo.feedUrl ?? photo.playbackUrl ?? undefined}
+            src={
+              (index === 0 ? photo.feedUrl : null) ??
+              photo.thumbnailUrl ??
+              photo.feedUrl ??
+              photo.playbackUrl ??
+              undefined
+            }
             alt=""
             loading="lazy"
           />

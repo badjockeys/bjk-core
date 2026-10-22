@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  initialSelection,
-  isWholeVideo,
-  moveEdge,
-  targetSize,
-} from "@/lib/trim";
+import { initialSelection, isWholeVideo, moveEdge, targetSize } from "@/lib/trim";
 
 describe("trim rules", () => {
   it("starts with the first 30 seconds", () => {

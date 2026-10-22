@@ -70,13 +70,20 @@ export function SilentVideo({
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
         onEnded={() => setPlaying(false)}
-        onLoadedMetadata={(e) => setLength(Number.isFinite(e.currentTarget.duration) ? e.currentTarget.duration : 0)}
+        onLoadedMetadata={(e) =>
+          setLength(Number.isFinite(e.currentTarget.duration) ? e.currentTarget.duration : 0)
+        }
         onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
       >
         Your browser can&apos;t play this video.
       </video>
       <div className="silent-video-bar">
-        <button type="button" className="silent-video-btn" onClick={toggle} aria-label={playing ? "Pause" : "Play"}>
+        <button
+          type="button"
+          className="silent-video-btn"
+          onClick={toggle}
+          aria-label={playing ? "Pause" : "Play"}
+        >
           {playing ? (
             <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" fill="currentColor" />
