@@ -277,7 +277,7 @@ The format is (`user-secrets.template.json`; the setup fills in the passwords, k
       "PlateModelPath": "<set by the setup>",
       "PersonModelPath": "<set by the setup>",
       "FaceMinConfidence": 0.5,
-      "FaceConfidentAt": 0.8,
+      "FaceConfidentAt": 0.5,
       "PlateMinConfidence": 0.5,
       "PlateConfidentAt": 0.8,
       "BoxPadding": 0.25,
