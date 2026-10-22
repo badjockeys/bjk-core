@@ -69,8 +69,8 @@ export function PoliceReport({
         {nation === "england-wales" ? (
           <div className="stack">
             <p>
-              Send your footage through the <strong>National Dash Cam Safety Portal</strong>. It&apos;s free, and
-              it passes your footage to the police force for where it happened.
+              Send your footage through the <strong>National Dash Cam Safety Portal</strong>. It&apos;s free,
+              and it passes your footage to the police force for where it happened.
             </p>
             <a href={DASHCAM_PORTAL_URL} target="_blank" rel="noreferrer" className="btn btn-primary">
               Open the National Dash Cam Safety Portal
@@ -80,9 +80,9 @@ export function PoliceReport({
         ) : (
           <div className="stack">
             <p>
-              {nation === "scotland" ? "Police Scotland" : "The Police Service of Northern Ireland"} doesn&apos;t
-              take footage through the national portal. <strong>Call 101</strong> and they&apos;ll tell you how to
-              send it.
+              {nation === "scotland" ? "Police Scotland" : "The Police Service of Northern Ireland"}{" "}
+              doesn&apos;t take footage through the national portal. <strong>Call 101</strong> and
+              they&apos;ll tell you how to send it.
             </p>
             <a href="tel:101" className="btn btn-primary">
               Call 101
@@ -92,8 +92,9 @@ export function PoliceReport({
 
         <ul className="police-tips small">
           <li>
-            <strong>Send your original file</strong>, straight from your dash cam or phone and unedited. The copy on
-            Bad Jockeys has faces and number plates blurred and no sound, so the police can&apos;t use it.
+            <strong>Send your original file</strong>, straight from your dash cam or phone and unedited. The
+            copy on Bad Jockeys has faces and number plates blurred and no sound, so the police can&apos;t use
+            it.
           </li>
           <li>
             <strong>Send it soon.</strong> Forces usually ask for footage within 7 to 14 days.{" "}
@@ -105,7 +106,9 @@ export function PoliceReport({
             If someone is hurt or in danger now, <strong>call 999</strong>.
           </li>
         </ul>
-        <p className="small muted">Bad Jockeys doesn&apos;t send anything to the police or keep a record of this.</p>
+        <p className="small muted">
+          Bad Jockeys doesn&apos;t send anything to the police or keep a record of this.
+        </p>
       </Modal>
     </>
   );
