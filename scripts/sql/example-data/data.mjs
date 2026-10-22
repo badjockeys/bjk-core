@@ -21,14 +21,14 @@ const commentId = (n) => `e0000000-0000-4000-8003-${String(n).padStart(12, "0")}
 export const ids = { userId, postId, mediaId, commentId };
 
 export const users = [
-  { n: 1, handle: "dashcam_dave", name: "Dashcam Dave", email: "dave@example.test", location: "Prescot", roadUser: "Driver", show: true, bio: "Driving instructor. Front, rear and side cameras, so I see it all." },
-  { n: 2, handle: "pedal_power_priya", name: "Priya Shah", email: "priya@example.test", location: "Liverpool", roadUser: "Cyclist", show: true, bio: "Commute by bike every day. Helmet cam on, always." },
-  { n: 3, handle: "lane_one_larry", name: "Larry Holt", email: "larry@example.test", location: "Warrington", roadUser: "Driver", show: false, bio: "HGV driver. The M6 is my office." },
-  { n: 4, handle: "mancunian_mo", name: "Mo Ahmed", email: "mo@example.test", location: "Manchester", roadUser: "Both", show: true, bio: "Taxi by day, road bike at weekends." },
-  { n: 5, handle: "yorkshire_jen", name: "Jen Barker", email: "jen@example.test", location: "Leeds", roadUser: "Driver", show: false, bio: "School run veteran. Seen everything at the gates." },
-  { n: 6, handle: "south_circ_sam", name: "Sam Okafor", email: "sam@example.test", location: "London", roadUser: "Cyclist", show: true, bio: "Delivery rider. London traffic keeps me sharp." },
-  { n: 7, handle: "roundabout_rita", name: "Rita Kelly", email: "rita@example.test", location: "St Helens", roadUser: "Driver", show: false, bio: "Retired, plenty of time to upload clips." },
-  { n: 8, handle: "biker_ben", name: "Ben Turner", email: "ben@example.test", location: "Huyton", roadUser: "Driver", show: true, bio: "Motorcyclist. Mirrors, then mirrors again." },
+  { n: 1, handle: "dashcam_dave", name: "Dashcam Dave", email: "dave@example.test", location: "Prescot", bio: "Driving instructor. Front, rear and side cameras, so I see it all." },
+  { n: 2, handle: "pedal_power_priya", name: "Priya Shah", email: "priya@example.test", location: "Liverpool", bio: "Commute by bike every day. Helmet cam on, always." },
+  { n: 3, handle: "lane_one_larry", name: "Larry Holt", email: "larry@example.test", location: "Warrington", bio: "HGV driver. The M6 is my office." },
+  { n: 4, handle: "mancunian_mo", name: "Mo Ahmed", email: "mo@example.test", location: "Manchester", bio: "Taxi by day, road bike at weekends." },
+  { n: 5, handle: "yorkshire_jen", name: "Jen Barker", email: "jen@example.test", location: "Leeds", bio: "School run veteran. Seen everything at the gates." },
+  { n: 6, handle: "south_circ_sam", name: "Sam Okafor", email: "sam@example.test", location: "London", bio: "Delivery rider. London traffic keeps me sharp." },
+  { n: 7, handle: "roundabout_rita", name: "Rita Kelly", email: "rita@example.test", location: "St Helens", bio: "Retired, plenty of time to upload clips." },
+  { n: 8, handle: "biker_ben", name: "Ben Turner", email: "ben@example.test", location: "Huyton", bio: "Motorcyclist. Mirrors, then mirrors again." },
 ];
 
 // Places, grouped so the heat map has cells with 3 or more incidents.

@@ -61,7 +61,6 @@ const post: PostDto = {
     handle: "dashcam_dave",
     displayName: "Dashcam Dave",
     avatarUrl: null,
-    roadUser: null,
   },
   title: "Parked across two disabled bays, again",
   description: "Third time this week.",

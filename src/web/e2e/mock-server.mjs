@@ -113,8 +113,6 @@ function seed() {
           avatarMediaId: null,
           createdAt: ago(60 * 24 * 10),
           isMinor: false,
-          roadUser: "Driver",
-          showRoadUser: true,
         },
       ],
       [
@@ -288,7 +286,6 @@ function author(id) {
         handle: p.handle,
         displayName: p.displayName,
         avatarUrl: avatarUrl(p),
-        roadUser: p.showRoadUser ? (p.roadUser ?? null) : null,
       }
     : { id, handle: null, displayName: "Former member", avatarUrl: null };
 }
@@ -1362,6 +1359,7 @@ async function api(req, res, url) {
       return send(res, 200, voteDto(p, me));
     }
     if (rest === "follow") {
+      if (p.authorId === me) return invalid(res, "PostId", "You always follow your own posts.");
       const key = `${p.id}:${me}`;
       if (method === "PUT") engagement().postFollows.add(key);
       else engagement().postFollows.delete(key);
@@ -1604,17 +1602,6 @@ async function api(req, res, url) {
     db.profiles.set(me, created);
     return send(res, 201, profileDto(created));
   }
-  if (path === "/api/profiles/me/road-user" && method === "PUT") {
-    if (!requireUser()) return;
-    const mine = db.profiles.get(me);
-    if (!mine) return problem(res, 404, "Profile not found.");
-    const body = await json();
-    if (body.roadUser !== null && !["Driver", "Cyclist", "Both"].includes(body.roadUser))
-      return invalid(res, "RoadUser", "Choose driver, cyclist or both.");
-    mine.roadUser = body.roadUser;
-    mine.showRoadUser = body.roadUser !== null && !!body.show;
-    return send(res, 200, profileDto(mine, true));
-  }
   if (path === "/api/profiles/me/handle" && method === "PUT") {
     if (!requireUser()) return;
     db.profiles.get(me).handle = (await json()).handle;
@@ -1844,8 +1831,6 @@ function profileDto(p, owner = false) {
     location: p.location ?? null,
     avatarUrl: avatarUrl(p),
     createdAt: p.createdAt,
-    roadUser: owner || p.showRoadUser ? (p.roadUser ?? null) : null,
-    showRoadUser: owner ? !!p.showRoadUser : null,
   };
 }
 

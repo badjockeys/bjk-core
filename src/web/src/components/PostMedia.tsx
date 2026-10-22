@@ -13,7 +13,8 @@ export function isBlurred(post: PostDto): boolean {
 }
 
 /**
- * The photos or video in a feed card: one photo, a grid of up to four with "+N", or a video poster. Photos use the
+ * The photos or video in a feed card: one photo, a grid like Facebook's (two side by side; or one large photo with up to
+ * three smaller ones under it, the last with "+N"), or a video poster. Photos use the
  * 1080 px feed copy (`feedUrl`); the full image opens on the post page. Sensitive posts the viewer may not see yet
  * show the blurred preview with an age check (or sign-in) button.
  */
@@ -84,13 +85,14 @@ export function PostMedia({ post, signedIn = false }: { post: PostDto; signedIn?
 
   const shown = photos.slice(0, 4);
   const extra = photos.length - shown.length;
-  const layout = shown.length === 2 ? "" : shown.length === 3 ? " tw-g3" : " tw-g4";
+  const layout = shown.length === 2 ? " tw-g2" : shown.length === 3 ? " tw-g3" : " tw-g4";
   return (
     <Link href={href} className={`tw-media tw-grid${layout}`} aria-label={plural(photos.length, "photo")}>
       {shown.map((photo, index) => (
         <div key={photo.mediaId}>
           <img
-            src={photo.feedUrl ?? photo.thumbnailUrl ?? photo.playbackUrl ?? undefined}
+            // The large first photo uses the feed copy; the smaller ones the 640 px thumbnail is enough for.
+            src={(index === 0 ? photo.feedUrl : null) ?? photo.thumbnailUrl ?? photo.feedUrl ?? photo.playbackUrl ?? undefined}
             alt=""
             loading="lazy"
           />

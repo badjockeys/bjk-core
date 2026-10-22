@@ -142,15 +142,12 @@ export function generatedUsers(count = 100) {
     while (taken.has(handle)) handle = `${handle.slice(0, 27)}${int(10, 99)}`;
     taken.add(handle);
     const n = handUsers.length + out.length + 1;
-    const roadUser = weighted([["Driver", 6], ["Cyclist", 2], ["Both", 2]]);
     out.push({
       n,
       handle,
       name: `${first} ${last}`,
       email: `${handle}@example.test`,
       location: town.name,
-      roadUser,
-      show: chance(0.5),
       bio: pick(BIOS),
     });
   }

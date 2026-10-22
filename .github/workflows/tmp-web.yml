@@ -1,0 +1,48 @@
+# TEMPORARY (removed before review): regenerates the API client, formats and checks the web app, and pushes the
+# results to tmp/remove-ai-suggestions so they can be copied back into the feature branch.
+name: tmp-web
+
+on:
+  push:
+    branches: [feature/remove-ai-suggestions]
+
+permissions:
+  contents: write
+  packages: read
+
+env:
+  NuGetPackageSourceCredentials_badjockeys: Username=${{ github.actor }};Password=${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: src/web/package-lock.json
+      - name: Regenerate the API client
+        run: |
+          dotnet restore BJK.Core.slnx > dotnet.log 2>&1 || true
+          dotnet build src/BJK.Core.Api --configuration Release --no-restore -p:GenerateApiClient=true >> dotnet.log 2>&1 || echo "BUILD FAILED" >> dotnet.log
+          tail -60 dotnet.log
+      - name: Format and check the web app
+        working-directory: src/web
+        run: |
+          npm ci --no-audit --no-fund > ../../web.log 2>&1
+          { echo "== prettier"; npx prettier --write . ; echo "== eslint"; npx eslint . --fix; echo "== typecheck"; npm run typecheck; echo "== vitest"; npx vitest run; } >> ../../web.log 2>&1 || true
+          tail -150 ../../web.log
+      - name: Push results
+        run: |
+          git config user.name "tmp-web"
+          git config user.email "noreply@anthropic.com"
+          git checkout -b tmp/remove-ai-suggestions
+          grep -E "error|warn|FAIL|✗|×" dotnet.log | grep -v "warning NU" | head -80 > dotnet-errors.log || true
+          git add -A src/web dotnet-errors.log web.log
+          git commit -m "tmp: web results" --allow-empty
+          git push -f origin tmp/remove-ai-suggestions

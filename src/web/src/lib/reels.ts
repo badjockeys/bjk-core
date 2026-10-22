@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 import { api, ApiError } from "./api";
 import { getAccessToken } from "./auth";
 import { getConfig, isSecure } from "./config";
-import type { IncidentCategory, ReelsPage } from "./types";
+import type { ReelsPage } from "./types";
 import { readViewerId } from "./viewer-id";
 
 /** Today's reels are used up: when they start again and how many there were. */
@@ -23,13 +23,10 @@ export async function viewerId(): Promise<string | null> {
 }
 
 /** A page of reels for the viewer; the daily limit when it's used up; null if the API couldn't be reached. */
-export async function loadReels(
-  cursor: string | null,
-  category: IncidentCategory | undefined,
-): Promise<ReelsResult> {
+export async function loadReels(cursor: string | null): Promise<ReelsResult> {
   const [token, viewer] = await Promise.all([getAccessToken(), viewerId()]);
   try {
-    return { ok: true, page: await api().reels.list(token, viewer, { cursor, category }) };
+    return { ok: true, page: await api().reels.list(token, viewer, { cursor }) };
   } catch (error) {
     if (error instanceof ApiError && error.isDailyLimit) {
       return {
