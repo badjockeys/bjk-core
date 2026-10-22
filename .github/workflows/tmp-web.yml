@@ -31,6 +31,9 @@ jobs:
           dotnet restore BJK.Core.slnx > dotnet.log 2>&1 || true
           dotnet build src/BJK.Core.Api --configuration Release --no-restore -p:GenerateApiClient=true >> dotnet.log 2>&1 || echo "BUILD FAILED" >> dotnet.log
           tail -60 dotnet.log
+          dotnet build src/BJK.Core.Api --configuration Release --no-restore >> dotnet.log 2>&1 || true
+          echo "== API start" >> dotnet.log
+          (cd src/BJK.Core.Api && ASPNETCORE_ENVIRONMENT=Development GeneratingApiClient=true timeout 25 dotnet bin/Release/net10.0/BJK.Core.Api.dll >> ../../dotnet.log 2>&1 || true)
       - name: Format and check the web app
         working-directory: src/web
         run: |
