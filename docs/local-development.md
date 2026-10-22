@@ -275,6 +275,7 @@ The format is (`user-secrets.template.json`; the setup fills in the passwords, k
       "//": "Face and number plate blurring (YuNet models, run by the media worker). The setup downloads the models and sets the paths; without them every upload waits for review. The rest are the defaults: detections below MinConfidence are ignored, from ConfidentAt they're blurred without review; frames are analysed every DetectEveryNthFrame at most DetectionMaxSize px. ReviewEverything true sends every upload to a moderator (live at launch). ExecutionProvider Cpu (Cuda only on a GPU worker image).",
       "FaceModelPath": "<set by the setup>",
       "PlateModelPath": "<set by the setup>",
+      "PersonModelPath": "<set by the setup>",
       "FaceMinConfidence": 0.5,
       "FaceConfidentAt": 0.8,
       "PlateMinConfidence": 0.5,
@@ -388,7 +389,7 @@ There are no provider switches: a service is used when its settings are filled i
 | `Cors:AllowedOrigins` | The web app's address, so the browser can call the API |
 | `Media:Storage:*` | Local S3Mock and its two buckets (step 5), or R2 later |
 | `Media:Processing:FfmpegPath`, `FfprobePath` | Where ffmpeg is. `ffmpeg` and `ffprobe` work if they're on your `PATH`; otherwise use the full path, e.g. `/opt/homebrew/bin/ffmpeg` |
-| `Media:Redaction:FaceModelPath`, `PlateModelPath` | The blurring models (set by the setup). Without them every upload goes to `NeedsReview` |
+| `Media:Redaction:FaceModelPath`, `PlateModelPath`, `PersonModelPath` | The blurring models (set by the setup). Without them every upload goes to `NeedsReview` |
 | `Media:SensitiveDetection:*` | The CLIP model for the nudity and graphic content checks (set by the setup; without it a stand-in that flags mostly red pictures runs locally), and its thresholds |
 | `Media:Redaction:*` (the rest) | How blurring decides: confidence thresholds, how often frames are analysed, `ReviewEverything` (false locally, true live at launch), CPU or GPU |
 | `Media:KnownImages:*`, `BlockedUrls:*` | The known illegal image check and blocked web addresses: on, with the harmless test entries locally (see "Online safety checks") |
@@ -480,7 +481,7 @@ On your machine nothing needs a supplier account: S3Mock stands in for R2, email
 | `Media:Storage:OriginalsBucket`, `PublicBucket`, `SensitiveBucket` | e.g. `bjk-live-originals` (CORS `PUT` from the web app, 90-day deletion rule), `bjk-live-public`, `bjk-live-sensitive` (private) | The buckets (Terraform) |
 | `Media:Storage:PublicBaseUrl` | The public bucket's domain behind Cloudflare, e.g. `https://media.badjockeys.com/` | The domain |
 | `Media:Processing:FfmpegPath`, `FfprobePath` | Paths in the worker image, e.g. `/usr/bin/ffmpeg` | |
-| `Media:Redaction:FaceModelPath`, `PlateModelPath` | Paths to the two models in the worker image | The models in the image |
+| `Media:Redaction:FaceModelPath`, `PlateModelPath`, `PersonModelPath` | Paths to the three models in the worker image (set by its Dockerfile) | The models in the image |
 | `Media:Redaction:ReviewEverything` | `true` at launch, so a moderator checks every upload | |
 | `Media:SensitiveDetection:ModelPath` | **Required**: the CLIP model's path in the worker image (the image sets it) | |
 | `Media:SensitiveDetection:Threshold`, `NudityThreshold` | Optional: 0.35 and 0.3; tune from the recorded scores | |
