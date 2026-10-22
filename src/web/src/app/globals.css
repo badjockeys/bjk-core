@@ -1645,40 +1645,71 @@ p {
   color: var(--ink);
 }
 
-/* "Seen some bad driving?" at the top of the feed; clicking it opens the composer in place (.composer-inline). */
+/* "Seen some bad driving, Aaron?" at the top of the feed, like Facebook: a pill that looks like a text box and
+   pops out the composer in a dialog (dialog.composer-modal), with Photo or video, Type and Location under it. */
 .feed-composer {
   display: flex;
-  width: 100%;
-  text-align: left;
-  font: inherit;
-  color: inherit;
-  background: none;
-  border: 0;
-  cursor: pointer;
-  gap: 12px;
-  padding: 12px 16px;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 16px 8px;
   border-bottom: 1px solid var(--line);
 }
 
-.composer-in {
-  flex: 1;
+.fc-top {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 12px;
 }
 
-.composer-ph {
-  font-size: 19px;
-  color: var(--muted);
-  padding: 8px 0;
-}
-
-.composer-bar {
+.fc-pill {
+  flex: 1;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 22px;
+  background: #f0f0ec;
+  color: var(--muted);
+  font: inherit;
+  font-size: 15px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.fc-pill:hover {
+  background: var(--fill);
+  color: var(--muted);
+}
+
+.fc-actions {
+  display: flex;
   border-top: 1px solid var(--line);
-  padding-top: 10px;
+  padding-top: 6px;
+}
+
+.fc-act {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.fc-act:hover {
+  background: #f0f0ec;
+  color: var(--ink);
 }
 
 .footer-links {
@@ -2069,7 +2100,7 @@ dialog.lightbox {
 
 /* --- New post composer (approved mock-ups, 20 Oct 2026) --- */
 
-/* Phones: fills the screen. From 640px: a card (see Responsive). Its panels open as a pop-up (dialog.composer-dialog). */
+/* Phones: fills the screen. From 640px: a card (see Responsive), which on the feed pops out as a dialog. */
 .composer {
   display: flex;
   flex-direction: column;
@@ -2080,7 +2111,7 @@ dialog.lightbox {
   overflow: hidden;
 }
 
-dialog.composer-dialog {
+dialog.composer-modal {
   border: 0;
   padding: 0;
   margin: 0;
@@ -2088,37 +2119,54 @@ dialog.composer-dialog {
   max-height: 100dvh;
 }
 
-dialog.composer-dialog::backdrop {
+dialog.composer-modal:not([open]) {
+  display: none;
+}
+
+dialog.composer-modal::backdrop {
   background: rgba(17, 17, 17, 0.45);
+}
+
+.icon-btn-fill {
+  background: #f0f0ec;
+}
+
+/* The dialog's footer: "Add to your post" and its icons, what's still needed, then Post across the width. */
+.cmp-foot.cmp-foot-dialog {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  padding: 12px 20px 16px;
+}
+
+.cmp-addbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 4px 6px 4px 14px;
+}
+
+.cmp-addbar-label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.cmp-addbar-icons {
+  display: flex;
+  gap: 2px;
+}
+
+.cmp-foot-dialog .cmp-needed {
+  text-align: left;
+  padding: 0;
 }
 
 .composer-page {
   display: flex;
   justify-content: center;
-}
-
-/* Desktop: the composer in place at the top of the feed, like X. Beats the card styles below (two classes). */
-.composer.composer-inline {
-  width: 100%;
-  height: auto;
-  max-height: none;
-  overflow: visible;
-  border-radius: 0;
-  box-shadow: none;
-  border-bottom: 1px solid var(--line);
-}
-
-.composer-inline .cmp-scroll {
-  overflow: visible;
-}
-
-/* Post stays in reach while the details are filled in. */
-.composer-inline .cmp-foot {
-  gap: 8px;
-  position: sticky;
-  bottom: 0;
-  z-index: 1;
-  background: #ffffff;
 }
 
 .composer-posted {
@@ -2863,8 +2911,12 @@ dialog.composer-dialog::backdrop {
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18);
   }
 
-  dialog.composer-dialog {
+  dialog.composer-modal {
     margin: auto;
+  }
+
+  dialog.composer-modal.composer {
+    width: min(600px, calc(100vw - 32px));
   }
 
   .composer-page {
