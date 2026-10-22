@@ -505,6 +505,22 @@ function migrateIdentitySecrets(file) {
   }
 }
 
+// Turnstile is required even locally, so empty keys get Cloudflare's public test keys, which pass every check.
+// They aren't secrets (they're in Cloudflare's docs) and they're refused when deployed. Returns whether it changed anything.
+const TURNSTILE_TEST_KEYS = { TurnstileSecretKey: "1x0000000000000000000000000000000AA", TurnstileSiteKey: "1x00000000000000000000AA" };
+function fillTurnstileTestKeys(json) {
+  const captcha = json.Captcha;
+  if (!captcha) return false;
+  let changed = false;
+  for (const [key, value] of Object.entries(TURNSTILE_TEST_KEYS)) {
+    if (key in captcha && unset(captcha[key])) {
+      captcha[key] = value;
+      changed = true;
+    }
+  }
+  return changed;
+}
+
 function createConfig() {
   step("Creating your local config files");
   if (!existsSync(join(idsrv, "user-secrets.template.json"))) {
@@ -537,12 +553,13 @@ function createConfig() {
   if (addedElastic.length) ok(`bjk-core/.env: added ${addedElastic.join(", ")} for Elasticsearch and Kibana`);
 
   const fromTemplate = (template, edit) => {
-    const text = readFileSync(template, "utf8")
-      .replaceAll("<BJK_SQL_PASSWORD from your .env>", password)
-      .replaceAll("<BJK_SQL_PASSWORD from bjk-identity-server/.env>", password)
-      .replaceAll("<BJK_SQL_PASSWORD from bjk-core/.env>", password);
-    const json = JSON.parse(text);
+    // The templates leave the SQL password empty (Password=;): it's the one in bjk-core/.env.
+    const json = JSON.parse(readFileSync(template, "utf8"));
+    for (const [name, value] of Object.entries(json.ConnectionStrings ?? {})) {
+      json.ConnectionStrings[name] = value.replace(/Password=;/, `Password=${password};`);
+    }
     edit(json);
+    fillTurnstileTestKeys(json);
     return `${JSON.stringify(json, null, 2)}\n`;
   };
 
@@ -550,8 +567,6 @@ function createConfig() {
     IDSRV_SECRETS,
     join(idsrv, "user-secrets.json"),
     () => fromTemplate(join(idsrv, "user-secrets.template.json"), (json) => {
-      // Placeholder until you've registered: put your confirmed email here to become the first admin.
-      if (json.Admin) json.Admin.BootstrapEmails = [];
       // The real head-turn check, with the model downloaded below.
       if (json.AgeAssurance?.Liveness) json.AgeAssurance.Liveness.ModelPath = livenessModel();
     }),
@@ -576,6 +591,13 @@ function createConfig() {
     "The API's and media worker's user secrets",
   );
 
+  for (const file of [CORE_SECRETS, IDSRV_SECRETS]) {
+    const json = JSON.parse(readFileSync(file, "utf8"));
+    if (fillTurnstileTestKeys(json)) {
+      writeFileSync(file, `${JSON.stringify(json, null, 2)}\n`);
+      ok(`${file}: empty Turnstile keys set to Cloudflare's public test keys`);
+    }
+  }
   migrateCoreSecrets(CORE_SECRETS);
   migrateIdentitySecrets(IDSRV_SECRETS);
   useOllamaIfThere(CORE_SECRETS);
