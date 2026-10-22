@@ -244,7 +244,7 @@ The format is below (`user-secrets.template.json`). Every value you'd get from a
       "FfprobePath": "ffprobe"
     },
     "Redaction": {
-      "//": "Face and number plate blurring (YuNet models), plus head blurring for everyone a person detector (YOLOX) finds, run by the media worker. FaceDetectionSize: faces are searched in a copy scaled to this many pixels (small faces are found far better enlarged). Head blurs never send media to review. The setup downloads the models and sets the paths; without them every upload waits for review. The rest are the defaults: detections below MinConfidence are ignored, from ConfidentAt they're blurred without review; frames are analysed every DetectEveryNthFrame at most DetectionMaxSize px. ReviewEverything true sends every upload to a moderator (live at launch). ExecutionProvider Cpu (Cuda only on a GPU worker image).",
+      "//": "Face and number plate blurring (YuNet models), plus head blurring for everyone a person detector (YOLOX) finds, run by the media worker. FaceDetectionSize: faces are searched in a copy scaled to this many pixels (small faces are found far better enlarged). Head blurs never send media to review. BlurPlateAreas: the person detector also finds vehicles, and where no plate was found on one, its lower middle (where the plate is) is blurred; this catches UK plates the plate model misses, like white front plates in headlight glare, and never sends media to review. The setup downloads the models and sets the paths; without them every upload waits for review. The rest are the defaults: detections below MinConfidence are ignored, from ConfidentAt they're blurred without review; frames are analysed every DetectEveryNthFrame at most DetectionMaxSize px. ReviewEverything true sends every upload to a moderator (live at launch). ExecutionProvider Cpu (Cuda only on a GPU worker image).",
       "FaceModelPath": "",
       "PlateModelPath": "",
       "PersonModelPath": "",
@@ -256,6 +256,9 @@ The format is below (`user-secrets.template.json`). Every value you'd get from a
       "PlateTrackConfidence": 0.3,
       "HeadMinConfidence": 0.4,
       "HeadTrackConfidence": 0.25,
+      "BlurPlateAreas": true,
+      "VehicleMinConfidence": 0.3,
+      "VehicleTrackConfidence": 0.2,
       "FaceDetectionSize": 1440,
       "BoxPadding": 0.25,
       "DetectEveryNthFrame": 5,
@@ -374,6 +377,7 @@ There are no provider switches: a service is used when its settings are filled i
 | `Media:Processing:FfmpegPath`, `FfprobePath` | Where ffmpeg is. `ffmpeg` and `ffprobe` work if they're on your `PATH`; otherwise use the full path, e.g. `/opt/homebrew/bin/ffmpeg` |
 | `Media:Redaction:FaceModelPath`, `PlateModelPath`, `PersonModelPath` | The blurring models (set by the setup). Without them every upload goes to `NeedsReview` |
 | `Media:SensitiveDetection:*` | The CLIP model for the nudity and graphic content checks (set by the setup; without it a stand-in that flags mostly red pictures runs locally), and its thresholds |
+| `Media:Redaction:BlurPlateAreas`, `VehicleMinConfidence`, `VehicleTrackConfidence` | Blur the lower middle of every vehicle the person detector finds when no plate was found on it (the plate model misses many UK plates, such as white front plates at night). Never holds uploads for review |
 | `Media:Redaction:*` (the rest) | How blurring decides: confidence thresholds, how often frames are analysed, `ReviewEverything` (false locally, true live at launch), CPU or GPU |
 | `Media:KnownImages:*`, `BlockedUrls:*` | The known illegal image check and blocked web addresses: on, with the harmless test entries locally (see "Online safety checks") |
 | `Screening:*` | Text screening: the keyword list, plus a classifier when `Endpoint` is set (empty locally) |
