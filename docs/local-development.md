@@ -194,7 +194,7 @@ Once there's a Cloudflare account, you can point your user secrets at shared dev
 
 ## 6. Your settings: .NET user secrets
 
-The repos' `appsettings` files hold no environment settings. On your machine, settings come from .NET **user secrets**. They're stored in your home folder, never in a repo, and they load only when the app runs in Development. Each repo has a `user-secrets.template.json` showing every setting and its format; the setup writes your own copy **straight into the user secrets** (with your SQL password, keys and model paths filled in), and after that it only adds or renames settings, never overwrites yours.
+The repos' `appsettings` files hold no environment settings. On your machine, settings come from .NET **user secrets**. They're stored in your home folder, never in a repo, and they load only when the app runs in Development. Each repo has a `user-secrets.template.json` showing every setting and its format; the template's values are blank (`""`) except plain local settings like addresses and thresholds. The setup writes your own copy **straight into the user secrets**, filling in only what it knows or makes itself (your SQL password, generated keys, model paths, Turnstile's test keys); supplier keys you'd get yourself (SendGrid, Twilio, Yoti, social sign-in) stay empty, and after that it only adds or renames settings, never overwrites yours.
 
 **To view or change them**, open the app's secrets file:
 
@@ -208,16 +208,16 @@ Edit, save, and restart the app; there's nothing to load. It's ordinary JSON in 
 
 ### Identity server
 
-The settings and their format are in `bjk-identity-server/user-secrets.template.json`. The identity server writes user events straight into the API's queue table in `badjockeys` (`ConnectionStrings:BadJockeysDatabase` in its user secrets). Until the API has started once and created it, the events wait in the identity server's outbox. The CAPTCHA key is Cloudflare's public test key, which always passes. The identity server's own guide (`bjk-identity-server/docs/local-development.md`) explains it, along with the email placeholder and the test clients.
+The settings and their format are in `bjk-identity-server/user-secrets.template.json`. The identity server writes user events straight into the API's queue table in `badjockeys` (`ConnectionStrings:BadJockeysDatabase` in its user secrets). Until the API has started once and created it, the events wait in the identity server's outbox. The CAPTCHA keys are empty in the template; the setup puts in Cloudflare's public test keys, which always pass. `Admin:BootstrapEmails` starts empty: add your email once you've registered. The identity server's own guide (`bjk-identity-server/docs/local-development.md`) explains it, along with the email placeholder and the test clients.
 
 ### API
 
-The format is (`user-secrets.template.json`; the setup fills in the passwords, keys and model paths):
+The format is below (`user-secrets.template.json`). Every value you'd get from a supplier account (SendGrid, Twilio, Turnstile, push and classifier endpoints) is empty `""`, and so is everything the setup knows or makes: the SQL password (`Password=;`), the model paths and the viewer key secret. The setup fills those in your copy; supplier keys stay empty locally, and each feature falls back to its local stand-in.
 
 ```json
 {
   "ConnectionStrings": {
-    "BadJockeysDatabase": "Server=localhost,1433;Database=badjockeys;User Id=sa;Password=<BJK_SQL_PASSWORD from bjk-core/.env>;TrustServerCertificate=True;MultipleActiveResultSets=true"
+    "BadJockeysDatabase": "Server=localhost,1433;Database=badjockeys;User Id=sa;Password=;TrustServerCertificate=True;MultipleActiveResultSets=true"
   },
   "Authentication": {
     "//": "The identity server.",
@@ -244,14 +244,19 @@ The format is (`user-secrets.template.json`; the setup fills in the passwords, k
       "FfprobePath": "ffprobe"
     },
     "Redaction": {
-      "//": "Face and number plate blurring (YuNet models, run by the media worker). The setup downloads the models and sets the paths; without them every upload waits for review. The rest are the defaults: detections below MinConfidence are ignored, from ConfidentAt they're blurred without review; frames are analysed every DetectEveryNthFrame at most DetectionMaxSize px. ReviewEverything true sends every upload to a moderator (live at launch). ExecutionProvider Cpu (Cuda only on a GPU worker image).",
-      "FaceModelPath": "<set by the setup>",
-      "PlateModelPath": "<set by the setup>",
-      "PersonModelPath": "<set by the setup>",
+      "//": "Face and number plate blurring (YuNet models), plus head blurring for everyone a person detector (YOLOX) finds, run by the media worker. FaceDetectionSize: faces are searched in a copy scaled to this many pixels (small faces are found far better enlarged). Head blurs never send media to review. The setup downloads the models and sets the paths; without them every upload waits for review. The rest are the defaults: detections below MinConfidence are ignored, from ConfidentAt they're blurred without review; frames are analysed every DetectEveryNthFrame at most DetectionMaxSize px. ReviewEverything true sends every upload to a moderator (live at launch). ExecutionProvider Cpu (Cuda only on a GPU worker image).",
+      "FaceModelPath": "",
+      "PlateModelPath": "",
+      "PersonModelPath": "",
       "FaceMinConfidence": 0.5,
       "FaceConfidentAt": 0.5,
       "PlateMinConfidence": 0.5,
       "PlateConfidentAt": 0.8,
+      "FaceTrackConfidence": 0.3,
+      "PlateTrackConfidence": 0.3,
+      "HeadMinConfidence": 0.4,
+      "HeadTrackConfidence": 0.25,
+      "FaceDetectionSize": 1440,
       "BoxPadding": 0.25,
       "DetectEveryNthFrame": 5,
       "MaxMissedDetections": 3,
@@ -266,7 +271,7 @@ The format is (`user-secrets.template.json`; the setup fills in the passwords, k
     },
     "SensitiveDetection": {
       "//": "Nudity and graphic content checks (CLIP), on when ModelPath is set; the setup downloads the model and sets it. Without it a stand-in that flags mostly red pictures runs locally. Graphic content at or above Threshold is marked sensitive (shown blurred, queued for a moderator); nudity at or above NudityThreshold is held for a moderator. SampleEvery: score every Nth analysed video frame.",
-      "ModelPath": "<set by the setup: bjk-core/.local/models/clip-vit-b32-vision-quantized.onnx>",
+      "ModelPath": "",
       "Threshold": 0.35,
       "NudityThreshold": 0.3,
       "SampleEvery": 3
@@ -278,6 +283,12 @@ The format is (`user-secrets.template.json`; the setup fills in the passwords, k
       "PdqMaxDistance": 31,
       "PdqMinQuality": 50,
       "SyncInterval": "06:00:00"
+    },
+    "Describe": {
+      "//": "'Suggest a description': a vision model (Qwen3-VL) behind an OpenAI-compatible API. Empty Endpoint = a stand-in writes a fixed example draft. With Ollama on this computer the setup fills these in: Endpoint http://localhost:11434/v1, Model qwen3-vl:8b (see 'AI suggestions' in docs/local-development.md). Required when deployed: the GPU container.",
+      "Endpoint": "",
+      "Model": "qwen3-vl:8b",
+      "MaxPerDay": 10
     }
   },
   "Email": {
@@ -297,8 +308,8 @@ The format is (`user-secrets.template.json`; the setup fills in the passwords, k
     }
   },
   "Captcha": {
-    "//": "Cloudflare's public test secret, which accepts every token (the public report form sends X-Captcha-Token).",
-    "TurnstileSecretKey": "1x0000000000000000000000000000000AA"
+    "//": "Turnstile, for the public report form (it sends X-Captcha-Token). Required: empty, the setup puts in Cloudflare's public test secret, which accepts every token.",
+    "TurnstileSecretKey": ""
   },
   "Screening": {
     "//": "Text screening of posts and comments: the built-in keyword list always runs. Endpoint (optional) adds a classifier service (e.g. Detoxify); empty = keywords only. Scores from FlagThreshold publish but are flagged; from HoldThreshold they're held for review.",
@@ -318,7 +329,7 @@ The format is (`user-secrets.template.json`; the setup fills in the passwords, k
       "Anonymous": 10,
       "Free": 25
     },
-    "ViewerKeySecret": "<generated by the setup>"
+    "ViewerKeySecret": ""
   },
   "Heatmap": {
     "//": "Map squares with fewer than MinCellCount incidents are hidden. History in days by plan.",
@@ -368,7 +379,7 @@ There are no provider switches: a service is used when its settings are filled i
 | `Screening:*` | Text screening: the keyword list, plus a classifier when `Endpoint` is set (empty locally) |
 | `Email:SendGrid:ApiKey` | Empty: emails are written to the console, not sent. Set: SendGrid sends them |
 | `SMS:Twilio:*` | Empty: texts are written to the console. Set: Twilio sends them |
-| `Captcha:TurnstileSecretKey` | Cloudflare's test secret, for the public report form |
+| `Captcha:TurnstileSecretKey` | Empty in the template. It's required even locally, so the setup puts in Cloudflare's public test secret (accepts every token), for the public report form |
 | `Reels:*`, `Heatmap:*`, `Plans:Overrides` | Daily plays and the viewer key secret (made by the setup); the heat map's limits; plans for test accounts until billing exists (the setup gives yours Premium+) |
 | `Notifications:AppUrl`, `Notifications:Push:*` | The web app's address for email links; this computer's web push key pair (made by the setup) |
 | `Queues:*` | Optional. The queues are tables in `BadJockeysDatabase` (schema `messaging`), created automatically. `UserEvents` receives account deactivations, reactivations and deletions from the identity server; `MediaEvents` receives media ready/failed for Posts; `MediaProcessing` holds the worker's jobs |
@@ -428,7 +439,7 @@ If you add a setting, add it to `user-secrets.template.json` (or `.env.local.exa
 
 On your machine nothing needs a supplier account: S3Mock stands in for R2, email and texts go to the console (no SendGrid or Twilio keys), the CAPTCHA uses Cloudflare's test keys, and maps use OpenStreetMap's public tiles. These are what a deployed environment must change. Secrets are container secrets; everything else is a container setting (Terraform). Nothing needs a cloud-specific service such as Key Vault. Nested keys become environment variables with `__`, e.g. `Email__SendGrid__ApiKey`. The identity server's list is in its README.
 
-**Outside Development the apps refuse to start** until every required setting below is set to a live value (no missing keys, test keys, http addresses or `<...>` placeholders), listing everything that's missing at once. `--check-settings` runs the same check without starting: e.g. `dotnet BJK.Core.Api.dll --check-settings` with an environment's settings exits 1 and lists the problems. The deploy pipeline runs it before deploying.
+**Outside Development the apps refuse to start** until every required setting below is set to a live value (no missing or empty keys, test keys, http addresses or `<...>` placeholders), listing everything that's missing at once. `--check-settings` runs the same check without starting: e.g. `dotnet BJK.Core.Api.dll --check-settings` with an environment's settings exits 1 and lists the problems. The deploy pipeline runs it before deploying.
 
 **API and media worker** (they share their settings):
 
