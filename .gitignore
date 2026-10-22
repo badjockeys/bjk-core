@@ -1,6 +1,8 @@
 # Local secrets
 .env
+# Old local copies of the user secrets (before 22 Oct 2026 the setup kept them here); now moved into .NET user secrets
 user-secrets.json
+user-secrets.json.moved
 **/.env.local
 
 # .NET

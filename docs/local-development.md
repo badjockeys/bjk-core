@@ -50,10 +50,9 @@ Expect to approve a few things: Windows UAC prompts or your Mac password for ins
 `scripts/setup-local.mjs` is the part that sets up the project once the tools are there. Run it on its own with **Terminal → Run Task… → "Set up (one-off)"** in VS Code, or `node scripts/setup-local.mjs` in bjk-core. It:
 
 - checks the tools, and access to the package feed. It uses the `NuGetPackageSourceCredentials_badjockeys` variable if you've set one ([step 3](#3-give-nuget-access-to-the-bad-jockeys-package-feed)); otherwise it takes your GitHub CLI sign-in and saves it in your user-level `NuGet.Config`, so every terminal and editor can restore the packages;
-- creates your git-ignored config files from the templates, with your own SQL password and secrets (`bjk-core/.env`, `bjk-identity-server/user-secrets.json`, `bjk-core/user-secrets.json`, `src/web/.env.local`); files you already have are left alone;
+- creates your git-ignored config files from the templates, with your own SQL password and secrets (`bjk-core/.env`, the identity server's and the API's .NET user secrets, `src/web/.env.local`); files you already have are left alone;
 - trusts the HTTPS development certificate and exports it for Node.js;
 - starts SQL Server, S3Mock, Elasticsearch, Kibana and the OpenTelemetry collector in Docker (the `bad-jockeys` group, replacing the old layout's two groups and the old Grafana containers if they're there) and waits until they're all ready;
-- loads the .NET user secrets (replacing what was there for the identity server and the API);
 - downloads the face and number plate blurring models into `bjk-core/.local/models` (git-ignored), checking each file's SHA-256;
 - builds the .NET apps and installs the web app's packages.
 
@@ -193,52 +192,25 @@ S3Mock doesn't check keys, so the `local` keys in the template work as they are.
 
 Once there's a Cloudflare account, you can point your user secrets at shared dev buckets instead. Create an R2 API token with **Object Read & Write** limited to the `bjk-dev-*` buckets, then set `Media:Storage:ServiceUrl` to `https://<account id>.r2.cloudflarestorage.com`, the two keys to the token's values, and `PublicBaseUrl` to the public bucket's URL. The dev originals bucket also needs a CORS rule allowing `PUT` from `http://localhost:3000`, and a lifecycle rule that deletes originals after 90 days. Both will move into Terraform.
 
-## 6. Load your settings into user secrets
+## 6. Your settings: .NET user secrets
 
-The repos' `appsettings` files hold no environment settings. On your machine, settings come from .NET **user secrets**. These are stored in your home folder, never in a repo, and they load only when the app runs in Development. Each repo has a `user-secrets.template.json` that shows every setting and its format.
+The repos' `appsettings` files hold no environment settings. On your machine, settings come from .NET **user secrets**. They're stored in your home folder, never in a repo, and they load only when the app runs in Development. Each repo has a `user-secrets.template.json` showing every setting and its format; the setup writes your own copy **straight into the user secrets** (with your SQL password, keys and model paths filled in), and after that it only adds or renames settings, never overwrites yours.
+
+**To view or change them**, open the app's secrets file:
+
+- **VS Code:** install Microsoft's **C# Dev Kit** extension, then right-click `src/BJK.Core.Api/BJK.Core.Api.csproj` (or `bjk-identity-server/src/BJK.Idsrv.Host/BJK.Idsrv.Host.csproj`) → **Manage User Secrets**. Without the extension the command says `csdevkit.manageUserSecrets not found`; open the file directly instead: `code ~/.microsoft/usersecrets/bjk-core-api/secrets.json`.
+- **Rider:** right-click the project → **Tools → .NET User Secrets**. **Visual Studio:** right-click the project → **Manage User Secrets**.
+- **The files:** the API and the media worker share `bjk-core-api` (`~/.microsoft/usersecrets/bjk-core-api/secrets.json` on a Mac, `%APPDATA%\Microsoft\UserSecrets\bjk-core-api\secrets.json` on Windows); the identity server is `bjk-identity-server`.
+
+Edit, save, and restart the app; there's nothing to load. It's ordinary JSON in sections, like `appsettings.json`.
+
+**Before 22 Oct 2026** the setup kept a copy in `bjk-core/user-secrets.json` and `bjk-identity-server/user-secrets.json` and loaded it each run, which overwrote changes made with Manage User Secrets. The next setup run moves those copies into the user secrets (renaming them `user-secrets.json.moved`, no longer used) and tidies the secrets into sections.
 
 ### Identity server
 
-```bash
-cd ~/Git/GitHub/badjockeys/bjk-identity-server
-cp user-secrets.template.json user-secrets.json        # git-ignored
-# edit user-secrets.json: your SQL password from bjk-core/.env (in both connection strings)
-dotnet user-secrets set --project src/BJK.Idsrv.Host < user-secrets.json
-```
-
-The format is:
-
-```json
-{
-  "ConnectionStrings": {
-    "IdentityDatabase": "Server=localhost,1433;Database=idsrv;User Id=sa;Password=<BJK_SQL_PASSWORD from bjk-core/.env>;TrustServerCertificate=True;MultipleActiveResultSets=true",
-    "Messaging": "Server=localhost,1433;Database=badjockeys;User Id=sa;Password=<BJK_SQL_PASSWORD from bjk-core/.env>;TrustServerCertificate=True"
-  },
-  "Email": {
-    "FromAddress": "no-reply@badjockeys.local",
-    "PasswordResetUrl": "http://localhost:3000/reset-password"
-  },
-  "Captcha": {
-    "TurnstileSecretKey": "1x0000000000000000000000000000000AA"
-  },
-  "Messaging": {
-    "ConnectionStringName": "Messaging",
-    "CreateTables": false
-  }
-}
-```
-
-The identity server writes user events straight into the API's queue table in `badjockeys` (`ConnectionStrings:BadJockeysDatabase` in its user secrets). Until the API has started once and created it, the events wait in the identity server's outbox. The CAPTCHA key is Cloudflare's public test key, which always passes. The identity server's own guide (`bjk-identity-server/docs/local-development.md`) explains it, along with the email placeholder and the test clients.
+The settings and their format are in `bjk-identity-server/user-secrets.template.json`. The identity server writes user events straight into the API's queue table in `badjockeys` (`ConnectionStrings:BadJockeysDatabase` in its user secrets). Until the API has started once and created it, the events wait in the identity server's outbox. The CAPTCHA key is Cloudflare's public test key, which always passes. The identity server's own guide (`bjk-identity-server/docs/local-development.md`) explains it, along with the email placeholder and the test clients.
 
 ### API
-
-```bash
-cd ~/Git/GitHub/badjockeys/bjk-core
-cp user-secrets.template.json user-secrets.json        # git-ignored
-# edit user-secrets.json: your SQL password (the storage settings already point at S3Mock)
-dotnet user-secrets set --project src/BJK.Core.Api < user-secrets.json
-dotnet user-secrets list --project src/BJK.Core.Api    # check they're all there
-```
 
 The format is (`user-secrets.template.json`; the setup fills in the passwords, keys and model paths):
 
@@ -401,7 +373,7 @@ There are no provider switches: a service is used when its settings are filled i
 | `Notifications:AppUrl`, `Notifications:Push:*` | The web app's address for email links; this computer's web push key pair (made by the setup) |
 | `Queues:*` | Optional. The queues are tables in `BadJockeysDatabase` (schema `messaging`), created automatically. `UserEvents` receives account deactivations, reactivations and deletions from the identity server; `MediaEvents` receives media ready/failed for Posts; `MediaProcessing` holds the worker's jobs |
 
-**Older files.** If your `user-secrets.json` was made before 21 Oct 2026, the setup renames its settings for you (`AppDatabase` → `BadJockeysDatabase`, `Messaging` → `Queues`, the `Provider` and `Enabled` switches removed) and does the same for the identity server's once that repo is up to date.
+**Older settings.** If your user secrets were made before 21 Oct 2026, the setup renames its settings for you (`AppDatabase` → `BadJockeysDatabase`, `Messaging` → `Queues`, the `Provider` and `Enabled` switches removed) and does the same for the identity server's once that repo is up to date.
 
 Some settings are optional:
 
@@ -417,13 +389,7 @@ Some settings are optional:
 | `Media:Processing:VideoHeight`, `VideoCrf` | 720, 23 |
 | `Media:Processing:ImageMaxSize`, `ThumbnailMaxSize` | 2048, 640 pixels |
 
-The media worker shares the API's user secrets (same `UserSecretsId`), so you load them once.
-
-To change one setting later:
-
-```bash
-dotnet user-secrets set "Media:Storage:AccessKeyId" "<new key>" --project src/BJK.Core.Api
-```
+The media worker shares the API's user secrets (same `UserSecretsId`), so one file covers both. Change settings with Manage User Secrets (above); `dotnet user-secrets set` works too, but it rewrites the whole file with flat `Section:Key` names (the setup tidies them back into sections next time).
 
 ### Web app
 
@@ -671,7 +637,7 @@ Three helpers in the composer. They only ever suggest: the person confirms or ed
 | **Trim suggestion** | For videos over 30 seconds, the trim screen measures loudness and how much the picture changes, in the browser, and starts the handles on the 30 seconds with the most going on | Works as deployed |
 | **"Suggest a description"** | Sends up to 6 blurred pictures and the details filled in to Qwen3-VL (a vision language model) on our own GPU; fills an empty title and description, or offers the draft to use instead. 10 a day each | A stand-in writes a fixed example draft, unless Ollama is set up (below) |
 
-**Using the real description model on your Mac.** Install [Ollama](https://ollama.com), run `ollama pull qwen3-vl:8b` (about 6 GB; an Apple Silicon Mac with 16 GB or more is best), then run the setup again: it sets `Media:Describe:Endpoint` to `http://localhost:11434/v1` and `Media:Describe:Model` to `qwen3-vl:8b`. A draft takes 10 to 30 seconds on a laptop. To go back to the stand-in, empty `Media:Describe:Endpoint` in `user-secrets.json` and run the setup.
+**Using the real description model on your Mac.** Install [Ollama](https://ollama.com), run `ollama pull qwen3-vl:8b` (about 6 GB; an Apple Silicon Mac with 16 GB or more is best), then run the setup again: it sets `Media:Describe:Endpoint` to `http://localhost:11434/v1` and `Media:Describe:Model` to `qwen3-vl:8b`. A draft takes 10 to 30 seconds on a laptop. To go back to the stand-in, empty `Media:Describe:Endpoint` in the API's user secrets (Manage User Secrets) and restart the worker.
 
 **When deployed** the description model runs in its own container on a serverless GPU (vLLM serving Qwen3-VL-8B), and `Media:Describe:Endpoint` is its internal address: the media worker won't start without it.
 
@@ -758,7 +724,7 @@ cd ~/Git/GitHub/badjockeys/bjk-core && docker compose down -v && docker compose 
 ## Troubleshooting
 
 - **`NU1301` or `401 Unauthorized` on restore.** The NuGet token isn't set in this terminal, or has expired (step 3). Check with `echo $NuGetPackageSourceCredentials_badjockeys`.
-- **`Connection string '...' is not configured` or `The ... field is required`.** Your user secrets aren't loaded (step 6), or the app isn't running in Development. The `https` launch profile sets Development.
+- **`Connection string '...' is not configured` or `The ... field is required`.** Your user secrets are missing (run the setup; step 6), or the app isn't running in Development. The `https` launch profile sets Development.
 - **`Login failed for user 'sa'`.** The password in your user secret doesn't match `bjk-core/.env`. If you changed `.env` after the container was first created, SQL Server still has the old password: in bjk-core run `docker compose down -v` (this deletes local data), then `docker compose up -d --wait`.
 - **`A network-related or instance-specific error`.** SQL Server isn't running or isn't healthy yet. Run `docker ps`, then `docker compose logs sql` in bjk-core.
 - **A job or event doesn't arrive.** Look in the queue tables (`SELECT * FROM [messaging].[media.process]`) and their `.failed` tables; [messaging.md](messaging.md) shows how to read why a message was dead-lettered.
