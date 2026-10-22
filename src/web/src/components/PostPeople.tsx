@@ -1,23 +1,7 @@
 import Link from "next/link";
 
 import { profilePath } from "@/lib/paths";
-import type { PassengerDto, RoadUser } from "@/lib/types";
-
-const ROAD_USER_LABELS: Record<RoadUser, string> = {
-  Driver: "Driver",
-  Cyclist: "Cyclist",
-  Both: "Driver and cyclist",
-};
-
-/** The label for a road user type. Posts send it as plain text (the Posts module doesn't share Profiles' enum). */
-export function roadUserLabel(value: RoadUser | string): string {
-  return ROAD_USER_LABELS[value as RoadUser] ?? value;
-}
-
-/** "Cyclist" next to a name, when they chose to show it. */
-export function RoadBadge({ value }: { value: RoadUser | string | null | undefined }) {
-  return value ? <span className="road-badge">{roadUserLabel(value)}</span> : null;
-}
+import type { PassengerDto } from "@/lib/types";
 
 /**
  * "with Sam J and Alex P": passengers who accepted their tag. `showPending` (the author) also lists people who

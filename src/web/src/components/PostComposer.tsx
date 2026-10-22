@@ -38,7 +38,6 @@ import {
 } from "@/lib/upload";
 
 import { Avatar } from "./Avatar";
-import { SuggestDescription, TypeSuggestionChips } from "./ComposerSuggestions";
 import {
   ArrowBackIcon,
   ChevronIcon,
@@ -189,8 +188,6 @@ export function PostComposer({
     reportedToPolice: null,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
-  // Types the composer suggested from the pictures, sent with the post to measure how often they're accepted.
-  const [suggestedTypes, setSuggestedTypes] = useState<IncidentCategory[]>([]);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -482,7 +479,6 @@ export function PostComposer({
         handle,
         displayName: `@${handle}`,
         avatarUrl: null,
-        roadUser: null,
       })),
       vehicle: draft.vehicleType
         ? {
@@ -603,12 +599,6 @@ export function PostComposer({
     return problems;
   };
 
-  // The media ids once every photo or the video is ready (the AI suggestions only use finished, blurred files).
-  const readyIds =
-    items.length > 0 && items.every((i) => i.status === "ready" && i.mediaId)
-      ? items.map((i) => i.mediaId!)
-      : [];
-
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     setSubmitError(null);
@@ -639,7 +629,6 @@ export function PostComposer({
         isSensitive: fields.sensitive,
         // Posting a draft deletes the draft (its photos stay, in the post).
         draftId,
-        suggestedTypes: suggestedTypes.length > 0 ? suggestedTypes : null,
       };
       let result = await createPost(request);
       // An API without fast posting wants every file Ready first: wait, then try again.
@@ -883,31 +872,6 @@ export function PostComposer({
               {fields.description.length} / {DESCRIPTION_MAX}
             </span>
             {errors.description ? <span className="error">{errors.description}</span> : null}
-            <SuggestDescription
-              mediaIds={readyIds}
-              title={fields.title}
-              description={fields.description}
-              context={{
-                types: fields.types,
-                placeName: fields.placeName || null,
-                incidentAt: ukLocalToIso(fields.date, fields.time) ?? null,
-                vehicle: fields.vehicle
-                  ? {
-                      type: fields.vehicle.type,
-                      make: fields.vehicle.make,
-                      model: fields.vehicle.model,
-                      colour: fields.vehicle.colour,
-                    }
-                  : null,
-              }}
-              onUse={(draft) =>
-                setFields((current) => ({
-                  ...current,
-                  title: draft.title ?? current.title,
-                  description: draft.description ?? current.description,
-                }))
-              }
-            />
           </div>
         </div>
 
@@ -986,12 +950,6 @@ export function PostComposer({
               )}
             </div>
           </div>
-          <TypeSuggestionChips
-            mediaIds={readyIds}
-            chosen={fields.types}
-            onAdd={(type) => toggleType(type, true)}
-            onShown={(types) => setSuggestedTypes((current) => [...new Set([...current, ...types])])}
-          />
           {errors.types ? <span className="error">{errors.types}</span> : null}
 
           <div className="cmp-row">

@@ -35,7 +35,6 @@ import type {
   SaveDraftRequest,
   ReportReason,
   TimelineRequest,
-  RoadUser,
   VoteChoice,
   VoteDuration,
 } from "./types";
@@ -214,8 +213,6 @@ export function endpoints(api: ApiClient) {
         posts(token).posts_ListProfileReplies(handle, page, pageSize),
       get: (token: string | null, postId: string) => posts(token).posts_Get(postId),
       create: (token: string, body: CreatePostRequest) => posts(token).posts_Create(body),
-      /** Incident types suggested from the caller's ready media ("Looks like: ..."). */
-      suggestTypes: (token: string, mediaIds: string[]) => posts(token).posts_SuggestTypes({ mediaIds }),
       remove: (token: string, postId: string) => posts(token).posts_Delete(postId),
       react: (token: string, postId: string, type: ReactionType) =>
         posts(token).posts_React(postId, { type }),
@@ -317,8 +314,6 @@ export function endpoints(api: ApiClient) {
       update: (token: string, body: { displayName: string; bio: string | null; location: string | null }) =>
         profiles(token).profiles_Update(body),
       changeHandle: (token: string, handle: string) => profiles(token).profiles_ChangeHandle({ handle }),
-      setRoadUser: (token: string, roadUser: RoadUser | null, show: boolean) =>
-        profiles(token).profiles_SetRoadUser({ roadUser, show }),
       setAvatar: (token: string, mediaId: string | null) => profiles(token).profiles_SetAvatar({ mediaId }),
       handleAvailability: (handle: string) => profiles(null).profiles_CheckHandle(handle),
       blocks: (token: string) => profiles(token).profiles_ListBlocks(),
@@ -356,31 +351,6 @@ export function endpoints(api: ApiClient) {
       complete: (token: string, mediaId: string) => client(MediaClient, { token }).media_Complete(mediaId),
       get: (token: string, mediaId: string) => client(MediaClient, { token }).media_Get(mediaId),
       remove: (token: string, mediaId: string) => client(MediaClient, { token }).media_Delete(mediaId),
-      /** "Suggest a description": queues a draft (poll getDescription). 429 after 10 a day. */
-      requestDescription: (
-        token: string,
-        mediaIds: string[],
-        context: {
-          types: IncidentCategory[];
-          placeName: string | null;
-          incidentAt: string | null;
-          vehicle: {
-            type: string | null;
-            make: string | null;
-            model: string | null;
-            colour: string | null;
-          } | null;
-        },
-      ) =>
-        client(MediaClient, { token }).media_RequestDescription({
-          mediaIds,
-          types: context.types,
-          placeName: context.placeName,
-          incidentAt: context.incidentAt,
-          isDark: null,
-          vehicle: context.vehicle,
-        }),
-      getDescription: (token: string, id: string) => client(MediaClient, { token }).media_GetDescription(id),
     },
     reels: {
       /** A page of reels. Logged-out viewers are counted by their viewer id. */

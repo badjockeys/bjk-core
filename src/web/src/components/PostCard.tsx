@@ -12,7 +12,7 @@ import { HashtagText } from "./HashtagText";
 import { CommentIcon, PinIcon, TagIcon } from "./icons";
 import { PostMedia } from "./PostMedia";
 import { PostMoreMenu } from "./PostMoreMenu";
-import { RoadBadge, WithPassengers } from "./PostPeople";
+import { WithPassengers } from "./PostPeople";
 import { ReactionCount } from "./ReactionCount";
 import { SaveButton } from "./SaveButton";
 import { SeenMarker } from "./SeenMarker";
@@ -54,7 +54,6 @@ export function PostCard({ post, viewer }: { post: PostDto; viewer: Viewer }) {
             <span className="tw-name">{post.author.displayName}</span>
           )}
           {post.author.handle ? <span className="tw-handle">@{post.author.handle}</span> : null}
-          <RoadBadge value={post.author.roadUser} />
           <span className="tw-time">
             ·{" "}
             <time dateTime={post.createdAt} suppressHydrationWarning>

@@ -4,7 +4,6 @@ import Link from "next/link";
 import { AppShell, FooterLinks } from "@/components/AppShell";
 import { ReelsPlayer } from "@/components/ReelsPlayer";
 import { getViewer } from "@/lib/auth";
-import { categoryBySlug } from "@/lib/categories";
 import { loadReels } from "@/lib/reels";
 
 export const metadata: Metadata = {
@@ -14,14 +13,8 @@ export const metadata: Metadata = {
 };
 
 /** Screens 27 and 29: reels, a full-screen feed of video posts with a daily allowance by plan. */
-export default async function ReelsPage({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
-  const params = await searchParams;
-  const category = categoryBySlug(typeof params.category === "string" ? params.category : "")?.value;
-  const [viewer, first] = await Promise.all([getViewer(), loadReels(null, category)]);
+export default async function ReelsPage() {
+  const [viewer, first] = await Promise.all([getViewer(), loadReels(null)]);
   const unlimited = first?.ok === true && first.page.dailyPlayLimit === null;
 
   return (
@@ -58,12 +51,10 @@ export default async function ReelsPage({
       }
     >
       <ReelsPlayer
-        key={category ?? "all"}
         initial={first?.ok ? first.page : null}
         limitReached={first && !first.ok ? { limit: first.limit.limit } : null}
         failed={first === null}
         viewer={viewer}
-        category={category ?? null}
       />
     </AppShell>
   );
