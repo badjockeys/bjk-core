@@ -95,6 +95,7 @@ const post: PostDto = {
   vote: null,
   isFollowing: false,
   isSaved: false,
+  shareCount: 0,
   isProcessing: false,
 };
 

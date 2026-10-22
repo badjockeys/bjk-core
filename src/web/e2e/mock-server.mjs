@@ -1421,7 +1421,13 @@ async function api(req, res, url) {
       return send(res, 200, {
         people: page(matches, url, ([id, t]) => {
           const profile = db.profiles.get(id);
-          return { userId: id, handle: profile.handle, displayName: profile.displayName, avatarUrl: avatarUrl(profile), type: t };
+          return {
+            userId: id,
+            handle: profile.handle,
+            displayName: profile.displayName,
+            avatarUrl: avatarUrl(profile),
+            type: t,
+          };
         }),
         counts: counts(map),
         total: all.length,

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { listReactions } from "@/actions/posts";
 import { profilePath } from "@/lib/paths";
@@ -36,18 +36,33 @@ export function ReactionsDialog({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Search a moment after typing stops.
-  useEffect(() => {
-    const timer = setTimeout(() => setQuery(search.trim()), 250);
-    return () => clearTimeout(timer);
-  }, [search]);
+  // Only the newest request's answer is shown (tabs and searches can overlap).
+  const latest = useRef(0);
 
-  useEffect(() => {
-    let current = true;
+  const load = (nextType: ReactionType | null, nextQuery: string) => {
+    const ticket = ++latest.current;
     setLoading(true);
     setError(null);
-    void listReactions(postId, { type, search: query, page: 1, pageSize: PAGE_SIZE }).then((result) => {
-      if (!current) return;
+    void listReactions(postId, { type: nextType, search: nextQuery, page: 1, pageSize: PAGE_SIZE }).then(
+      (result) => {
+        if (ticket !== latest.current) return;
+        setLoading(false);
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
+        setData(result.data);
+        setPeople(result.data.people.items);
+        setPage(1);
+      },
+    );
+  };
+
+  // The first page, when the dialog opens.
+  useEffect(() => {
+    const ticket = ++latest.current;
+    void listReactions(postId, { type: null, search: "", page: 1, pageSize: PAGE_SIZE }).then((result) => {
+      if (ticket !== latest.current) return;
       setLoading(false);
       if (!result.ok) {
         setError(result.error);
@@ -55,12 +70,25 @@ export function ReactionsDialog({
       }
       setData(result.data);
       setPeople(result.data.people.items);
-      setPage(1);
     });
-    return () => {
-      current = false;
-    };
-  }, [postId, type, query]);
+  }, [postId]);
+
+  // Search a moment after typing stops.
+  useEffect(() => {
+    const trimmed = search.trim();
+    if (trimmed === query) return;
+    const timer = setTimeout(() => {
+      setQuery(trimmed);
+      load(type, trimmed);
+    }, 250);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only a change in the box starts a search
+  }, [search]);
+
+  const pick = (nextType: ReactionType | null) => {
+    setType(nextType);
+    load(nextType, query);
+  };
 
   const more = async () => {
     setLoading(true);
@@ -86,7 +114,7 @@ export function ReactionsDialog({
           role="tab"
           aria-selected={type === null}
           className={`rx-tab${type === null ? " rx-tab-on" : ""}`}
-          onClick={() => setType(null)}
+          onClick={() => pick(null)}
         >
           All {total}
         </button>
@@ -98,7 +126,7 @@ export function ReactionsDialog({
             aria-selected={type === r.type}
             aria-label={`${r.label} ${counts[r.type] ?? 0}`}
             className={`rx-tab${type === r.type ? " rx-tab-on" : ""}`}
-            onClick={() => setType(r.type)}
+            onClick={() => pick(r.type)}
           >
             <span aria-hidden="true">{r.emoji}</span> {counts[r.type]}
           </button>
