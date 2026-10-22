@@ -11,7 +11,35 @@ permissions:
   packages: read
 
 env:
+  # Credentials for the "badjockeys" source in nuget.config.
   NuGetPackageSourceCredentials_badjockeys: Username=${{ github.actor }};Password=${{ secrets.GITHUB_TOKEN }}
+  # Throwaway passwords for the CI-only containers below.
+  SQL_PASSWORD: Ci-Passw0rd-2026
+  AWS_ACCESS_KEY_ID: ci-s3
+  AWS_SECRET_ACCESS_KEY: ci-s3-secret
+  AWS_DEFAULT_REGION: us-east-1
+  # The same settings developers keep in user secrets (see user-secrets.template.json).
+  ConnectionStrings__BadJockeysDatabase: Server=localhost,1433;Database=badjockeys;User Id=sa;Password=Ci-Passw0rd-2026;TrustServerCertificate=True
+  Authentication__Authority: http://localhost:5999   # pipelines/scripts/fake-issuer.py, standing in for bjk-identity-server
+  Authentication__RequireHttpsMetadata: "false"
+  Cors__AllowedOrigins__0: http://localhost:3000
+  # The queues are tables in the messaging schema of the same database. Short waits keep the smoke test quick.
+  Queues__PollingInterval: "00:00:00.250"
+  Queues__RetryDelay: "00:00:01"
+  Captcha__TurnstileSecretKey: 1x0000000000000000000000000000000AA   # Cloudflare's public "always passes" test key
+  # Adobe's S3Mock stands in for Cloudflare R2: both speak the S3 API.
+  Media__Storage__ServiceUrl: http://localhost:9090
+  Media__Storage__AccessKeyId: ci-s3
+  Media__Storage__SecretAccessKey: ci-s3-secret
+  S3_ENDPOINT: http://localhost:9090
+  Media__Storage__OriginalsBucket: bjk-ci-originals
+  Media__Storage__PublicBucket: bjk-ci-public
+  Media__Storage__PublicBaseUrl: http://localhost:9090/bjk-ci-public/
+  # The local Elastic containers (docker-compose.yml) read these from a developer's .env.
+  BJK_SQL_PASSWORD: Ci-Passw0rd-2026
+  BJK_ELASTIC_PASSWORD: CiElastic2026x
+  BJK_KIBANA_SYSTEM_PASSWORD: CiKibana2026x
+  BJK_KIBANA_ENCRYPTION_KEY: CiKibanaEncryptionKey2026abcdefghijklmn
 
 jobs:
   web:
@@ -31,9 +59,6 @@ jobs:
           dotnet restore BJK.Core.slnx > dotnet.log 2>&1 || true
           dotnet build src/BJK.Core.Api --configuration Release --no-restore -p:GenerateApiClient=true >> dotnet.log 2>&1 || echo "BUILD FAILED" >> dotnet.log
           tail -60 dotnet.log
-          dotnet build src/BJK.Core.Api --configuration Release --no-restore >> dotnet.log 2>&1 || true
-          echo "== API start" >> dotnet.log
-          (cd src/BJK.Core.Api && ASPNETCORE_ENVIRONMENT=Development GeneratingApiClient=true timeout 25 dotnet bin/Release/net10.0/BJK.Core.Api.dll >> ../../dotnet.log 2>&1 || true)
       - name: Format and check the web app
         working-directory: src/web
         run: |
