@@ -1138,7 +1138,12 @@ export function PostComposer({
               >
                 <TagIcon size={22} />
               </button>
-              <button type="button" className="icon-btn" aria-label="When it happened" onClick={() => setView("when")}>
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label="When it happened"
+                onClick={() => setView("when")}
+              >
                 <ClockIcon size={22} color="#111111" />
               </button>
               <button
@@ -1167,40 +1172,40 @@ export function PostComposer({
           </button>
         </footer>
       ) : (
-      <footer className="cmp-foot">
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label="Add photos"
-          disabled={kind === "Video" || photosLeft <= 0}
-          onClick={() => photoInput.current?.click()}
-        >
-          <PhotoIcon size={24} color="#00B5E5" strokeWidth={2} />
-        </button>
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label="Add a video"
-          disabled={items.length > 0}
-          onClick={() => videoInput.current?.click()}
-        >
-          <VideoIcon color="#00B5E5" />
-        </button>
-        <span className="cmp-needed" aria-live="polite">
-          {needed.length > 0 ? (
-            <>
-              Still needed: <strong>{needed.join(", ")}</strong>
-            </>
-          ) : uploading > 0 ? (
-            "Uploading…"
-          ) : (
-            "Ready to post"
-          )}
-        </span>
-        <button type="submit" form="new-post" className="btn btn-primary d-only" disabled={!canPost}>
-          {pending ? "Posting…" : "Post"}
-        </button>
-      </footer>
+        <footer className="cmp-foot">
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label="Add photos"
+            disabled={kind === "Video" || photosLeft <= 0}
+            onClick={() => photoInput.current?.click()}
+          >
+            <PhotoIcon size={24} color="#00B5E5" strokeWidth={2} />
+          </button>
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label="Add a video"
+            disabled={items.length > 0}
+            onClick={() => videoInput.current?.click()}
+          >
+            <VideoIcon color="#00B5E5" />
+          </button>
+          <span className="cmp-needed" aria-live="polite">
+            {needed.length > 0 ? (
+              <>
+                Still needed: <strong>{needed.join(", ")}</strong>
+              </>
+            ) : uploading > 0 ? (
+              "Uploading…"
+            ) : (
+              "Ready to post"
+            )}
+          </span>
+          <button type="submit" form="new-post" className="btn btn-primary d-only" disabled={!canPost}>
+            {pending ? "Posting…" : "Post"}
+          </button>
+        </footer>
       )}
     </>
   );

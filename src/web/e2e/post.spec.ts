@@ -72,7 +72,9 @@ test.describe("posting", () => {
     await expect(page.getByText("Parked on the zigzags outside the school")).toBeVisible();
   });
 
-  test("the composer pops out in a dialog from the top of the feed and closes after posting", async ({ page }) => {
+  test("the composer pops out in a dialog from the top of the feed and closes after posting", async ({
+    page,
+  }) => {
     await signIn(page, "/");
     const open = page.getByRole("button", { name: "Seen some bad driving, Road?" });
     await open.click();
