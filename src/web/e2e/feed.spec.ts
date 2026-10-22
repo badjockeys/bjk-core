@@ -212,7 +212,10 @@ test("members switch between For you, Following and a custom timeline, and follo
   await expect(page.getByText("Undertaking a lorry on the M62")).toHaveCount(0);
 });
 
-test("new posts show as a pill at the top of the feed, without reloading the page", async ({ page, request }) => {
+test("new posts show as a pill at the top of the feed, without reloading the page", async ({
+  page,
+  request,
+}) => {
   await page.clock.install();
   await signIn(page, "/");
   const first = page.locator("article").first();

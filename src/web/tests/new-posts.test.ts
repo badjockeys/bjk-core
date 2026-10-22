@@ -8,7 +8,11 @@ describe("new posts in the feed", () => {
   const shown = new Set(["a", "b"]);
 
   it("counts posts that aren't shown and are newer than the newest shown", () => {
-    const items = [at("c", "2026-10-23T10:05:00Z"), at("d", "2026-10-23T10:01:00Z"), at("a", "2026-10-23T09:00:00Z")];
+    const items = [
+      at("c", "2026-10-23T10:05:00Z"),
+      at("d", "2026-10-23T10:01:00Z"),
+      at("a", "2026-10-23T09:00:00Z"),
+    ];
     expect(countNewPosts(items, shown, "2026-10-23T10:00:00Z")).toBe(2);
   });
 

@@ -50,21 +50,21 @@ export function Feed({
   const separator = basePath.includes("?") ? "&" : "?";
   return (
     <>
-    {watcher}
-    <FeedList
-      key={shownKey}
-      source={source}
-      viewer={viewer}
-      firstPageIds={ids}
-      startPage={page.page}
-      hasMore={hasMore}
-      nextHref={`${basePath}${separator}page=${page.page + 1}`}
-    >
-      <LinkExpiryRefresh expiresAt={earliestExpiry(page.items)} />
-      {page.items.map((post) => (
-        <PostCard key={post.id} post={post} viewer={viewer} />
-      ))}
-    </FeedList>
+      {watcher}
+      <FeedList
+        key={shownKey}
+        source={source}
+        viewer={viewer}
+        firstPageIds={ids}
+        startPage={page.page}
+        hasMore={hasMore}
+        nextHref={`${basePath}${separator}page=${page.page + 1}`}
+      >
+        <LinkExpiryRefresh expiresAt={earliestExpiry(page.items)} />
+        {page.items.map((post) => (
+          <PostCard key={post.id} post={post} viewer={viewer} />
+        ))}
+      </FeedList>
     </>
   );
 }
