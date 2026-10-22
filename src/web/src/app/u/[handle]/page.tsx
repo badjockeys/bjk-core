@@ -10,7 +10,6 @@ import { TrendsPanel } from "@/components/TrendsPanel";
 import { Feed } from "@/components/Feed";
 import { FollowButton } from "@/components/FollowButton";
 import { AccountIcon, CalendarIcon, PinIcon } from "@/components/icons";
-import { RoadBadge } from "@/components/PostPeople";
 import { ProfileBadges } from "@/components/ProfileBadges";
 import { ProfileMoreMenu } from "@/components/ProfileMoreMenu";
 import { ProfileReplies } from "@/components/ProfileReplies";
@@ -149,7 +148,7 @@ export default async function ProfilePage({ params, searchParams }: Props) {
             {profile.displayName}
           </h1>
           <span className="muted">
-            @{profile.handle} <RoadBadge value={profile.roadUser} />
+            @{profile.handle}
             {profile.followsYou ? <span className="follows-you">Follows you</span> : null}
           </span>
         </div>

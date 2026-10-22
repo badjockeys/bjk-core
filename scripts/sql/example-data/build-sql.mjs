@@ -184,8 +184,8 @@ END
   add(`\n-- Profiles, badges, home areas and follows (database badjockeys).`);
   batched(
     add,
-    `INSERT badjockeys.profiles.Profiles (Id, Handle, DisplayName, Bio, Location, AvatarMediaId, IsMinor, RoadUser, ShowRoadUser, CreatedAt) VALUES`,
-    users.map((u) => `('${ids.userId(u.n)}', ${q(u.handle)}, ${q(u.name)}, ${q(u.bio)}, ${q(u.location)}, NULL, 0, ${q(u.roadUser)}, ${bit(u.show)}, DATEADD(day, -90, @Now))`),
+    `INSERT badjockeys.profiles.Profiles (Id, Handle, DisplayName, Bio, Location, AvatarMediaId, IsMinor, CreatedAt) VALUES`,
+    users.map((u) => `('${ids.userId(u.n)}', ${q(u.handle)}, ${q(u.name)}, ${q(u.bio)}, ${q(u.location)}, NULL, 0, DATEADD(day, -90, @Now))`),
   );
   batched(
     add,

@@ -996,114 +996,6 @@ export class MediaClient {
         }
         return Promise.resolve<PagedResultOfMediaDto>(null as any);
     }
-
-    /**
-     * "Suggest a description": queues a draft title and description for your photos or video (all ready), from blurred
-    pictures and what you've filled in. At most 10 a day (429 with code description_limit after that).
-    Poll GET /api/media/descriptions/{id} until it's Ready or Failed (usually seconds; up to a couple of
-    minutes after a quiet spell).
-     */
-    media_RequestDescription(request: RequestDescriptionCommand, signal?: AbortSignal): Promise<DescriptionDto> {
-        let url_ = this.baseUrl + "/api/media/descriptions";
-        url_ = url_.replace(/[?&]$/, "");
-
-        const content_ = JSON.stringify(request);
-
-        let options_: RequestInit = {
-            body: content_,
-            method: "POST",
-            signal,
-            headers: {
-                "Content-Type": "application/json",
-                "Accept": "application/json"
-            }
-        };
-
-        return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processMedia_RequestDescription(_response);
-        });
-    }
-
-    protected processMedia_RequestDescription(response: Response): Promise<DescriptionDto> {
-        const status = response.status;
-        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
-        if (status === 202) {
-            return response.text().then((_responseText) => {
-            let result202: any = null;
-            result202 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as DescriptionDto;
-            return result202;
-            });
-        } else if (status === 400) {
-            return response.text().then((_responseText) => {
-            let result400: any = null;
-            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
-            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
-            });
-        } else if (status === 403) {
-            return response.text().then((_responseText) => {
-            let result403: any = null;
-            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
-            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
-            });
-        } else if (status === 429) {
-            return response.text().then((_responseText) => {
-            let result429: any = null;
-            result429 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
-            return throwException("A server side error occurred.", status, _responseText, _headers, result429);
-            });
-        } else if (status !== 200 && status !== 204) {
-            return response.text().then((_responseText) => {
-            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
-            });
-        }
-        return Promise.resolve<DescriptionDto>(null as any);
-    }
-
-    /**
-     * A "Suggest a description" request you made: Queued, Ready (with the draft) or Failed (with why).
-     */
-    media_GetDescription(id: string, signal?: AbortSignal): Promise<DescriptionDto> {
-        let url_ = this.baseUrl + "/api/media/descriptions/{id}";
-        if (id === undefined || id === null)
-            throw new globalThis.Error("The parameter 'id' must be defined.");
-        url_ = url_.replace("{id}", encodeURIComponent("" + id));
-        url_ = url_.replace(/[?&]$/, "");
-
-        let options_: RequestInit = {
-            method: "GET",
-            signal,
-            headers: {
-                "Accept": "application/json"
-            }
-        };
-
-        return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processMedia_GetDescription(_response);
-        });
-    }
-
-    protected processMedia_GetDescription(response: Response): Promise<DescriptionDto> {
-        const status = response.status;
-        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
-        if (status === 200) {
-            return response.text().then((_responseText) => {
-            let result200: any = null;
-            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as DescriptionDto;
-            return result200;
-            });
-        } else if (status === 404) {
-            return response.text().then((_responseText) => {
-            let result404: any = null;
-            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
-            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
-            });
-        } else if (status !== 200 && status !== 204) {
-            return response.text().then((_responseText) => {
-            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
-            });
-        }
-        return Promise.resolve<DescriptionDto>(null as any);
-    }
 }
 
 export class AreaClient {
@@ -3148,7 +3040,7 @@ export class EngagementClient {
     }
 
     /**
-     * Follow a post: you'll be told about new comments and the vote result.
+     * Follow a post: you'll be told about new comments and the vote result. Not your own (you always follow those).
      */
     engagement_Follow(id: string, signal?: AbortSignal): Promise<PostFollowStateDto> {
         let url_ = this.baseUrl + "/api/posts/{id}/follow";
@@ -3179,6 +3071,12 @@ export class EngagementClient {
             result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PostFollowStateDto;
             return result200;
             });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
         } else if (status === 404) {
             return response.text().then((_responseText) => {
             let result404: any = null;
@@ -3194,7 +3092,7 @@ export class EngagementClient {
     }
 
     /**
-     * Stop following a post.
+     * Stop following a post. Not your own.
      */
     engagement_Unfollow(id: string, signal?: AbortSignal): Promise<PostFollowStateDto> {
         let url_ = this.baseUrl + "/api/posts/{id}/follow";
@@ -3224,6 +3122,12 @@ export class EngagementClient {
             let result200: any = null;
             result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PostFollowStateDto;
             return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
             });
         } else if (status !== 200 && status !== 204) {
             return response.text().then((_responseText) => {
@@ -4534,54 +4438,6 @@ export class PostsClient {
             });
         }
         return Promise.resolve<void>(null as any);
-    }
-
-    /**
-     * "Looks like: ...": incident types suggested from your photos or video (once they're ready), best first, often
-    none. Show them for the person to tap; never tick them for them.
-     */
-    posts_SuggestTypes(query: SuggestTypesQuery, signal?: AbortSignal): Promise<TypeSuggestionsDto> {
-        let url_ = this.baseUrl + "/api/posts/type-suggestions";
-        url_ = url_.replace(/[?&]$/, "");
-
-        const content_ = JSON.stringify(query);
-
-        let options_: RequestInit = {
-            body: content_,
-            method: "POST",
-            signal,
-            headers: {
-                "Content-Type": "application/json",
-                "Accept": "application/json"
-            }
-        };
-
-        return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processPosts_SuggestTypes(_response);
-        });
-    }
-
-    protected processPosts_SuggestTypes(response: Response): Promise<TypeSuggestionsDto> {
-        const status = response.status;
-        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
-        if (status === 200) {
-            return response.text().then((_responseText) => {
-            let result200: any = null;
-            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as TypeSuggestionsDto;
-            return result200;
-            });
-        } else if (status === 400) {
-            return response.text().then((_responseText) => {
-            let result400: any = null;
-            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
-            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
-            });
-        } else if (status !== 200 && status !== 204) {
-            return response.text().then((_responseText) => {
-            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
-            });
-        }
-        return Promise.resolve<TypeSuggestionsDto>(null as any);
     }
 
     /**
@@ -6765,60 +6621,6 @@ export class ProfilesClient {
     }
 
     /**
-     * Say how you use the road (Driver, Cyclist or Both, or null to not say). Optional and private unless
-    show is true, when it appears on your profile and posts.
-     */
-    profiles_SetRoadUser(command: SetRoadUserCommand, signal?: AbortSignal): Promise<ProfileDto> {
-        let url_ = this.baseUrl + "/api/profiles/me/road-user";
-        url_ = url_.replace(/[?&]$/, "");
-
-        const content_ = JSON.stringify(command);
-
-        let options_: RequestInit = {
-            body: content_,
-            method: "PUT",
-            signal,
-            headers: {
-                "Content-Type": "application/json",
-                "Accept": "application/json"
-            }
-        };
-
-        return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processProfiles_SetRoadUser(_response);
-        });
-    }
-
-    protected processProfiles_SetRoadUser(response: Response): Promise<ProfileDto> {
-        const status = response.status;
-        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
-        if (status === 200) {
-            return response.text().then((_responseText) => {
-            let result200: any = null;
-            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProfileDto;
-            return result200;
-            });
-        } else if (status === 400) {
-            return response.text().then((_responseText) => {
-            let result400: any = null;
-            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
-            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
-            });
-        } else if (status === 404) {
-            return response.text().then((_responseText) => {
-            let result404: any = null;
-            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
-            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
-            });
-        } else if (status !== 200 && status !== 204) {
-            return response.text().then((_responseText) => {
-            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
-            });
-        }
-        return Promise.resolve<ProfileDto>(null as any);
-    }
-
-    /**
      * Everyone you've blocked, most recent first.
      */
     profiles_ListBlocks(signal?: AbortSignal): Promise<BlockDto[]> {
@@ -7558,49 +7360,6 @@ export interface PagedResultOfMediaDto {
     totalCount: number;
 }
 
-/** A draft, or where it is. */
-export interface DescriptionDto {
-    /** The request. */
-    id: string;
-    /** Queued, Ready or Failed. */
-    status: DescriptionStatus;
-    /** The draft title, once ready. */
-    title: string | null;
-    /** The draft description, once ready. */
-    description: string | null;
-    /** Why there's no draft, when it failed. */
-    message: string | null;
-    /** Requests left today. */
-    remainingToday: number;
-}
-
-/** Where a "Suggest a description" request is. */
-export type DescriptionStatus = "Queued" | "Ready" | "Failed";
-
-/** "Suggest a description": queue a draft title and description for the caller's media (once all of it is ready), using what they've filled in so far. At most Media:Describe:MaxPerDay a UK day. Poll GetDescriptionQuery for the result. */
-export interface RequestDescriptionCommand {
-    /** The post's photos or video, in order. */
-    mediaIds: string[];
-    /** The incident types chosen so far, e.g. "Tailgating". */
-    types: string[] | null;
-    /** Road and town, if known. */
-    placeName: string | null;
-    /** When it happened, if known. */
-    incidentAt: string | null;
-    /** Dark or daylight, if known. */
-    isDark: boolean | null;
-    /** The vehicle, if known. */
-    vehicle: DescribeVehicle | null;
-}
-
-/** The vehicle the post is about, as filled in so far. */
-export interface DescribeVehicle {
-    type: string | null;
-    make: string | null;
-    model: string | null;
-    colour: string | null;
-}
-
 /** Your home area and area alerts. PlaceName and the position (to about 1 km) are null until you choose a home area. CanUseAlerts is true on Premium and Premium +. Quiet hours are 22:00 to 07:00 UK time; Instant alerts are capped at InstantDailyCap a day; summaries go at 08:00. */
 export interface AreaSettingsDto {
     placeName: string | null;
@@ -7862,13 +7621,12 @@ export interface PostDto {
     isProcessing: boolean;
 }
 
-/** Who wrote a post or comment. Handle is null if the author's profile no longer exists. RoadUser ("Driver", "Cyclist" or "Both") only if they chose to show it. */
+/** Who wrote a post or comment. Handle is null if the author's profile no longer exists. */
 export interface AuthorDto {
     id: string;
     handle: string | null;
     displayName: string;
     avatarUrl: string | null;
-    roadUser: string | null;
 }
 
 /** What kind of bad driving a post shows. Stored by name, so new values can be added safely. */
@@ -8344,7 +8102,7 @@ export interface ReplyPostDto {
     author: AuthorDto;
 }
 
-/** Creates a post with 1 to 10 photos or one video, uploaded through /api/media first. They don't have to have finished processing: if any is still Processing (or waiting for a moderator's review), the post is saved as Pending, seen only by its author (in "my posts") and moderators, and is published automatically once they're all Ready, or marked Failed (and the author emailed) if one fails. If they're all Ready already, it's visible to everyone straight away. Either way content screening can hold it for review. The author needs a confirmed email and a profile (and a passed age check if Safety:RequireAgeVerification is on). IsSensitive marks graphic content: the post shows to everyone, its media blurred except for age-verified adults, and the media are kept privately. If automatic detection already flagged any of the media, the post is tagged sensitive automatically (and queued for a moderator) whatever IsSensitive says. Types are the types of bad driving (at least one; the first is the main one); older clients can send one Category instead. Passengers are @handles of people in the author's vehicle (driving incidents only, up to 4, adults only): each is asked to accept before their name shows on the post. DraftId publishes one of the author's drafts: the draft is deleted once the post is saved (its photos and videos stay, in the post). SuggestedTypes are the types the composer suggested ("Looks like: ..."), kept to measure how often suggestions are accepted. */
+/** Creates a post with 1 to 10 photos or one video, uploaded through /api/media first. They don't have to have finished processing: if any is still Processing (or waiting for a moderator's review), the post is saved as Pending, seen only by its author (in "my posts") and moderators, and is published automatically once they're all Ready, or marked Failed (and the author emailed) if one fails. If they're all Ready already, it's visible to everyone straight away. Either way content screening can hold it for review. The author needs a confirmed email and a profile (and a passed age check if Safety:RequireAgeVerification is on). IsSensitive marks graphic content: the post shows to everyone, its media blurred except for age-verified adults, and the media are kept privately. If automatic detection already flagged any of the media, the post is tagged sensitive automatically (and queued for a moderator) whatever IsSensitive says. Types are the types of bad driving (at least one; the first is the main one); older clients can send one Category instead. Passengers are @handles of people in the author's vehicle (driving incidents only, up to 4, adults only): each is asked to accept before their name shows on the post. DraftId publishes one of the author's drafts: the draft is deleted once the post is saved (its photos and videos stay, in the post). */
 export interface CreatePostCommand {
     title: string;
     description: string | null;
@@ -8363,24 +8121,6 @@ export interface CreatePostCommand {
     vehicleColour: VehicleColour | null;
     reportedToPolice: boolean | null;
     draftId: string | null;
-    suggestedTypes: IncidentCategory[] | null;
-}
-
-/** Suggestions, best first (often none). */
-export interface TypeSuggestionsDto {
-    suggestions: TypeSuggestionDto[];
-}
-
-/** A suggested type and how strongly the pictures fit it (0 to 1). */
-export interface TypeSuggestionDto {
-    type: IncidentCategory;
-    score: number;
-}
-
-/** "Looks like: Tailgating": suggested incident types for the caller's photos or video, from the CLIP summaries the media worker made while blurring them. Only media that are ready count; with none, there are no suggestions. The composer shows them as chips the person taps to add; nothing is ticked for them. */
-export interface SuggestTypesQuery {
-    /** The post's photos or video. */
-    mediaIds: string[];
 }
 
 /** A post's new details. Send Types (the first is the main one), or one Category. Passengers (@handles) replaces the tagged passengers; leave it out to keep them. */
@@ -8590,7 +8330,7 @@ export interface ModeratedProfileDto {
     deactivatedAt: string | null;
 }
 
-/** A profile. RoadUser (Driver, Cyclist or Both) is shown to others only if the user chose to show it; ShowRoadUser is only filled in for the user themselves (null for others). FollowerCount and FollowingCount count active profiles; IsFollowing (you follow them) and FollowsYou are null when signed out or for yourself. Badges: Founding member, Trusted reporter, Local regular (never shown for under-18s). */
+/** A profile. FollowerCount and FollowingCount count active profiles; IsFollowing (you follow them) and FollowsYou are null when signed out or for yourself. Badges: Founding member, Trusted reporter, Local regular (never shown for under-18s). */
 export interface ProfileDto {
     id: string;
     handle: string;
@@ -8599,17 +8339,12 @@ export interface ProfileDto {
     location: string | null;
     avatarUrl: string | null;
     createdAt: string;
-    roadUser: RoadUser | null;
-    showRoadUser: boolean | null;
     followerCount: number;
     followingCount: number;
     isFollowing: boolean | null;
     followsYou: boolean | null;
     badges: Badge[] | null;
 }
-
-/** How someone mostly uses the road, if they choose to say. Stored by name. */
-export type RoadUser = "Driver" | "Cyclist" | "Both";
 
 /** Badges on a profile (owner, 21 Oct 2026). They reward quality, never posting volume: rewarding volume would encourage people to go looking for incidents. */
 export type Badge = "FoundingMember" | "TrustedReporter" | "LocalRegular";
@@ -8642,12 +8377,6 @@ export interface ChangeHandleCommand {
 /** Sets the signed-in user's avatar to one of their own Ready images, or removes it when MediaId is null. The previous avatar's files are deleted. */
 export interface SetAvatarCommand {
     mediaId: string | null;
-}
-
-/** Sets how the signed-in user uses the road (Driver, Cyclist or Both; null to not say). Optional and private: it tailors their defaults (types first in lists, area alerts) and counts towards totals on the heat map. Others only see it, on the profile and posts, if Show is true. */
-export interface SetRoadUserCommand {
-    roadUser: RoadUser | null;
-    show: boolean;
 }
 
 /** Someone the signed-in user has blocked. Handle is null if their profile no longer exists. */

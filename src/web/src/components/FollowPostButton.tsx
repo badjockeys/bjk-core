@@ -9,8 +9,9 @@ import { BellIcon } from "./icons";
 import { toast } from "./toast";
 
 /**
- * Follow a post to hear about new comments and the vote result. Authors follow their own posts, and commenting follows
- * a post, so this is mostly for unfollowing, or following a post you haven't commented on.
+ * Follow a post to hear about new comments and the vote result. Commenting follows a post, so this is mostly for
+ * unfollowing, or following a post you haven't commented on. Not shown on your own posts: authors always follow them
+ * (the API refuses with 400).
  */
 export function FollowPostButton({
   postId,

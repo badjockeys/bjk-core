@@ -1,16 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { getPost } from "@/actions/posts";
 import { loadMoreReels, recordReelPlay } from "@/actions/reels";
-import { CATEGORIES, categoryLabel } from "@/lib/categories";
+import { categoryLabel } from "@/lib/categories";
 import { duration, timeAgo } from "@/lib/format";
 import { earliestExpiry, refreshDelay } from "@/lib/links";
 import { joinPath, postPath, profilePath, signInPath } from "@/lib/paths";
-import type { IncidentCategory, PostDto, ReelsPage } from "@/lib/types";
+import type { PostDto, ReelsPage } from "@/lib/types";
 import type { Viewer } from "@/lib/viewer";
 
 import { Avatar } from "./Avatar";
@@ -26,11 +25,6 @@ import { toast } from "./toast";
 
 /** A reel counts as played once this much has been watched (or the whole clip, if it's shorter). */
 export const PLAY_AFTER_SECONDS = 3;
-
-/** "18 of 25 free today", or null for unlimited plans. */
-export function allowanceLabel(remaining: number | null, limit: number | null): string | null {
-  return remaining === null || limit === null ? null : `${remaining} of ${limit} free today`;
-}
 
 interface Allowance {
   remaining: number | null;
@@ -49,15 +43,12 @@ export function ReelsPlayer({
   limitReached: initiallyLimited,
   failed,
   viewer,
-  category,
 }: {
   initial: ReelsPage | null;
   limitReached: { limit: number | null } | null;
   failed: boolean;
   viewer: Viewer;
-  category: IncidentCategory | null;
 }) {
-  const router = useRouter();
   const [posts, setPosts] = useState<PostDto[]>(initial?.items ?? []);
   const [cursor, setCursor] = useState<string | null>(initial?.nextCursor ?? null);
   const [allowance, setAllowance] = useState<Allowance>({
@@ -92,7 +83,7 @@ export function ReelsPlayer({
       return;
     }
     loading.current = true;
-    const result = await loadMoreReels(next, category);
+    const result = await loadMoreReels(next);
     loading.current = false;
     if (result === null) {
       toast("We couldn't load more reels. Please try again.");
@@ -109,7 +100,7 @@ export function ReelsPlayer({
     });
     setCursor(result.page.nextCursor);
     setAllowance({ remaining: result.page.playsRemainingToday, limit: result.page.dailyPlayLimit });
-  }, [category]);
+  }, []);
 
   // Which slide is in view: it plays, and near the end the next page loads.
   useEffect(() => {
@@ -220,39 +211,10 @@ export function ReelsPlayer({
     }
   }, []);
 
-  const label = allowanceLabel(allowance.remaining, allowance.limit);
-  const selectCategory = (value: string) => {
-    const slug = CATEGORIES.find((c) => c.value === value)?.slug;
-    router.replace(slug ? `/reels?category=${slug}` : "/reels");
-  };
-
   return (
     <div className="reels-wrap">
       <div className="reels-bar">
-        <span className="row" style={{ gap: 8 }}>
-          <h1 className="reels-title">Reels</h1>
-          <label className="sr-only" htmlFor="reels-category">
-            Category
-          </label>
-          <select
-            id="reels-category"
-            className="reels-select"
-            value={category ?? ""}
-            onChange={(e) => selectCategory(e.target.value)}
-          >
-            <option value="">All categories</option>
-            {CATEGORIES.map((c) => (
-              <option key={c.value} value={c.value}>
-                {c.label}
-              </option>
-            ))}
-          </select>
-        </span>
-        {label ? (
-          <span className="reels-count" aria-live="polite">
-            {label}
-          </span>
-        ) : null}
+        <h1 className="reels-title">Reels</h1>
       </div>
 
       <div ref={list} className="reels" aria-label="Reels" tabIndex={-1}>
@@ -273,9 +235,7 @@ export function ReelsPlayer({
           <section className="reel reel-end" data-slide={posts.length}>
             <div className="reel-note">
               <strong>You&apos;re all caught up</strong>
-              <span>
-                That&apos;s every reel{category ? ` in ${categoryLabel(category).toLowerCase()}` : ""}.
-              </span>
+              <span>That&apos;s every reel.</span>
               <Link href="/" className="btn btn-sm btn-light">
                 Back to the feed
               </Link>

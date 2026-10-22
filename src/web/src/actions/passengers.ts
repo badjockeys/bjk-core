@@ -29,7 +29,7 @@ export async function findPassenger(handle: string): Promise<ActionResult<Author
   }
   return {
     ok: true,
-    data: { id: p.id, handle: p.handle, displayName: p.displayName, avatarUrl: p.avatarUrl, roadUser: null },
+    data: { id: p.id, handle: p.handle, displayName: p.displayName, avatarUrl: p.avatarUrl },
   };
 }
 

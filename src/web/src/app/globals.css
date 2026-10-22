@@ -1014,12 +1014,11 @@ p {
   height: auto;
 }
 
+/* Photo grids, like Facebook's: white gaps between the photos, and one large photo with the rest smaller under it. */
 .tw-grid {
   display: grid;
-  aspect-ratio: 16 / 9;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 2px;
-  background: var(--line);
+  gap: 4px;
+  background: #ffffff;
 }
 
 .tw-grid > * {
@@ -1029,16 +1028,32 @@ p {
   background: var(--fill);
 }
 
+/* Two photos side by side. */
+.tw-g2 {
+  aspect-ratio: 4 / 3;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* One large photo, two under it. */
 .tw-g3 {
-  grid-template-rows: repeat(2, minmax(0, 1fr));
+  aspect-ratio: 1 / 1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 2fr) minmax(0, 1fr);
 }
 
 .tw-g3 > :first-child {
-  grid-row: 1 / 3;
+  grid-column: 1 / -1;
 }
 
+/* One large photo, three under it (the last with +N when there are more). */
 .tw-g4 {
-  grid-template-rows: repeat(2, minmax(0, 1fr));
+  aspect-ratio: 1 / 1;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 2fr) minmax(0, 1fr);
+}
+
+.tw-g4 > :first-child {
+  grid-column: 1 / -1;
 }
 
 .tw-video {
@@ -1902,6 +1917,70 @@ dialog.lightbox {
   border-radius: 14px;
 }
 
+/* SilentVideo: play, seek, time and full screen; no sound controls (audio is removed from every video). */
+.silent-video {
+  position: relative;
+  overflow: hidden;
+}
+
+.silent-video video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #1c1c1e;
+  cursor: pointer;
+}
+
+.silent-video-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 24px 12px 10px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0));
+  color: #ffffff;
+}
+
+.silent-video-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 16px;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.silent-video-btn:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+.silent-video-seek {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--brand);
+}
+
+.silent-video-time {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.silent-video:fullscreen {
+  border-radius: 0;
+  background: #000000;
+}
+
 .map {
   height: 240px;
   border-radius: 14px;
@@ -2447,20 +2526,7 @@ dialog.composer-dialog::backdrop {
   display: none;
 }
 
-/* --- Passengers and road user type --- */
-
-.road-badge {
-  display: inline-flex;
-  align-items: center;
-  height: 20px;
-  padding: 0 8px;
-  border-radius: 10px;
-  border: 1px solid var(--line);
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--muted);
-  white-space: nowrap;
-}
+/* --- Passengers --- */
 
 .with-line {
   margin: 0;
@@ -2895,16 +2961,21 @@ dialog.composer-dialog::backdrop {
     display: none;
   }
 
+  /* The same layouts as the feed's photo grids (one large photo, the rest smaller), with white gaps. */
   .gallery-grid {
     display: grid;
-    aspect-ratio: 16 / 10;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-rows: repeat(2, minmax(0, 1fr));
-    gap: 2px;
+    aspect-ratio: 1 / 1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: minmax(0, 2fr) minmax(0, 1fr);
+    gap: 4px;
     border-radius: 14px;
     overflow: hidden;
     border: 1px solid var(--line);
-    background: var(--line);
+    background: #ffffff;
+  }
+
+  .gallery-grid > :first-child {
+    grid-column: 1 / -1;
   }
 
   .gallery-grid button {
@@ -2922,6 +2993,7 @@ dialog.composer-dialog::backdrop {
   }
 
   .gallery-grid.n1 {
+    aspect-ratio: 16 / 10;
     grid-template-columns: 1fr;
     grid-template-rows: 1fr;
   }
@@ -2932,15 +3004,17 @@ dialog.composer-dialog::backdrop {
   }
 
   .gallery-grid.n2 {
+    aspect-ratio: 4 / 3;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-template-rows: 1fr;
   }
 
-  .gallery-grid.n3 > :first-child {
-    grid-row: 1 / 3;
+  .gallery-grid.n2 > :first-child {
+    grid-column: auto;
   }
 
   .gallery-grid.n3 {
-    grid-template-columns: 2fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .toast-region {
@@ -3108,30 +3182,6 @@ dialog.composer-dialog::backdrop {
   font-size: 18px;
   font-weight: 600;
   color: #ffffff;
-}
-
-.reels-select {
-  height: 30px;
-  padding: 0 10px;
-  border-radius: 15px;
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  background: rgba(17, 17, 17, 0.35);
-  color: #ffffff;
-  font: 13px var(--font);
-  max-width: 190px;
-}
-
-.reels-select option {
-  color: var(--ink);
-}
-
-.reels-count {
-  padding: 5px 10px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.16);
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
 }
 
 .reel {
@@ -3681,44 +3731,4 @@ dialog.composer-dialog::backdrop {
   margin: 0;
   padding: 0;
   list-style: none;
-}
-
-/* AI suggestions in the composer: "Looks like: ..." type chips and "Suggest a description". */
-.cmp-suggest {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.cmp-chip-suggest {
-  border: 1px dashed var(--brand);
-  background: var(--brand-tint);
-  color: var(--brand-tint-text);
-}
-
-.cmp-describe {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.cmp-describe > p {
-  flex-basis: 100%;
-  margin: 0;
-}
-
-.cmp-draft {
-  flex-basis: 100%;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 10px 12px;
-  background: #ffffff;
-}
-
-.cmp-draft p {
-  margin: 0 0 6px;
 }

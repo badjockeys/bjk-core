@@ -338,33 +338,6 @@ MEDIA_ID=$PHOTO_ID
 wait_for "queue_messages media.process" 0 "no jobs left on the queue"
 expect_sql "SELECT COUNT(*) FROM [messaging].[media.process.failed]" 0 "no jobs in the dead-letter table"
 
-# ---------- AI suggestions ----------
-
-# The worker keeps each item's CLIP summary (2 KB of numbers, never a picture) for type suggestions.
-expect_sql "SELECT CASE WHEN DATALENGTH(ClipSummary) = 2048 THEN 'kept' ELSE 'missing' END FROM media.Media WHERE Id = '$PHOTO_ID'" kept "the worker keeps the photo's CLIP summary"
-request POST /api/posts/type-suggestions "$(body --arg m "$PHOTO_ID" '{mediaIds: [$m]}')" "$TOKEN_A"
-expect 200 "type suggestions for the photo"
-jq -e '.suggestions | type == "array"' response.json > /dev/null || fail "Expected a list of suggestions: $RESPONSE"
-echo "::notice title=Type suggestions (test pattern)::$(jq -c .suggestions response.json)"
-request POST /api/posts/type-suggestions "$(body --arg m "$PHOTO_ID" '{mediaIds: [$m]}')" "$TOKEN_B"
-expect 200 "someone else's media give no suggestions"
-[ "$(jq '.suggestions | length' response.json)" = 0 ] || fail "Suggestions came from another user's media: $RESPONSE"
-
-# "Suggest a description": queued, picked up by the worker, drafted (by the stand-in: no model in CI).
-request POST /api/media/descriptions "$(body --arg m "$VIDEO_ID" '{mediaIds: [$m], types: ["Tailgating"], placeName: "M62 J26, Brighouse"}')" "$TOKEN_A"
-expect 202 "ask for a suggested description of the video"
-DESCRIPTION_ID=$(json .id)
-[ "$(json .remainingToday)" = 9 ] || fail "Expected 9 suggestions left today: $RESPONSE"
-wait_for "sql \"SELECT Status FROM media.Descriptions WHERE Id = '$DESCRIPTION_ID'\"" Ready "the worker writes a draft from the blurred video"
-request GET "/api/media/descriptions/$DESCRIPTION_ID" "" "$TOKEN_A"
-expect 200 "read the draft"
-[ -n "$(json '.title // empty')" ] && [ -n "$(json '.description // empty')" ] || fail "Expected a draft title and description: $RESPONSE"
-request GET "/api/media/descriptions/$DESCRIPTION_ID" "" "$TOKEN_B"
-expect 404 "someone else can't read the draft"
-request POST /api/media/descriptions "$(body --arg m "$VIDEO_ID" '{mediaIds: [$m]}')" "$TOKEN_B"
-expect 403 "someone else can't ask about your video"
-expect_sql "SELECT COUNT(*) FROM [messaging].[media.describe.failed]" 0 "no description jobs in the dead-letter table"
-
 # Browsers upload straight to storage, so it must answer a CORS preflight. Cloudflare R2 does once configured;
 # this reports whether the local stand-in (S3Mock) does too.
 PREFLIGHT=$(curl -s -D - -o /dev/null -X OPTIONS "$S3_ENDPOINT/$ORIGINALS_BUCKET/cors-check" \
@@ -413,6 +386,10 @@ request GET "/api/posts/$POST_ID" "" "$TOKEN_B"
 [ "$(json .reactions.Angry)" = "1" ] && [ "$(json .commentCount)" = "1" ] && [ "$(json .myReaction)" = "Angry" ] \
   || fail "Expected 1 Angry reaction, 1 comment and my reaction: $RESPONSE"
 pass "post shows the reaction, the comment count and my reaction"
+request PUT "/api/posts/$POST_ID/follow" "" "$TOKEN_A"
+expect 400 "the author can't follow their own post (they always do)"
+request DELETE "/api/posts/$POST_ID/follow" "" "$TOKEN_A"
+expect 400 "or unfollow it"
 
 # ---------- reels and the incident heat map ----------
 

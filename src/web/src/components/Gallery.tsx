@@ -102,7 +102,7 @@ export function Gallery({ photos, title }: { photos: PostMediaDto[]; title: stri
           >
             <img
               src={
-                (count === 1 ? photo.feedUrl : (photo.thumbnailUrl ?? photo.feedUrl)) ??
+                (count === 1 || i === 0 ? photo.feedUrl : (photo.thumbnailUrl ?? photo.feedUrl)) ??
                 photo.playbackUrl ??
                 undefined
               }

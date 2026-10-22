@@ -3,19 +3,14 @@
 import { api, ApiError } from "@/lib/api";
 import type { ActionResult } from "@/lib/action-result";
 import { getAccessToken } from "@/lib/auth";
-import { CATEGORIES } from "@/lib/categories";
 import { loadReels, viewerId, type ReelsResult } from "@/lib/reels";
-import type { IncidentCategory, ReelPlayResult } from "@/lib/types";
+import type { ReelPlayResult } from "@/lib/types";
 
 import { failure } from "./run";
 
 /** The next page of reels (or the daily limit). */
-export async function loadMoreReels(
-  cursor: string | null,
-  category: IncidentCategory | null,
-): Promise<ReelsResult> {
-  const known = CATEGORIES.some((c) => c.value === category) ? (category ?? undefined) : undefined;
-  return loadReels(cursor, known);
+export async function loadMoreReels(cursor: string | null): Promise<ReelsResult> {
+  return loadReels(cursor);
 }
 
 export type PlayOutcome =

@@ -12,10 +12,11 @@ import { HashtagText } from "@/components/HashtagText";
 import { ClockIcon, SpinnerIcon } from "@/components/icons";
 import { LinkExpiryRefresh } from "@/components/LinkExpiryRefresh";
 import { PostMoreMenu } from "@/components/PostMoreMenu";
-import { RoadBadge, WithPassengers } from "@/components/PostPeople";
+import { WithPassengers } from "@/components/PostPeople";
 import { ProcessingWatcher } from "@/components/ProcessingWatcher";
 import { isBlurred } from "@/components/PostMedia";
 import { FollowPostButton } from "@/components/FollowPostButton";
+import { SilentVideo } from "@/components/SilentVideo";
 import { ReachStats } from "@/components/ReachStats";
 import { ReactionBar } from "@/components/ReactionBar";
 import { SaveButton } from "@/components/SaveButton";
@@ -127,7 +128,6 @@ export default async function PostPage({ params, searchParams }: Props) {
             ) : (
               <span>{post.author.displayName}</span>
             )}
-            <RoadBadge value={post.author.roadUser} />
             <span className="muted small">
               {post.author.handle ? `@${post.author.handle} · ` : ""}
               <time dateTime={post.createdAt} suppressHydrationWarning>
@@ -223,11 +223,14 @@ export default async function PostPage({ params, searchParams }: Props) {
               <VotePanel postId={post.id} initial={post.vote} signedIn={viewer.signedIn} isMine={isMine} />
             ) : null}
             <div className="row row-wrap post-tools">
-              <FollowPostButton
-                postId={post.id}
-                following={post.isFollowing ?? false}
-                signedIn={viewer.signedIn}
-              />
+              {/* Authors always follow their own posts, so there's nothing to choose. */}
+              {isMine ? null : (
+                <FollowPostButton
+                  postId={post.id}
+                  following={post.isFollowing ?? false}
+                  signedIn={viewer.signedIn}
+                />
+              )}
               <SaveButton postId={post.id} saved={post.isSaved ?? false} signedIn={viewer.signedIn} />
               <ShareButton path={here} title={post.title} postId={post.id} />
             </div>
@@ -319,18 +322,12 @@ function PostBody({
   const video = post.media.find((m) => m.mediaType === "Video");
   if (video?.playbackUrl) {
     return (
-      <video
+      <SilentVideo
         className="post-video"
-        controls
-        playsInline
-        muted
-        preload="metadata"
-        poster={video.thumbnailUrl ?? undefined}
         src={video.playbackUrl}
-        aria-label={`Video: ${post.title}`}
-      >
-        Your browser can&apos;t play this video.
-      </video>
+        poster={video.thumbnailUrl ?? undefined}
+        label={`Video: ${post.title}`}
+      />
     );
   }
   const photos = post.media.filter((m) => m.mediaType === "Image");

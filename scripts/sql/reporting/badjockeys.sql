@@ -23,12 +23,8 @@ SELECT
     (SELECT COUNT(DISTINCT UserId) FROM posts.Reactions WHERE CreatedAt >= DATEADD(day, -30, SYSUTCDATETIME())) AS ReactorsLast30Days;
 GO
 
--- Road user type, only as chosen on profiles (private by default; counted, never shown per person).
-CREATE OR ALTER VIEW reporting.RoadUsers AS
-SELECT COALESCE(RoadUser, N'Not given') AS RoadUser, COUNT(*) AS Profiles
-FROM profiles.Profiles
-WHERE DeactivatedAt IS NULL
-GROUP BY COALESCE(RoadUser, N'Not given');
+-- The road user type was removed (22 Oct 2026).
+DROP VIEW IF EXISTS reporting.RoadUsers;
 GO
 
 -- ---------- Posts ----------
