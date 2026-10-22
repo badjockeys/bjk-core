@@ -135,6 +135,7 @@ jobs:
           SQL_CONTAINER: ${{ job.services.sql.id }}
           Media__Redaction__FaceModelPath: ${{ runner.temp }}/models/face_detection_yunet_2026may.onnx
           Media__Redaction__PlateModelPath: ${{ runner.temp }}/models/license_plate_detection_lpd_yunet_2023mar.onnx
+          Media__Redaction__PersonModelPath: ${{ runner.temp }}/models/object_detection_yolox_2022nov.onnx
           Media__SensitiveDetection__ModelPath: ${{ runner.temp }}/models/clip-vit-b32-vision-quantized.onnx
           Logging__Console__FormatterName: simple
           Logging__Console__FormatterOptions__SingleLine: "true"

@@ -66,6 +66,12 @@ const MODELS = [
     sha256: "583fd1110a514667812fee7d684952aaf82a99b959760c8d7dca7e0ab9839299",
   },
   {
+    // People (YOLOX-S, Apache 2.0): the worker blurs the head of everyone it finds, as a backup for the face model.
+    file: "object_detection_yolox_2022nov.onnx",
+    url: `${OPENCV_ZOO}/object_detection_yolox/object_detection_yolox_2022nov.onnx`,
+    sha256: "c5c2d13e59ae883e6af3b45daea64af4833a4951c92d116ec270d9ddbe998063",
+  },
+  {
     // The identity server's head-turn liveness check (the age check); the version its YuNet decoder reads.
     file: "face_detection_yunet_2023mar.onnx",
     url: `${OPENCV_ZOO}/face_detection_yunet/face_detection_yunet_2023mar.onnx`,
@@ -75,7 +81,8 @@ const MODELS = [
 
 /** The content check settings the setup writes into bjk-core/user-secrets.json: CLIP runs when ModelPath is set. */
 const sensitiveDetection = () => ({ ModelPath: join(models, MODELS[2].file) });
-const livenessModel = () => join(models, MODELS[3].file);
+const personModel = () => join(models, MODELS[3].file);
+const livenessModel = () => join(models, MODELS[4].file);
 
 const colour = (code, text) => (process.stdout.isTTY ? `\x1b[${code}m${text}\x1b[0m` : text);
 const step = (text) => console.log(`\n${colour("1;36", `== ${text}`)}`);
@@ -353,6 +360,10 @@ function migrateCoreSecrets(file) {
     delete json.Media.Queue;
   }
   if (json.Media) {
+    // The person detector (22 Oct 2026): heads are blurred as a backup for faces.
+    const redaction = json.Media.Redaction ?? {};
+    if (unset(redaction.PersonModelPath)) redaction.PersonModelPath = personModel();
+    json.Media.Redaction = redaction;
     const current = json.Media.SensitiveDetection ?? {};
     for (const key of ["Enabled", "Provider", "InputWidth", "InputHeight", "Mean", "Std", "Output", "SensitiveClasses"]) delete current[key];
     if (unset(current.ModelPath)) current.ModelPath = sensitiveDetection().ModelPath;
@@ -484,6 +495,7 @@ function createConfig() {
         ...(json.Media.Redaction ?? {}),
         FaceModelPath: join(models, MODELS[0].file),
         PlateModelPath: join(models, MODELS[1].file),
+        PersonModelPath: personModel(),
       };
       json.Media.SensitiveDetection = { ...(json.Media.SensitiveDetection ?? {}), ...sensitiveDetection() };
     }),
@@ -554,7 +566,7 @@ function loadSecrets() {
 }
 
 async function downloadModels() {
-  step("Downloading the blurring models, the CLIP content model and the liveness model (about 100 MB)");
+  step("Downloading the blurring models, the CLIP content model and the liveness model (about 140 MB)");
   mkdirSync(models, { recursive: true });
   const sha256 = (buffer) => createHash("sha256").update(buffer).digest("hex");
   for (const model of MODELS) {
