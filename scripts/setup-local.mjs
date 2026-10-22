@@ -31,6 +31,7 @@ import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { removeOldGroups, startServices } from "./docker-services.mjs";
+import { findFfmpeg } from "./ffmpeg-tools.mjs";
 import { ensureElasticEnv, readEnvValue } from "./elastic-env.mjs";
 import { OWNER_EMAIL, OWNER_PLAN } from "./sql/example-data/data.mjs";
 import { applyReporting, reportingPassword } from "./sql/reporting/apply.mjs";
@@ -131,6 +132,36 @@ function vapidKeys() {
   return { PublicKey: point.toString("base64url"), PrivateKey: jwk.d };
 }
 
+/** The ffmpeg and ffprobe the apps use (see ffmpeg-tools.mjs); found by checkTools, or by createConfig on its own. */
+let ffmpegTools = null;
+
+/**
+ * Points every ffmpeg setting at the ffmpeg found, when it isn't plain "ffmpeg" on the PATH (Homebrew's ffmpeg-full is
+ * keg-only). Only replaces the default or an empty value, so a path you set yourself is kept.
+ */
+function useFfmpeg(file, sections) {
+  if (!existsSync(file)) return;
+  ffmpegTools ??= findFfmpeg();
+  if (ffmpegTools.ffmpeg === "ffmpeg") return;
+  const json = JSON.parse(readFileSync(file, "utf8"));
+  let changed = false;
+  for (const path of sections) {
+    let node = json;
+    for (const key of path) node = node[key] ??= {};
+    for (const [key, tool] of [["FfmpegPath", "ffmpeg"], ["FfprobePath", "ffprobe"]]) {
+      if (key === "FfprobePath" && !("FfprobePath" in node)) continue;
+      if (unset(node[key]) || node[key] === tool) {
+        node[key] = ffmpegTools[tool];
+        changed = true;
+      }
+    }
+  }
+  if (changed) {
+    writeFileSync(file, `${JSON.stringify(json, null, 2)}\n`);
+    ok(`${file.replace(`${resolve(core, "..")}/`, "")}: ffmpeg settings point at ${ffmpegTools.ffmpeg}`);
+  }
+}
+
 function checkTools() {
   step("Checking tools");
   const missing = [];
@@ -140,11 +171,22 @@ function checkTools() {
   const node = process.versions.node;
   if (Number(node.split(".")[0]) < 24) console.log(colour("33", `Node.js ${node}: the web app expects 24 or later.`));
   if (!output("docker", ["--version"])) missing.push("Docker Desktop (https://www.docker.com/products/docker-desktop)");
-  const ffmpeg = output("ffmpeg", ["-version"]);
-  if (!ffmpeg) missing.push(isWindows ? "ffmpeg (winget install Gyan.FFmpeg)" : "ffmpeg (brew install ffmpeg)");
+  if (!output("ffmpeg", ["-version"])) {
+    missing.push(isWindows ? "ffmpeg (winget install Gyan.FFmpeg)" : "ffmpeg (brew install ffmpeg-full)");
+  } else {
+    // The media worker needs H.264 (videos) and WebP (photos) encoders; Homebrew's plain ffmpeg has no WebP.
+    ffmpegTools = findFfmpeg({ install: true });
+    if (ffmpegTools.missing.length) {
+      missing.push(
+        `an ffmpeg with the ${ffmpegTools.missing.join(" and ")} encoder${ffmpegTools.missing.length > 1 ? "s" : ""} ` +
+          (isWindows ? "(winget install Gyan.FFmpeg, the full build)" : "(brew install ffmpeg-full)"),
+      );
+    }
+  }
   if (missing.length) fail(`Missing: ${missing.join("; ")}. See step 1 of docs/local-development.md.`);
   if (!output("docker", ["info"])) fail("Docker Desktop isn't running. Start it, then run this again.");
-  ok(`.NET ${dotnet}, Node.js ${node}, ${ffmpeg.split("\n")[0].split(" ").slice(0, 3).join(" ")}, Docker running`);
+  const ffmpegVersion = output(ffmpegTools.ffmpeg, ["-version"]) ?? "ffmpeg";
+  ok(`.NET ${dotnet}, Node.js ${node}, ${ffmpegVersion.split("\n")[0].split(" ").slice(0, 3).join(" ")} (${ffmpegTools.ffmpeg}), Docker running`);
 }
 
 /** The user-level NuGet.Config, which every project on this computer reads alongside its own nuget.config. */
@@ -451,6 +493,8 @@ function createConfig() {
   migrateCoreSecrets(join(core, "user-secrets.json"));
   migrateIdentitySecrets(join(idsrv, "user-secrets.json"));
   useOllamaIfThere(join(core, "user-secrets.json"));
+  useFfmpeg(join(core, "user-secrets.json"), [["Media", "Processing"], ["Media", "Describe"]]);
+  useFfmpeg(join(idsrv, "user-secrets.json"), [["AgeAssurance", "Liveness"], ["AgeAssurance", "Yoti"]]);
 
   // Earlier templates pointed the web app at the API's http address, which redirects to https; Node.js drops the
   // sign-in token on that redirect, so every signed-in call got 401. Move existing files to the https address.
@@ -618,6 +662,7 @@ async function exampleData() {
       ok(`The ${app.name} started and its database is up to date.`);
     }
 
+    process.env.BJK_FFMPEG = (ffmpegTools ??= findFfmpeg()).ffmpeg;
     await seedExampleData();
     seedSafetyTestData();
 

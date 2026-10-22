@@ -76,7 +76,7 @@ macOS, Windows and Linux use the same tools. The commands in this guide are for 
 | .NET SDK | 10.0.100 or later | `brew install --cask dotnet-sdk` | `winget install Microsoft.DotNet.SDK.10` | `dotnet --version` |
 | Node.js | 24 LTS or later | `brew install node@24`, or `nvm install 24` | `winget install OpenJS.NodeJS.LTS` | `node --version` |
 | Docker Desktop | latest | `brew install --cask docker`, then open it once | `winget install Docker.DockerDesktop` (uses WSL 2), then open it once | `docker compose version` |
-| ffmpeg | any recent | `brew install ffmpeg` | `winget install Gyan.FFmpeg` | `ffmpeg -version` |
+| ffmpeg, with the H.264 and WebP encoders | any recent | `brew install ffmpeg ffmpeg-full` (Homebrew's plain `ffmpeg` has no WebP encoder) | `winget install Gyan.FFmpeg` | `ffmpeg -hide_banner -encoders \| grep -E "libx264\|libwebp"` |
 | GitHub CLI (optional) | latest | `brew install gh` | `winget install GitHub.cli` | `gh --version` |
 
 On Windows, open a new terminal after installing so the tools are on your `PATH`.
@@ -97,7 +97,7 @@ Then:
 
 4. **Install a SQL tool:** VS Code's **SQL Server (mssql)** extension, Rider's database window, or DataGrip.
 
-5. **ffmpeg** (in the table above) is what the media worker uses to convert videos and photos.
+5. **ffmpeg** (in the table above) is what the media worker uses to convert videos (H.264) and photos (WebP). On a Mac, Homebrew's plain `ffmpeg` can't make WebP, so the setup also installs `ffmpeg-full`. That one isn't on your `PATH`, so the setup writes its full path into your user secrets (`Media:Processing:FfmpegPath` and `FfprobePath`, and the other ffmpeg settings).
 
 ## 2. Get the code
 
@@ -761,6 +761,7 @@ cd ~/Git/GitHub/badjockeys/bjk-core && docker compose down -v && docker compose 
 - **`Login failed for user 'sa'`.** The password in your user secret doesn't match `bjk-core/.env`. If you changed `.env` after the container was first created, SQL Server still has the old password: in bjk-core run `docker compose down -v` (this deletes local data), then `docker compose up -d --wait`.
 - **`A network-related or instance-specific error`.** SQL Server isn't running or isn't healthy yet. Run `docker ps`, then `docker compose logs sql` in bjk-core.
 - **A job or event doesn't arrive.** Look in the queue tables (`SELECT * FROM [messaging].[media.process]`) and their `.failed` tables; [messaging.md](messaging.md) shows how to read why a message was dead-lettered.
+- **Photos fail with `Encoder not found` (`image.webp`).** Your ffmpeg has no WebP encoder: Homebrew's plain `ffmpeg` doesn't. Run the setup again; it installs `ffmpeg-full` and points your user secrets at it. Then restart the media worker.
 - **An upload stays at `Processing`.** The media worker isn't running, or it can't find ffmpeg: check its console for `ffmpeg` errors, and set `Media:Processing:FfmpegPath` to the full path (`which ffmpeg`).
 - **An upload goes to `Failed`.** The file isn't a video or photo ffmpeg can read, or it's over the size or length limits. The worker logs the reason.
 - **`Connection refused` on port 9090.** S3Mock isn't running: `docker compose up -d --wait` in bjk-core.

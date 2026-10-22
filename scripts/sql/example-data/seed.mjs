@@ -158,7 +158,8 @@ function makeClips() {
       const [sky, road] = dark ? ["0x0b1424", "0x2a2c30"] : ["0x8cc8ec", "0x5a5d62"];
       try {
         execFileSync(
-          "ffmpeg",
+          // The setup passes the ffmpeg it found (Homebrew's ffmpeg-full is off the PATH); plain ffmpeg otherwise.
+          process.env.BJK_FFMPEG || "ffmpeg",
           [
             "-y", "-loglevel", "error",
             "-f", "lavfi", "-i", `color=c=${sky}:s=1280x720:d=8:r=30`,
