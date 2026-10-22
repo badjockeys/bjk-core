@@ -211,3 +211,25 @@ test("members switch between For you, Following and a custom timeline, and follo
   await expect(page.getByText("Parked across two disabled bays, again")).toBeVisible();
   await expect(page.getByText("Undertaking a lorry on the M62")).toHaveCount(0);
 });
+
+test("new posts show as a pill at the top of the feed, without reloading the page", async ({ page, request }) => {
+  await page.clock.install();
+  await signIn(page, "/");
+  const first = page.locator("article").first();
+  await expect(first).toBeVisible();
+
+  // Nothing new yet: no pill after the first check.
+  await page.clock.fastForward(31_000);
+  await expect(page.getByRole("button", { name: /new post/ })).toBeHidden();
+
+  // Someone posts; the next check (every 30 seconds) offers it rather than moving the feed.
+  await request.post(`${MOCK}/__new-post`, { data: "Straight through the red on the A6" });
+  await page.clock.fastForward(31_000);
+  const pill = page.getByRole("button", { name: "↑ 1 new post" });
+  await expect(pill).toBeVisible();
+  await expect(page.getByText("Straight through the red on the A6")).toBeHidden();
+
+  await pill.click();
+  await expect(page.getByText("Straight through the red on the A6")).toBeVisible();
+  await expect(pill).toBeHidden();
+});

@@ -3732,3 +3732,58 @@ dialog.composer-dialog::backdrop {
   padding: 0;
   list-style: none;
 }
+
+/* New posts (owner feedback, 22 Oct 2026, item 6): the "N new posts" pill, sticky at the top of the feed. */
+.new-posts {
+  position: sticky;
+  top: 72px;
+  z-index: 6;
+  height: 0;
+  display: flex;
+  justify-content: center;
+}
+
+.new-posts-pill {
+  margin-top: 8px;
+  height: 36px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 18px;
+  background: var(--brand);
+  color: #ffffff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+}
+
+/* Pull to refresh on phones: grows with the pull, then holds while the new posts load. */
+.ptr {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.ptr-spin {
+  font-size: 18px;
+  color: var(--brand-tint-text);
+}
+
+.ptr-going {
+  animation: ptr-turn 0.9s linear infinite;
+}
+
+@keyframes ptr-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ptr-going {
+    animation: none;
+  }
+}

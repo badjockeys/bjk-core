@@ -579,6 +579,11 @@ locally it uses the real head-turn check and stand-ins for Yoti that answer age 
   `GET /api/posts?hashtag=`). Typing `#` in the composer suggests tags, most used first (`GET /api/hashtags`). The
   right panel's **Trending** card lists the hashtags and towns with the most posts today against their usual level
   (`GET /api/trends`), and is hidden when nothing is trending.
+- **New posts without reloading:** the first page of a feed (Home's tabs, categories, hashtags and profiles) checks
+  for new posts every 30 seconds while the tab is open, and when the reader comes back to it. New ones show as an
+  "N new posts" pill at the top instead of moving the feed; tapping it scrolls up and loads them. On phones, pulling
+  down from the top does the same (the browser's own pull-to-refresh is off on those pages). Older posts load as you
+  near the bottom.
 - **Home timelines:** **For you** (`/`, ranked, boosted near your home area; visitors see only this), **Following**
   (`/following`) and your **custom timelines** (`/t/{id}`, made on `/timelines`: one or more types of bad driving,
   optionally near a place; Free 1, Premium 5, Premium + 10), as tabs at the top of Home. The old category tabs are
