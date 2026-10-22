@@ -94,7 +94,10 @@ interface Fields {
   passengers: AuthorDto[];
   /** The vehicle driven badly, from lists (never the registration). */
   vehicle: VehicleDto | null;
-  /** Reported to the police: yes, no, or not said. */
+  /**
+   * Reported to the police: yes, no, or not said. No longer asked (owner, 22 Oct 2026: "Report to the police" is
+   * offered under the post instead); kept so older drafts keep their answer.
+   */
   reportedToPolice: boolean | null;
 }
 
@@ -1008,31 +1011,6 @@ export function PostComposer({
                 Add the vehicle
               </button>
             )}
-          </div>
-
-          <div className="cmp-row">
-            <span className="cmp-row-label" id="police-label">
-              Reported to police?
-            </span>
-            <div className="cmp-chips" role="radiogroup" aria-labelledby="police-label">
-              {(
-                [
-                  [true, "Yes"],
-                  [false, "No"],
-                ] as const
-              ).map(([value, label]) => (
-                <button
-                  key={label}
-                  type="button"
-                  role="radio"
-                  aria-checked={fields.reportedToPolice === value}
-                  className={`cmp-chip${fields.reportedToPolice === value ? " cmp-chip-on" : ""}`}
-                  onClick={() => set("reportedToPolice", fields.reportedToPolice === value ? null : value)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
           </div>
 
           {onTheRoad ? (

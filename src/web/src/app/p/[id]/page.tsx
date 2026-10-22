@@ -8,6 +8,7 @@ import { Avatar } from "@/components/Avatar";
 import { BackButton } from "@/components/BackButton";
 import { Comments } from "@/components/Comments";
 import { Gallery } from "@/components/Gallery";
+import { PoliceReport } from "@/components/PoliceReport";
 import { HashtagText } from "@/components/HashtagText";
 import { ClockIcon, SpinnerIcon } from "@/components/icons";
 import { LinkExpiryRefresh } from "@/components/LinkExpiryRefresh";
@@ -209,6 +210,16 @@ export default async function PostPage({ params, searchParams }: Props) {
             Marked sensitive: injuries or a serious crash. It&apos;s blurred until you&apos;ve verified your
             age.
           </p>
+        ) : null}
+
+        {isMine && !processing && post.status === "Published" ? (
+          <PoliceReport
+            postId={post.id}
+            placeName={post.location.placeName}
+            latitude={post.location.latitude}
+            longitude={post.location.longitude}
+            incidentAt={post.incidentAt}
+          />
         ) : null}
 
         {!processing && post.status === "Published" ? (
