@@ -95,11 +95,11 @@ services:
         condition: service_healthy
     environment:
       ELASTIC_PASSWORD: ${BJK_ELASTIC_PASSWORD}
-      KIBANA_PASSWORD: ${BJK_KIBANA_PASSWORD:?Run the setup (node scripts/setup-local.mjs) to add BJK_KIBANA_PASSWORD to bjk-core/.env}
+      KIBANA_SYSTEM_PASSWORD: ${BJK_KIBANA_SYSTEM_PASSWORD:?Run the setup (node scripts/setup-local.mjs) to add BJK_KIBANA_SYSTEM_PASSWORD to bjk-core/.env}
     command: >
       bash -c '
         for _ in $$(seq 1 30); do
-          curl -s -u "elastic:$$ELASTIC_PASSWORD" -X POST -H "Content-Type: application/json" -d "{\"password\":\"$$KIBANA_PASSWORD\"}" http://elasticsearch:9200/_security/user/kibana_system/_password | grep -q "^{}" && exit 0;
+          curl -s -u "elastic:$$ELASTIC_PASSWORD" -X POST -H "Content-Type: application/json" -d "{\"password\":\"$$KIBANA_SYSTEM_PASSWORD\"}" http://elasticsearch:9200/_security/user/kibana_system/_password | grep -q "^{}" && exit 0;
           sleep 2;
         done;
         echo "Could not set the kibana_system password"; exit 1'
@@ -115,7 +115,7 @@ services:
       SERVER_NAME: kibana
       ELASTICSEARCH_HOSTS: http://elasticsearch:9200
       ELASTICSEARCH_USERNAME: kibana_system
-      ELASTICSEARCH_PASSWORD: ${BJK_KIBANA_PASSWORD}
+      ELASTICSEARCH_PASSWORD: ${BJK_KIBANA_SYSTEM_PASSWORD}
       # Needed for alert rules and connectors; any 32+ characters, kept the same between restarts.
       XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY: ${BJK_KIBANA_ENCRYPTION_KEY:?Run the setup (node scripts/setup-local.mjs) to add BJK_KIBANA_ENCRYPTION_KEY to bjk-core/.env}
       # Open on the Observability view (services, logs, traces) rather than search.

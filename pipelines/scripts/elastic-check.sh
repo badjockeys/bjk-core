@@ -7,7 +7,7 @@
 #   elastic-check.sh verify   after the smoke test, which sends to the collector: checks the API's and the media
 #                             worker's traces and logs reached Elasticsearch, and that Kibana is up
 #
-# Needs BJK_ELASTIC_PASSWORD, BJK_KIBANA_PASSWORD and BJK_KIBANA_ENCRYPTION_KEY (and BJK_SQL_PASSWORD, which the
+# Needs BJK_ELASTIC_PASSWORD, BJK_KIBANA_SYSTEM_PASSWORD and BJK_KIBANA_ENCRYPTION_KEY (and BJK_SQL_PASSWORD, which the
 # compose file also reads), as in a developer's .env.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
