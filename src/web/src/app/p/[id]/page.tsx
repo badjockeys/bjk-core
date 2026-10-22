@@ -19,10 +19,8 @@ import { isBlurred } from "@/components/PostMedia";
 import { FollowPostButton } from "@/components/FollowPostButton";
 import { SilentVideo } from "@/components/SilentVideo";
 import { ReachStats } from "@/components/ReachStats";
-import { ReactionBar } from "@/components/ReactionBar";
-import { SaveButton } from "@/components/SaveButton";
+import { PostFooter } from "@/components/PostFooter";
 import { SeenMarker } from "@/components/SeenMarker";
-import { ShareButton } from "@/components/ShareButton";
 import { VotePanel } from "@/components/VotePanel";
 import { SensitiveCover } from "@/components/SensitiveCover";
 import { TagRequest } from "@/components/TagRequest";
@@ -224,27 +222,31 @@ export default async function PostPage({ params, searchParams }: Props) {
 
         {!processing && post.status === "Published" ? (
           <>
-            <ReactionBar
-              postId={post.id}
-              counts={post.reactions}
-              mine={post.myReaction}
-              signedIn={viewer.signedIn}
-            />
             {post.vote ? (
               <VotePanel postId={post.id} initial={post.vote} signedIn={viewer.signedIn} isMine={isMine} />
             ) : null}
-            <div className="row row-wrap post-tools">
-              {/* Authors always follow their own posts, so there's nothing to choose. */}
-              {isMine ? null : (
+            {/* Authors always follow their own posts, so there's nothing to choose. */}
+            {isMine ? null : (
+              <div className="row row-wrap post-tools">
                 <FollowPostButton
                   postId={post.id}
                   following={post.isFollowing ?? false}
                   signedIn={viewer.signedIn}
                 />
-              )}
-              <SaveButton postId={post.id} saved={post.isSaved ?? false} signedIn={viewer.signedIn} />
-              <ShareButton path={here} title={post.title} postId={post.id} />
-            </div>
+              </div>
+            )}
+            <PostFooter
+              postId={post.id}
+              title={post.title}
+              href={here}
+              counts={post.reactions}
+              mine={post.myReaction ?? null}
+              commentCount={post.commentCount}
+              shareCount={post.shareCount ?? 0}
+              saved={post.isSaved ?? false}
+              signedIn={viewer.signedIn}
+              commentHref="#comments"
+            />
             {isMine ? null : <SeenMarker postId={post.id} immediate />}
           </>
         ) : null}

@@ -10,15 +10,15 @@ import type {
   IncidentCategory,
   PagedResult,
   PostDto,
+  PostReactionsDto,
   ReactionType,
   ReportReason,
 } from "@/lib/types";
 import { tagFromPath } from "@/lib/hashtags";
+import { REACTION_TYPES } from "@/lib/reactions";
 import { IN_APP_REASONS, isReason } from "@/lib/reasons";
 
 import { asUser, run } from "./run";
-
-const REACTIONS: readonly ReactionType[] = ["Like", "Angry", "Shocked", "Laugh"];
 
 export type FeedSource =
   | { kind: "feed"; category?: IncidentCategory }
@@ -71,10 +71,22 @@ export async function loadPosts(
 
 /** Set (or with null, remove) your reaction to a post. */
 export async function reactToPost(postId: string, type: ReactionType | null): Promise<ActionResult> {
-  if (type !== null && !REACTIONS.includes(type)) {
+  if (type !== null && !REACTION_TYPES.includes(type)) {
     return { ok: false, error: "Choose a reaction." };
   }
   return asUser((t) => (type ? api().posts.react(t, postId, type) : api().posts.unreact(t, postId)));
+}
+
+/** Who reacted to a post (signed-in members only), filtered by reaction and searched by name. */
+export async function listReactions(
+  postId: string,
+  q: { type: ReactionType | null; search: string; page: number; pageSize: number },
+): Promise<ActionResult<PostReactionsDto>> {
+  const type = q.type && REACTION_TYPES.includes(q.type) ? q.type : undefined;
+  const search = q.search.trim().slice(0, 50) || undefined;
+  return asUser((t) =>
+    api().posts.reactions(t, postId, { type, search, page: Math.max(1, q.page), pageSize: q.pageSize }),
+  );
 }
 
 export async function reportPost(

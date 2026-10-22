@@ -435,12 +435,6 @@ p {
   justify-content: center;
 }
 
-.reacts {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
 .react {
   height: 40px;
   padding: 0 14px;
@@ -1076,14 +1070,6 @@ p {
   align-items: center;
   justify-content: center;
   gap: 8px;
-}
-
-.tw-actions {
-  display: flex;
-  justify-content: space-between;
-  max-width: 440px;
-  margin-top: 6px;
-  margin-left: -8px;
 }
 
 .tw-act {
@@ -3865,4 +3851,268 @@ dialog.composer-modal::backdrop {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+/* Under a post, like Facebook (owner, 22 Oct 2026): a summary line, then Like, Comment, Share. */
+.pf {
+  margin-top: 8px;
+}
+
+.pf-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.pf-who {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: 500 13px var(--font);
+  cursor: pointer;
+}
+
+.pf-who:hover span:last-child {
+  text-decoration: underline;
+}
+
+.pf-bubbles {
+  display: inline-flex;
+}
+
+.pf-bubble {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: -4px;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  background: var(--brand-tint);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.pf-bubble:first-child {
+  margin-left: 0;
+}
+
+.pf-bubble-heart {
+  background: #fde8ec;
+}
+
+.pf-bubble-angry {
+  background: #fdeee2;
+}
+
+.pf-bubble-shocked {
+  background: #fff6db;
+}
+
+.pf-counts {
+  display: inline-flex;
+  gap: 12px;
+}
+
+.pf-count {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+a.pf-count:hover {
+  text-decoration: underline;
+}
+
+.pf-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-top: 1px solid var(--line);
+  padding-top: 4px;
+}
+
+.pf-actions > .pf-react,
+.pf-actions > .pf-btn {
+  flex: 1;
+}
+
+.pf-actions > .tw-act {
+  flex: 0 0 auto;
+}
+
+.pf-react {
+  position: relative;
+  display: flex;
+}
+
+.pf-btn {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
+  font: 600 14px var(--font);
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.pf-btn:hover {
+  background: var(--soft);
+}
+
+.pf-btn-on {
+  color: var(--brand-tint-text);
+}
+
+.pf-btn-on svg path {
+  fill: var(--brand);
+  stroke: var(--brand);
+}
+
+.pf-on-heart {
+  color: #c8143c;
+}
+
+.pf-on-angry {
+  color: #b5480b;
+}
+
+.pf-on-shocked {
+  color: #8a6400;
+}
+
+.pf-picker {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  background: #ffffff;
+  box-shadow: 0 6px 20px rgba(17, 17, 17, 0.16);
+}
+
+.pf-pick {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 0.12s ease;
+}
+
+.pf-pick:hover,
+.pf-pick:focus-visible {
+  transform: scale(1.2);
+}
+
+.pf-pick-on {
+  background: var(--brand-tint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pf-pick {
+    transition: none;
+  }
+
+  .pf-pick:hover,
+  .pf-pick:focus-visible {
+    transform: none;
+  }
+}
+
+/* Who reacted. */
+.rx-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--line);
+  scrollbar-width: none;
+}
+
+.rx-tab {
+  flex: 0 0 auto;
+  height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: none;
+  color: var(--muted);
+  font: 600 14px var(--font);
+  cursor: pointer;
+}
+
+.rx-tab-on {
+  border-bottom-color: var(--brand);
+  color: var(--ink);
+}
+
+.rx-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 50vh;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.rx-person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.rx-avatar {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.rx-badge {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.rx-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.rx-name:hover strong {
+  text-decoration: underline;
 }

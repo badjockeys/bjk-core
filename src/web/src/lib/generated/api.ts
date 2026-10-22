@@ -4522,6 +4522,75 @@ export class PostsClient {
     }
 
     /**
+     * Who reacted to a post, newest first, with the totals per reaction. Signed-in members only. Filter with
+    type (Like, Heart, Angry, Shocked) and search names with search. Under-18s are counted but not named.
+     * @param type (optional) 
+     * @param search (optional) 
+     * @param page (optional) 
+     * @param pageSize (optional) 
+     */
+    posts_ListReactions(id: string, type?: ReactionType | null | undefined, search?: string | null | undefined, page?: number | undefined, pageSize?: number | undefined, signal?: AbortSignal): Promise<PostReactionsDto> {
+        let url_ = this.baseUrl + "/api/posts/{id}/reactions?";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        if (type !== undefined && type !== null)
+            url_ += "type=" + encodeURIComponent("" + type) + "&";
+        if (search !== undefined && search !== null)
+            url_ += "search=" + encodeURIComponent("" + search) + "&";
+        if (page === null)
+            throw new globalThis.Error("The parameter 'page' cannot be null.");
+        else if (page !== undefined)
+            url_ += "page=" + encodeURIComponent("" + page) + "&";
+        if (pageSize === null)
+            throw new globalThis.Error("The parameter 'pageSize' cannot be null.");
+        else if (pageSize !== undefined)
+            url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPosts_ListReactions(_response);
+        });
+    }
+
+    protected processPosts_ListReactions(response: Response): Promise<PostReactionsDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PostReactionsDto;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PostReactionsDto>(null as any);
+    }
+
+    /**
      * A post's comments, oldest first. Signed-in users only: logged-out viewers don't see comments.
      * @param page (optional) 
      * @param pageSize (optional) 
@@ -7586,7 +7655,7 @@ export interface ScreenedPostDto {
     screeningLabels: string | null;
 }
 
-/** A post. IsSensitive posts (graphic injuries, serious crashes) go to everyone, but unless the viewer is an age-verified adult (token claim age_verified = "true"), the author or a moderator, their media come blurred and RequiresAgeVerification is true: show a "Sensitive" label over the blurred previews and offer the age check (or sign-in first, for logged-out viewers). SensitiveSource says who tagged it (Author, Moderator or Automatic detection). CommentsRequireSignIn is true for logged-out viewers: comments aren't shown to them (the count still is), so the app shows "Sign in to see comments". Status is HeldForReview or Hidden only for the author (and moderators). MediaState is Pending while the photos or video are still processing (show a "processing" badge; Media lists only the ready ones) and Failed, with MediaFailureReason, if the post can't be published; others only ever see Ready posts. Types are every type of bad driving on the post, shown as tags, the main one (Category) first. Passengers are the people tagged as being in the author's vehicle (see PassengerDto). Vote is the post's "Who's at fault?" or "How bad was it?" vote (see VoteSummaryDto). IsFollowing and IsSaved: whether the signed-in viewer follows the post and has bookmarked it. */
+/** A post. IsSensitive posts (graphic injuries, serious crashes) go to everyone, but unless the viewer is an age-verified adult (token claim age_verified = "true"), the author or a moderator, their media come blurred and RequiresAgeVerification is true: show a "Sensitive" label over the blurred previews and offer the age check (or sign-in first, for logged-out viewers). SensitiveSource says who tagged it (Author, Moderator or Automatic detection). CommentsRequireSignIn is true for logged-out viewers: comments aren't shown to them (the count still is), so the app shows "Sign in to see comments". Status is HeldForReview or Hidden only for the author (and moderators). MediaState is Pending while the photos or video are still processing (show a "processing" badge; Media lists only the ready ones) and Failed, with MediaFailureReason, if the post can't be published; others only ever see Ready posts. Types are every type of bad driving on the post, shown as tags, the main one (Category) first. Passengers are the people tagged as being in the author's vehicle (see PassengerDto). Vote is the post's "Who's at fault?" or "How bad was it?" vote (see VoteSummaryDto). IsFollowing and IsSaved: whether the signed-in viewer follows the post and has bookmarked it. ShareCount: how many times it was shared (once per viewer per UK day), shown under the post like Facebook. */
 export interface PostDto {
     id: string;
     author: AuthorDto;
@@ -7617,6 +7686,7 @@ export interface PostDto {
     vote: VoteSummaryDto | null;
     isFollowing: boolean;
     isSaved: boolean;
+    shareCount: number;
     /** True while the post waits for its photos or video: the app shows a "processing" indicator. */
     isProcessing: boolean;
 }
@@ -7656,7 +7726,8 @@ export interface PostMediaDto {
     feedUrl: string | null;
 }
 
-export type ReactionType = "Like" | "Angry" | "Shocked" | "Laugh";
+/** The reactions, stored by name. Heart replaced Laugh on 22 Oct 2026 (existing Laugh reactions became Like). */
+export type ReactionType = "Like" | "Heart" | "Angry" | "Shocked";
 
 /** Whether a post's photos and video are ready to show. A post can be created while its media are still being processed (or waiting for a moderator to check the blurring); it's then Pending, seen only by its author and moderators, and is published automatically once every item is Ready. Separate from PostStatus, which is about moderation: a post is visible to others only when it's Published and its media are Ready. */
 export type PostMediaState = "Ready" | "Pending" | "Failed";
@@ -8143,6 +8214,30 @@ export interface UpdatePostRequest {
 }
 
 export interface ReactRequest {
+    type: ReactionType;
+}
+
+/** The people who reacted (newest first) and the totals per reaction. UnnamedCount is how many reactions in the current filter come from people who aren't listed (under-18s, or no profile), shown as "and N others". */
+export interface PostReactionsDto {
+    people: PagedResultOfReactorDto;
+    counts: { [key in ReactionType]?: number; };
+    total: number;
+    unnamedCount: number;
+}
+
+export interface PagedResultOfReactorDto {
+    items: ReactorDto[];
+    page: number;
+    pageSize: number;
+    totalCount: number;
+}
+
+/** One person who reacted. */
+export interface ReactorDto {
+    userId: string;
+    handle: string;
+    displayName: string;
+    avatarUrl: string | null;
     type: ReactionType;
 }
 

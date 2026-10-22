@@ -217,6 +217,12 @@ export function endpoints(api: ApiClient) {
       react: (token: string, postId: string, type: ReactionType) =>
         posts(token).posts_React(postId, { type }),
       unreact: (token: string, postId: string) => posts(token).posts_RemoveReaction(postId),
+      /** Who reacted to a post (signed-in members only; under-18s counted but not named). */
+      reactions: (
+        token: string,
+        postId: string,
+        q: { type?: ReactionType; search?: string; page?: number; pageSize?: number } = {},
+      ) => posts(token).posts_ListReactions(postId, q.type, q.search, q.page ?? 1, q.pageSize ?? 30),
       report: (token: string, postId: string, reason: ReportReason, details: string | null) =>
         posts(token).posts_ReportPost(postId, { reason, details }),
       appeal: (token: string, postId: string, statement: string) =>

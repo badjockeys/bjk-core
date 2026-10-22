@@ -261,7 +261,7 @@ const CHOICES = {
   Fault: [["OtherRoadUser", 12], ["Both", 2], ["FilmingDriver", 1], ["Nobody", 1]],
   Severity: [["Careless", 4], ["Dangerous", 5], ["Shocking", 3], ["Minor", 1]],
 };
-const REACTIONS = [["Angry", 40], ["Shocked", 25], ["Like", 25], ["Laugh", 10]];
+const REACTIONS = [["Angry", 40], ["Shocked", 25], ["Like", 25], ["Heart", 10]];
 
 function generatedPosts(allUsers, count, startN) {
   const out = [];
