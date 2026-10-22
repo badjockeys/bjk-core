@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { PNG, resetMock, SEED, signIn } from "./helpers";
+import { MOCK, PNG, resetMock, SEED, signIn } from "./helpers";
 
 test.beforeEach(async ({ request }) => {
   await resetMock(request);
@@ -39,7 +39,7 @@ test.describe("posting", () => {
     await page.getByRole("button", { name: "Use this place" }).click();
     await expect(page.getByRole("button", { name: "Where: Kirkstall Road, Leeds. Change" })).toBeVisible();
 
-    // The vehicle, from lists, and whether it was reported.
+    // The vehicle, from lists. Whether it was reported isn't asked: that's offered under the post.
     await page.getByRole("button", { name: "Add the vehicle" }).click();
     await page.getByLabel("Car", { exact: true }).check();
     await page.getByLabel("Make").selectOption("BMW");
@@ -49,7 +49,6 @@ test.describe("posting", () => {
     await expect(
       page.getByRole("button", { name: "Vehicle: Black BMW 3 Series (car). Change" }),
     ).toBeVisible();
-    await page.getByRole("radio", { name: "Yes" }).click();
 
     await expect(page.getByText("Still needed: confirm you took them")).toBeVisible();
     await page.getByLabel(/I took these photos/).check();
@@ -399,4 +398,33 @@ test("new members get three welcome steps after making a profile", async ({ page
   await expect(page.getByRole("heading", { name: "Posting a clip" })).toBeVisible();
   await page.getByRole("link", { name: "Start browsing" }).click();
   await expect(page).toHaveURL(/\/$/);
+});
+
+test("authors can report their post to the police: the portal in England and Wales, 101 elsewhere", async ({
+  page,
+  request,
+}) => {
+  await request.post(`${MOCK}/__next-user`, { data: "dave" });
+  await signIn(page, `/p/${SEED.photoPost}`);
+  await page.getByRole("button", { name: "Report to the police" }).click();
+
+  const police = page.getByRole("dialog", { name: "Report it to the police" });
+  await expect(police.getByText("Asda, Kirkstall, Leeds")).toBeVisible();
+  await expect(police.getByLabel("England or Wales")).toBeChecked();
+  await expect(police.getByRole("link", { name: /National Dash Cam Safety Portal/ })).toHaveAttribute(
+    "href",
+    "https://nextbase.co.uk/national-dash-cam-safety-portal/",
+  );
+  await expect(police.getByText(/Send your original file/)).toBeVisible();
+
+  // Scotland and Northern Ireland don't use the portal.
+  await police.getByLabel("Scotland").check();
+  await expect(police.getByRole("link", { name: "Call 101" })).toHaveAttribute("href", "tel:101");
+  await expect(police.getByRole("link", { name: /National Dash Cam Safety Portal/ })).toBeHidden();
+});
+
+test("other people's posts don't offer to report them to the police", async ({ page }) => {
+  await signIn(page, `/p/${SEED.photoPost}`);
+  await expect(page.getByRole("heading", { name: "Parked across two disabled bays, again" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Report to the police" })).toBeHidden();
 });

@@ -575,6 +575,11 @@ locally it uses the real head-turn check and stand-ins for Yoti that answer age 
   12 months, custom). The ranges follow the heat map's plan limits (Free and visitors: 7 days; Premium: 12 months;
   Premium +: 5 years), and Premium can narrow it to an area around a place. Signed-out answers are cached for five
   minutes.
+- **Report to the police:** under your own post, a pop-up confirms where it happened (England or Wales, Scotland or
+  Northern Ireland, guessed from the pin) and says where to send the footage: the National Dash Cam Safety Portal in
+  England and Wales, or call 101 in Scotland and Northern Ireland. It asks for the original, unedited file (ours is
+  blurred and silent) within 7 to 14 days. Nothing is sent or recorded by us. The composer no longer asks whether it
+  was reported; older posts still show their answer.
 - **Hashtags** in posts' titles and descriptions link to the tag's page (`/tag/m62`, from
   `GET /api/posts?hashtag=`). Typing `#` in the composer suggests tags, most used first (`GET /api/hashtags`). The
   right panel's **Trending** card lists the hashtags and towns with the most posts today against their usual level
