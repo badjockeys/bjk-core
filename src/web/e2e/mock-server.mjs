@@ -1900,6 +1900,14 @@ const server = createServer(async (req, res) => {
         posts: db.posts.map((p) => ({ id: p.id, title: p.title, mediaState: p.mediaState })),
       });
     }
+    // Someone else posts while a test is reading the feed: a copy of a ready, public post, posted now.
+    if (url.pathname === "/__new-post" && req.method === "POST") {
+      const base = db.posts.find((p) => isPublic(p) && p.mediaState === "Ready" && !p.isSensitive);
+      const created = { ...structuredClone(base), id: randomUUID(), createdAt: new Date().toISOString() };
+      created.title = (await readBody(req)).toString() || "Just posted";
+      db.posts.unshift(created);
+      return send(res, 201, { id: created.id });
+    }
     if (url.pathname === "/__next-user" && req.method === "POST") {
       nextUser = (await readBody(req)).toString() || "roadhog";
       return send(res, 200, { nextUser });
