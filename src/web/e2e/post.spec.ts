@@ -106,7 +106,7 @@ test.describe("posting", () => {
       .getByTestId("photo-input")
       .setInputFiles({ name: "tailgate.png", mimeType: "image/png", buffer: PNG });
     await dialog.getByLabel("Title").fill("Tailgated for two miles on the A57");
-    await dialog.getByRole("button", { name: "Where it happened" }).click();
+    await dialog.getByRole("button", { name: "Where it happened", exact: true }).click();
     await dialog.getByLabel("Road and town").fill("A57 Warrington Road, Rainhill");
     await dialog.getByRole("button", { name: "Use my location" }).click();
     await dialog.getByRole("button", { name: "Use this place" }).click();
