@@ -65,7 +65,7 @@ test.describe("posting", () => {
 
     // The mock finishes processing after a couple of seconds; the page checks again by itself.
     await expect(page.getByText(/Processing your photos/)).toBeHidden({ timeout: 20_000 });
-    await expect(page.getByRole("button", { name: "Like 0" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Like", exact: true })).toBeVisible();
 
     await page.goto("/");
     await expect(page.getByText("Parked on the zigzags outside the school")).toBeVisible();
