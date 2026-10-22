@@ -363,6 +363,8 @@ function migrateCoreSecrets(file) {
     // The person detector (22 Oct 2026): heads are blurred as a backup for faces.
     const redaction = json.Media.Redaction ?? {};
     if (unset(redaction.PersonModelPath)) redaction.PersonModelPath = personModel();
+    // Faces no longer hold uploads for review (22 Oct 2026): move the old default, 0.8, to the new one.
+    if (redaction.FaceConfidentAt === 0.8) redaction.FaceConfidentAt = 0.5;
     json.Media.Redaction = redaction;
     const current = json.Media.SensitiveDetection ?? {};
     for (const key of ["Enabled", "Provider", "InputWidth", "InputHeight", "Mean", "Std", "Output", "SensitiveClasses"]) delete current[key];
