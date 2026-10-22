@@ -183,7 +183,7 @@ function seed() {
       [
         SEED.photoPost,
         new Map([
-          ["x1", "Like"],
+          [USERS.larry.id, "Like"],
           ["x2", "Angry"],
           ["x3", "Angry"],
         ]),
@@ -404,6 +404,7 @@ function postDto(p, viewer) {
     vote: voteDto(p, viewer),
     isFollowing: Boolean(viewer) && engagement().postFollows.has(`${p.id}:${viewer}`),
     isSaved: Boolean(viewer) && (engagement().bookmarks.get(viewer) ?? []).includes(p.id),
+    shareCount: engagement().shares.get(p.id) ?? 0,
   };
 }
 /** The commenter and the post's author see a comment the post's author hid; everyone else sees a placeholder. */
@@ -690,7 +691,7 @@ const CATEGORIES = new Set([
   "BadParking",
   "Other",
 ]);
-const REACTIONS = new Set(["Like", "Angry", "Shocked", "Laugh"]);
+const REACTIONS = new Set(["Like", "Heart", "Angry", "Shocked"]);
 
 async function api(req, res, url) {
   const path = url.pathname;
@@ -1398,6 +1399,34 @@ async function api(req, res, url) {
       if (tag.status === "Declined" && accept) return invalid(res, "Accept", "You declined this tag.");
       tag.status = accept ? "Accepted" : "Declined";
       return send(res, 200, postDto(p, me));
+    }
+    if (rest === "reactions" && method === "GET") {
+      // Who reacted: under-18s and people without a profile are counted but not named.
+      const map = db.reactions.get(p.id) ?? new Map();
+      const type = url.searchParams.get("type");
+      const search = (url.searchParams.get("search") ?? "").trim().replace(/^@/, "").toLowerCase();
+      const all = [...map.entries()];
+      const filtered = type ? all.filter(([, t]) => t === type) : all;
+      const named = filtered.filter(([id]) => {
+        const profile = db.profiles.get(id);
+        return profile && !profile.isMinor;
+      });
+      const unnamed = filtered.length - named.length;
+      const matches = search
+        ? named.filter(([id]) => {
+            const profile = db.profiles.get(id);
+            return profile.displayName.toLowerCase().includes(search) || profile.handle.includes(search);
+          })
+        : named;
+      return send(res, 200, {
+        people: page(matches, url, ([id, t]) => {
+          const profile = db.profiles.get(id);
+          return { userId: id, handle: profile.handle, displayName: profile.displayName, avatarUrl: avatarUrl(profile), type: t };
+        }),
+        counts: counts(map),
+        total: all.length,
+        unnamedCount: search ? 0 : unnamed,
+      });
     }
     if (rest === "reaction") {
       const map = db.reactions.get(p.id) ?? new Map();

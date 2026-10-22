@@ -236,8 +236,25 @@ test("the post's author hides a comment and turns comments off", async ({ page, 
 test("comment, reply and react", async ({ page }) => {
   await signIn(page, `/p/${SEED.photoPost}`);
 
-  await page.getByRole("button", { name: "Angry 2" }).click();
-  await expect(page.getByRole("button", { name: "Angry 3" })).toHaveAttribute("aria-pressed", "true");
+  // React from the picker (arrow up opens it from the keyboard), then see who reacted.
+  const like = page.getByRole("button", { name: "Like", exact: true });
+  await like.focus();
+  await page.keyboard.press("ArrowUp");
+  await page.getByRole("group", { name: "Choose a reaction" }).getByRole("button", { name: "Angry" }).click();
+  await expect(page.getByRole("button", { name: "Angry: tap to remove your reaction" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await page.getByRole("button", { name: "4 reactions. See who reacted" }).click();
+  const who = page.getByRole("dialog", { name: "Reactions" });
+  await expect(who.getByRole("link", { name: /Lane One Larry/ })).toBeVisible();
+  await expect(who.getByRole("link", { name: /Road Hog/ })).toBeVisible();
+  await who.getByRole("tab", { name: "Angry 3" }).click();
+  await expect(who.getByRole("link", { name: /Lane One Larry/ })).toHaveCount(0);
+  await expect(who.getByText("And 2 others.")).toBeVisible();
+  await who.getByPlaceholder("Search by name").fill("road");
+  await expect(who.getByRole("link", { name: /Road Hog/ })).toBeVisible();
+  await who.getByRole("button", { name: "Close" }).click();
 
   await expect(page.getByText("Report it to the store too, they can fine them.")).toBeVisible();
   await page.getByPlaceholder("Add a comment").fill("Same car was outside the school yesterday.");
@@ -299,7 +316,10 @@ test("comment, reply and react", async ({ page }) => {
 
   // Everything was saved.
   await page.reload();
-  await expect(page.getByRole("button", { name: "Angry 3" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "Angry: tap to remove your reaction" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
   await expect(page.getByText("Already done, they said they'd look into it.")).toBeVisible();
   await expect(page.getByRole("heading", { name: "3 comments" })).toBeVisible();
 });
