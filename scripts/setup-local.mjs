@@ -8,12 +8,13 @@
 //   1. checks the tools (.NET, Node.js, Docker, ffmpeg) and access to the private package feed (from the GitHub
 //      CLI's sign-in, saved in your user-level NuGet.Config)
 //   2. creates your git-ignored config files from the templates, with your own SQL password and secrets
-//      (bjk-core/.env, bjk-identity-server/user-secrets.json, bjk-core/user-secrets.json, src/web/.env.local);
+//      (bjk-core/.env, the identity server's and the API's .NET user secrets, src/web/.env.local);
 //      files that already exist are left alone
 //   3. trusts the .NET HTTPS development certificate and exports it for Node.js
 //   4. starts SQL Server, S3Mock, Elasticsearch, Kibana and the OpenTelemetry collector in Docker, as the group
 //      "bad-jockeys" (bjk-core's docker-compose.yml)
-//   5. loads the .NET user secrets for the identity server and the API (the media worker shares the API's)
+//   5. (user secrets are written straight into .NET's user secrets store in step 2; edit them with "Manage User
+//      Secrets" on BJK.Core.Api or BJK.Idsrv.Host; the media worker shares the API's)
 //   6. downloads the face and number plate blurring models and the CLIP content model into bjk-core/.local/models
 //   7. builds the .NET apps and installs the web app's packages
 //   8. adds example users and posts (scripts/sql/example-data), starting the identity server and the API for a
@@ -26,7 +27,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import { createHash, generateKeyPairSync, randomBytes } from "node:crypto";
 import { createServer } from "node:net";
-import { createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createWriteStream, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -79,7 +80,7 @@ const MODELS = [
   },
 ];
 
-/** The content check settings the setup writes into bjk-core/user-secrets.json: CLIP runs when ModelPath is set. */
+/** The content check settings the setup writes into the API's user secrets: CLIP runs when ModelPath is set. */
 const sensitiveDetection = () => ({ ModelPath: join(models, MODELS[2].file) });
 const personModel = () => join(models, MODELS[3].file);
 const livenessModel = () => join(models, MODELS[4].file);
@@ -270,6 +271,75 @@ function writeIfMissing(file, content, label) {
   return true;
 }
 
+/**
+ * The .NET user secrets file for a UserSecretsId: what "Manage User Secrets" opens (Rider, Visual Studio, or VS Code
+ * with the C# Dev Kit), and what the app reads in Development. The setup writes straight into it.
+ */
+function userSecretsFile(id) {
+  const root = isWindows
+    ? join(process.env.APPDATA ?? join(homedir(), "AppData", "Roaming"), "Microsoft", "UserSecrets")
+    : join(homedir(), ".microsoft", "usersecrets");
+  return join(root, id, "secrets.json");
+}
+
+/** The API's (shared with the media worker) and the identity server's user secrets. */
+const CORE_SECRETS = userSecretsFile("bjk-core-api");
+const IDSRV_SECRETS = userSecretsFile("bjk-identity-server");
+
+/**
+ * Turns flat keys ("Media:Redaction:FaceModelPath", which `dotnet user-secrets set` writes) into nested sections, so
+ * the file reads like appsettings.json. Sections whose keys are 0, 1, 2... become arrays.
+ */
+function nest(flat) {
+  const root = {};
+  for (const [key, value] of Object.entries(flat)) {
+    const parts = key.split(":");
+    let node = root;
+    for (const part of parts.slice(0, -1)) {
+      if (typeof node[part] !== "object" || node[part] === null) node[part] = {};
+      node = node[part];
+    }
+    const last = parts.at(-1);
+    node[last] = value !== null && typeof value === "object" && !Array.isArray(value) ? { ...(node[last] ?? {}), ...nest(value) } : value;
+  }
+  const arrays = (node) => {
+    if (node === null || typeof node !== "object" || Array.isArray(node)) return node;
+    for (const key of Object.keys(node)) node[key] = arrays(node[key]);
+    const keys = Object.keys(node);
+    return keys.length > 0 && keys.every((k, i) => k === String(i)) ? keys.map((k) => node[k]) : node;
+  };
+  return arrays(root);
+}
+
+/**
+ * Makes sure a user secrets file exists and is nested. In order: a bjk-core/ or bjk-identity-server/user-secrets.json
+ * from before 22 Oct 2026 (the setup used to keep a copy there and load it) is moved in and renamed .moved; an
+ * existing secrets file is kept (only flattened keys are nested); otherwise it's made from the template.
+ */
+function ensureUserSecrets(file, oldCopy, makeFromTemplate, label) {
+  mkdirSync(dirname(file), { recursive: true });
+  if (existsSync(oldCopy)) {
+    writeFileSync(file, `${JSON.stringify(nest(JSON.parse(readFileSync(oldCopy, "utf8"))), null, 2)}\n`);
+    renameSync(oldCopy, `${oldCopy}.moved`);
+    ok(`${label}: moved into the app's user secrets (${file}); the old copy is now ${oldCopy}.moved and isn't used`);
+    return;
+  }
+
+  if (existsSync(file) && readFileSync(file, "utf8").trim()) {
+    const current = JSON.parse(readFileSync(file, "utf8"));
+    if (Object.keys(current).some((k) => k.includes(":"))) {
+      writeFileSync(file, `${JSON.stringify(nest(current), null, 2)}\n`);
+      ok(`${label}: tidied into sections (${file})`);
+    } else {
+      console.log(`${label}: already there, kept (${file})`);
+    }
+    return;
+  }
+
+  writeFileSync(file, makeFromTemplate());
+  ok(`${label}: created from the template (${file})`);
+}
+
 /** True for an empty value or a template placeholder such as "<only if ...>". */
 const unset = (value) => value === undefined || value === null || String(value).trim() === "" || String(value).trim().startsWith("<");
 
@@ -337,10 +407,10 @@ function useOllamaIfThere(file) {
   }
   json.Media = { ...(json.Media ?? {}), Describe: { ...describe, Endpoint: "http://localhost:11434/v1", Model: OLLAMA_MODEL } };
   writeFileSync(file, `${JSON.stringify(json, null, 2)}\n`);
-  ok(`bjk-core/user-secrets.json: "Suggest a description" uses ${OLLAMA_MODEL} in Ollama`);
+  ok(`User secrets: "Suggest a description" uses ${OLLAMA_MODEL} in Ollama`);
 }
 
-/** Brings an existing bjk-core/user-secrets.json up to the current names (safe to run again). */
+/** Brings the API's existing user secrets up to the current names (safe to run again). */
 function migrateCoreSecrets(file) {
   if (!existsSync(file)) return;
   const before = readFileSync(file, "utf8");
@@ -364,7 +434,7 @@ function migrateCoreSecrets(file) {
     const redaction = json.Media.Redaction ?? {};
     if (unset(redaction.PersonModelPath)) redaction.PersonModelPath = personModel();
     // Faces no longer hold uploads for review (22 Oct 2026): move the old default, 0.8, to the new one.
-    if (redaction.FaceConfidentAt === 0.8) redaction.FaceConfidentAt = 0.5;
+    if (Number(redaction.FaceConfidentAt) === 0.8) redaction.FaceConfidentAt = 0.5;
     json.Media.Redaction = redaction;
     const current = json.Media.SensitiveDetection ?? {};
     for (const key of ["Enabled", "Provider", "InputWidth", "InputHeight", "Mean", "Std", "Output", "SensitiveClasses"]) delete current[key];
@@ -390,18 +460,18 @@ function migrateCoreSecrets(file) {
   const after = `${JSON.stringify(json, null, 2)}\n`;
   if (after !== before) {
     writeFileSync(file, after);
-    ok("bjk-core/user-secrets.json: brought up to date (BadJockeysDatabase, Queues, no provider switches)");
+    ok("The API's user secrets: brought up to date (BadJockeysDatabase, Queues, no provider switches)");
   }
 }
 
 /**
- * Brings an existing bjk-identity-server/user-secrets.json up to the current names. Only once that checkout has the
+ * Brings the identity server's existing user secrets up to the current names. Only once that checkout has the
  * new settings itself (its template has BadJockeysDatabase): older identity server code still reads the old names.
  */
 function migrateIdentitySecrets(file) {
   if (!existsSync(file)) return;
   if (!readFileSync(join(idsrv, "user-secrets.template.json"), "utf8").includes('"BadJockeysDatabase"')) {
-    console.log("bjk-identity-server/user-secrets.json: left as it is until bjk-identity-server is updated (git pull)");
+    console.log("The identity server's user secrets: left as they are until bjk-identity-server is updated (git pull)");
     return;
   }
   const before = readFileSync(file, "utf8");
@@ -431,7 +501,7 @@ function migrateIdentitySecrets(file) {
   const after = `${JSON.stringify(json, null, 2)}\n`;
   if (after !== before) {
     writeFileSync(file, after);
-    ok("bjk-identity-server/user-secrets.json: brought up to date (BadJockeysDatabase, Yoti, no provider switches)");
+    ok("The identity server's user secrets: brought up to date (BadJockeysDatabase, Yoti, no provider switches)");
   }
 }
 
@@ -476,20 +546,22 @@ function createConfig() {
     return `${JSON.stringify(json, null, 2)}\n`;
   };
 
-  writeIfMissing(
+  ensureUserSecrets(
+    IDSRV_SECRETS,
     join(idsrv, "user-secrets.json"),
-    fromTemplate(join(idsrv, "user-secrets.template.json"), (json) => {
+    () => fromTemplate(join(idsrv, "user-secrets.template.json"), (json) => {
       // Placeholder until you've registered: put your confirmed email here to become the first admin.
       if (json.Admin) json.Admin.BootstrapEmails = [];
       // The real head-turn check, with the model downloaded below.
       if (json.AgeAssurance?.Liveness) json.AgeAssurance.Liveness.ModelPath = livenessModel();
     }),
-    "bjk-identity-server/user-secrets.json",
+    "The identity server's user secrets",
   );
 
-  writeIfMissing(
+  ensureUserSecrets(
+    CORE_SECRETS,
     join(core, "user-secrets.json"),
-    fromTemplate(join(core, "user-secrets.template.json"), (json) => {
+    () => fromTemplate(join(core, "user-secrets.template.json"), (json) => {
       if (json.Reels) json.Reels.ViewerKeySecret = secret();
       json.Notifications = { ...(json.Notifications ?? {}) };
       json.Notifications.Push = { ...(json.Notifications.Push ?? {}), ...vapidKeys() };
@@ -501,14 +573,14 @@ function createConfig() {
       };
       json.Media.SensitiveDetection = { ...(json.Media.SensitiveDetection ?? {}), ...sensitiveDetection() };
     }),
-    "bjk-core/user-secrets.json",
+    "The API's and media worker's user secrets",
   );
 
-  migrateCoreSecrets(join(core, "user-secrets.json"));
-  migrateIdentitySecrets(join(idsrv, "user-secrets.json"));
-  useOllamaIfThere(join(core, "user-secrets.json"));
-  useFfmpeg(join(core, "user-secrets.json"), [["Media", "Processing"], ["Media", "Describe"]]);
-  useFfmpeg(join(idsrv, "user-secrets.json"), [["AgeAssurance", "Liveness"], ["AgeAssurance", "Yoti"]]);
+  migrateCoreSecrets(CORE_SECRETS);
+  migrateIdentitySecrets(IDSRV_SECRETS);
+  useOllamaIfThere(CORE_SECRETS);
+  useFfmpeg(CORE_SECRETS, [["Media", "Processing"], ["Media", "Describe"]]);
+  useFfmpeg(IDSRV_SECRETS, [["AgeAssurance", "Liveness"], ["AgeAssurance", "Yoti"]]);
 
   // Earlier templates pointed the web app at the API's http address, which redirects to https; Node.js drops the
   // sign-in token on that redirect, so every signed-in call got 401. Move existing files to the https address.
@@ -554,17 +626,6 @@ function startDocker() {
   }
   ok("SQL Server is healthy, S3Mock is running, and Kibana is at http://localhost:5601");
   ok(`Sign in to Kibana as elastic, password ${readEnvValue(core, "BJK_ELASTIC_PASSWORD")} (BJK_ELASTIC_PASSWORD in bjk-core/.env)`);
-}
-
-function loadSecrets() {
-  step("Loading user secrets");
-  for (const [project, file] of [
-    [join(idsrv, "src", "BJK.Idsrv.Host"), join(idsrv, "user-secrets.json")],
-    [join(core, "src", "BJK.Core.Api"), join(core, "user-secrets.json")],
-  ]) {
-    run("dotnet", ["user-secrets", "clear", "--project", project], { quiet: true });
-    mustRun("dotnet", ["user-secrets", "set", "--project", project], { input: readFileSync(file, "utf8") });
-  }
 }
 
 async function downloadModels() {
@@ -682,7 +743,9 @@ async function exampleData() {
 
     const owner = ownerId();
     if (owner) {
-      mustRun("dotnet", ["user-secrets", "set", `Plans:Overrides:${owner}`, OWNER_PLAN, "--project", api], { quiet: true });
+      const secrets = JSON.parse(readFileSync(CORE_SECRETS, "utf8"));
+      secrets.Plans = { ...(secrets.Plans ?? {}), Overrides: { ...(secrets.Plans?.Overrides ?? {}), [owner]: OWNER_PLAN } };
+      writeFileSync(CORE_SECRETS, `${JSON.stringify(secrets, null, 2)}\n`);
       ok(`${OWNER_EMAIL} has ${OWNER_PLAN} on this computer (Plans:Overrides in the API's user secrets).`);
     } else {
       console.log(
@@ -717,7 +780,6 @@ if (configOnly) {
   createConfig();
   trustCertificate();
   startDocker();
-  loadSecrets();
   await downloadModels();
   build();
   await exampleData();
