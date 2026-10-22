@@ -41,7 +41,7 @@ env:
   # The local Elastic containers (docker-compose.yml) read these from a developer's .env.
   BJK_SQL_PASSWORD: Ci-Passw0rd-2026
   BJK_ELASTIC_PASSWORD: CiElastic2026x
-  BJK_KIBANA_PASSWORD: CiKibana2026x
+  BJK_KIBANA_SYSTEM_PASSWORD: CiKibana2026x
   BJK_KIBANA_ENCRYPTION_KEY: CiKibanaEncryptionKey2026abcdefghijklmn
 
 jobs:
