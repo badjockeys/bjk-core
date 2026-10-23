@@ -8149,189 +8149,6 @@ export class VehiclesClient {
         }
         return Promise.resolve<VehicleCatalogueDto>(null as any);
     }
-
-    /**
-     * Your household cars, to choose the one you filmed from when posting. Private to you.
-     */
-    vehicles_MyCars(signal?: AbortSignal): Promise<HouseholdCarDto[]> {
-        let url_ = this.baseUrl + "/api/vehicles/mine";
-        url_ = url_.replace(/[?&]$/, "");
-
-        let options_: RequestInit = {
-            method: "GET",
-            signal,
-            headers: {
-                "Accept": "application/json"
-            }
-        };
-
-        return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processVehicles_MyCars(_response);
-        });
-    }
-
-    protected processVehicles_MyCars(response: Response): Promise<HouseholdCarDto[]> {
-        const status = response.status;
-        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
-        if (status === 200) {
-            return response.text().then((_responseText) => {
-            let result200: any = null;
-            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as HouseholdCarDto[];
-            return result200;
-            });
-        } else if (status !== 200 && status !== 204) {
-            return response.text().then((_responseText) => {
-            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
-            });
-        }
-        return Promise.resolve<HouseholdCarDto[]>(null as any);
-    }
-
-    /**
-     * Add a household car: a make and model from the lists, a colour and a nickname (no registration).
-     */
-    vehicles_AddCar(request: HouseholdCarRequest, signal?: AbortSignal): Promise<HouseholdCarDto> {
-        let url_ = this.baseUrl + "/api/vehicles/mine";
-        url_ = url_.replace(/[?&]$/, "");
-
-        const content_ = JSON.stringify(request);
-
-        let options_: RequestInit = {
-            body: content_,
-            method: "POST",
-            signal,
-            headers: {
-                "Content-Type": "application/json",
-                "Accept": "application/json"
-            }
-        };
-
-        return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processVehicles_AddCar(_response);
-        });
-    }
-
-    protected processVehicles_AddCar(response: Response): Promise<HouseholdCarDto> {
-        const status = response.status;
-        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
-        if (status === 200) {
-            return response.text().then((_responseText) => {
-            let result200: any = null;
-            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as HouseholdCarDto;
-            return result200;
-            });
-        } else if (status === 400) {
-            return response.text().then((_responseText) => {
-            let result400: any = null;
-            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
-            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
-            });
-        } else if (status !== 200 && status !== 204) {
-            return response.text().then((_responseText) => {
-            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
-            });
-        }
-        return Promise.resolve<HouseholdCarDto>(null as any);
-    }
-
-    /**
-     * Change one of your cars. A new nickname shows on the posts filmed from it.
-     */
-    vehicles_UpdateCar(id: string, request: HouseholdCarRequest, signal?: AbortSignal): Promise<HouseholdCarDto> {
-        let url_ = this.baseUrl + "/api/vehicles/mine/{id}";
-        if (id === undefined || id === null)
-            throw new globalThis.Error("The parameter 'id' must be defined.");
-        url_ = url_.replace("{id}", encodeURIComponent("" + id));
-        url_ = url_.replace(/[?&]$/, "");
-
-        const content_ = JSON.stringify(request);
-
-        let options_: RequestInit = {
-            body: content_,
-            method: "PUT",
-            signal,
-            headers: {
-                "Content-Type": "application/json",
-                "Accept": "application/json"
-            }
-        };
-
-        return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processVehicles_UpdateCar(_response);
-        });
-    }
-
-    protected processVehicles_UpdateCar(response: Response): Promise<HouseholdCarDto> {
-        const status = response.status;
-        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
-        if (status === 200) {
-            return response.text().then((_responseText) => {
-            let result200: any = null;
-            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as HouseholdCarDto;
-            return result200;
-            });
-        } else if (status === 400) {
-            return response.text().then((_responseText) => {
-            let result400: any = null;
-            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
-            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
-            });
-        } else if (status === 404) {
-            return response.text().then((_responseText) => {
-            let result404: any = null;
-            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
-            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
-            });
-        } else if (status !== 200 && status !== 204) {
-            return response.text().then((_responseText) => {
-            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
-            });
-        }
-        return Promise.resolve<HouseholdCarDto>(null as any);
-    }
-
-    /**
-     * Delete one of your cars. Posts filmed from it keep its nickname.
-     */
-    vehicles_DeleteCar(id: string, signal?: AbortSignal): Promise<void> {
-        let url_ = this.baseUrl + "/api/vehicles/mine/{id}";
-        if (id === undefined || id === null)
-            throw new globalThis.Error("The parameter 'id' must be defined.");
-        url_ = url_.replace("{id}", encodeURIComponent("" + id));
-        url_ = url_.replace(/[?&]$/, "");
-
-        let options_: RequestInit = {
-            method: "DELETE",
-            signal,
-            headers: {
-            }
-        };
-
-        return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processVehicles_DeleteCar(_response);
-        });
-    }
-
-    protected processVehicles_DeleteCar(response: Response): Promise<void> {
-        const status = response.status;
-        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
-        if (status === 204) {
-            return response.text().then((_responseText) => {
-            return;
-            });
-        } else if (status === 404) {
-            return response.text().then((_responseText) => {
-            let result404: any = null;
-            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
-            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
-            });
-        } else if (status !== 200 && status !== 204) {
-            return response.text().then((_responseText) => {
-            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
-            });
-        }
-        return Promise.resolve<void>(null as any);
-    }
 }
 
 export class AdminProfilesClient {
@@ -10056,7 +9873,7 @@ export interface ScreenedPostDto {
     screeningLabels: string | null;
 }
 
-/** A post. IsSensitive posts (graphic injuries, serious crashes) go to everyone, but unless the viewer is an age-verified adult (token claim age_verified = "true"), the author or a moderator, their media come blurred and RequiresAgeVerification is true: show a "Sensitive" label over the blurred previews and offer the age check (or sign-in first, for logged-out viewers). SensitiveSource says who tagged it (Author, Moderator or Automatic detection). CommentsRequireSignIn is true for logged-out viewers: comments aren't shown to them (the count still is), so the app shows "Sign in to see comments". Status is HeldForReview or Hidden only for the author (and moderators). MediaState is Pending while the photos or video are still processing (show a "processing" badge; Media lists only the ready ones) and Failed, with MediaFailureReason, if the post can't be published; others only ever see Ready posts. Types are every type of bad driving on the post, shown as tags, the main one (Category) first. Passengers are the people tagged as being in the author's vehicle (see PassengerDto). Vote is the post's "Who's at fault?" or "How bad was it?" vote (see VoteSummaryDto). IsFollowing and IsSaved: whether the signed-in viewer follows the post and has bookmarked it. ShareCount: how many times it was shared (once per viewer per UK day), shown under the post like Facebook. FilmedFrom: the author's household car it was filmed from ("Filmed from: Dave's Golf"). */
+/** A post. IsSensitive posts (graphic injuries, serious crashes) go to everyone, but unless the viewer is an age-verified adult (token claim age_verified = "true"), the author or a moderator, their media come blurred and RequiresAgeVerification is true: show a "Sensitive" label over the blurred previews and offer the age check (or sign-in first, for logged-out viewers). SensitiveSource says who tagged it (Author, Moderator or Automatic detection). CommentsRequireSignIn is true for logged-out viewers: comments aren't shown to them (the count still is), so the app shows "Sign in to see comments". Status is HeldForReview or Hidden only for the author (and moderators). MediaState is Pending while the photos or video are still processing (show a "processing" badge; Media lists only the ready ones) and Failed, with MediaFailureReason, if the post can't be published; others only ever see Ready posts. Types are every type of bad driving on the post, shown as tags, the main one (Category) first. Passengers are the people tagged as being in the author's vehicle (see PassengerDto). Vote is the post's "Who's at fault?" or "How bad was it?" vote (see VoteSummaryDto). IsFollowing and IsSaved: whether the signed-in viewer follows the post and has bookmarked it. ShareCount: how many times it was shared (once per viewer per UK day), shown under the post like Facebook. */
 export interface PostDto {
     id: string;
     author: AuthorDto;
@@ -10088,7 +9905,6 @@ export interface PostDto {
     isFollowing: boolean;
     isSaved: boolean;
     shareCount: number;
-    filmedFrom: FilmedFromDto | null;
     /** True while the post waits for its photos or video: the app shows a "processing" indicator. */
     isProcessing: boolean;
     /** The group the main subcategory is listed under. */
@@ -10185,12 +10001,6 @@ export interface VoteAnswerDto {
 
 /** An answer to a post's vote. Which answers a vote offers, and their wording, come from its main subcategory (VoteFor). Stored by name: add new ones at the end. */
 export type VoteChoice = "FilmingDriver" | "OtherRoadUser" | "Both" | "Nobody" | "Minor" | "Careless" | "Dangerous" | "Shocking" | "No" | "Maybe" | "Yes" | "Blocked" | "PartlyBlocked" | "RoomToPass" | "BadParking" | "FairEnough" | "CantTell" | "Safe" | "Risky" | "Unclear" | "BadDriving" | "FarTooClose" | "TooClose" | "Fine" | "Clearly" | "Probably" | "NotReally" | "ClearlyRanIt" | "AmberGamble" | "HardToTell" | "GaveEnoughRoom" | "Heated" | "Aggressive" | "Threatening" | "Serious" | "VerySerious" | "FairMistake";
-
-/** The author's household car a post was filmed from: its nickname, and its id (for the author's edit form). */
-export interface FilmedFromDto {
-    carId: string | null;
-    label: string;
-}
 
 /** The 13 groups the types of bad driving are listed under (owner signed off the categories doc, 23 Oct 2026). Stored by name. */
 export type IncidentGroup = "Parking" | "Speeding" | "Overtaking" | "Junctions" | "LaneDiscipline" | "FollowingTooClose" | "Distraction" | "RedLightsAndCrossings" | "VulnerableRoadUsers" | "RoadRage" | "Collisions" | "VehiclesAndDrivers" | "Motorways";
@@ -10777,7 +10587,7 @@ export interface ReplyPostDto {
     author: AuthorDto;
 }
 
-/** Creates a post with 1 to 10 photos or one video, uploaded through /api/media first. They don't have to have finished processing: if any is still Processing (or waiting for a moderator's review), the post is saved as Pending, seen only by its author (in "my posts") and moderators, and is published automatically once they're all Ready, or marked Failed (and the author emailed) if one fails. If they're all Ready already, it's visible to everyone straight away. Either way content screening can hold it for review. The author needs a confirmed email and a profile (and a passed age check if Safety:RequireAgeVerification is on). IsSensitive marks graphic content: the post shows to everyone, its media blurred except for age-verified adults, and the media are kept privately. If automatic detection already flagged any of the media, the post is tagged sensitive automatically (and queued for a moderator) whatever IsSensitive says. Types are the types of bad driving (at least one; the first is the main one); older clients can send one Category instead. Passengers are @handles of people in the author's vehicle (driving incidents only, up to 4, adults only): each is asked to accept before their name shows on the post. DraftId publishes one of the author's drafts: the draft is deleted once the post is saved (its photos and videos stay, in the post). FilmedFromCarId is one of the author's household cars (GET /api/vehicles/mine): the post shows "Filmed from: its nickname". */
+/** Creates a post with 1 to 10 photos or one video, uploaded through /api/media first. They don't have to have finished processing: if any is still Processing (or waiting for a moderator's review), the post is saved as Pending, seen only by its author (in "my posts") and moderators, and is published automatically once they're all Ready, or marked Failed (and the author emailed) if one fails. If they're all Ready already, it's visible to everyone straight away. Either way content screening can hold it for review. The author needs a confirmed email and a profile (and a passed age check if Safety:RequireAgeVerification is on). IsSensitive marks graphic content: the post shows to everyone, its media blurred except for age-verified adults, and the media are kept privately. If automatic detection already flagged any of the media, the post is tagged sensitive automatically (and queued for a moderator) whatever IsSensitive says. Types are the types of bad driving (at least one; the first is the main one); older clients can send one Category instead. Passengers are @handles of people in the author's vehicle (driving incidents only, up to 4, adults only): each is asked to accept before their name shows on the post. DraftId publishes one of the author's drafts: the draft is deleted once the post is saved (its photos and videos stay, in the post). */
 export interface CreatePostCommand {
     title: string;
     description: string | null;
@@ -10796,7 +10606,6 @@ export interface CreatePostCommand {
     vehicleColour: VehicleColour | null;
     reportedToPolice: boolean | null;
     draftId: string | null;
-    filmedFromCarId: string | null;
 }
 
 /** A post's new details. Send Types (the first is the main one), or one Category. Passengers (@handles) replaces the tagged passengers; leave it out to keep them. */
@@ -10816,7 +10625,6 @@ export interface UpdatePostRequest {
     vehicleModel: string | null;
     vehicleColour: VehicleColour | null;
     reportedToPolice: boolean | null;
-    filmedFromCarId: string | null;
 }
 
 export interface ReactRequest {
@@ -11020,23 +10828,6 @@ export interface VehicleCatalogueDto {
 export interface VehicleMakeDto {
     name: string;
     models: string[];
-}
-
-/** One of your household cars. No registration is ever stored. */
-export interface HouseholdCarDto {
-    id: string;
-    make: string;
-    model: string | null;
-    colour: VehicleColour | null;
-    nickname: string;
-}
-
-/** A household car: a make (and model) from GET /api/vehicles, a colour, and a nickname. */
-export interface HouseholdCarRequest {
-    make: string;
-    model: string | null;
-    colour: VehicleColour | null;
-    nickname: string | null;
 }
 
 /** A profile as moderators see it. */
