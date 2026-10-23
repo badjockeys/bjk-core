@@ -51,8 +51,8 @@ export function PostAnalytics({ postId }: { postId: string }) {
         ) : (
           <div className="an">
             <p className="small muted">
-              {data.locked ? "Since it was posted" : `${intervalLabel(data.interval)} since it was posted`}. Only
-              you can see this.
+              {data.locked ? "Since it was posted" : `${intervalLabel(data.interval)} since it was posted`}.
+              Only you can see this.
             </p>
             <dl className="reach-grid">
               {(
@@ -71,7 +71,11 @@ export function PostAnalytics({ postId }: { postId: string }) {
               ))}
             </dl>
             <div className={data.locked ? "an-locked" : undefined}>
-              <div className="an-charts" aria-hidden={data.locked || undefined} inert={data.locked || undefined}>
+              <div
+                className="an-charts"
+                aria-hidden={data.locked || undefined}
+                inert={data.locked || undefined}
+              >
                 {table && !data.locked ? (
                   <AnalyticsTable points={points} interval={interval} />
                 ) : (
@@ -81,7 +85,9 @@ export function PostAnalytics({ postId }: { postId: string }) {
               {data.locked ? (
                 <div className="an-upgrade">
                   <strong>See how your post did over time</strong>
-                  <span className="small">Graphs of views, reactions, comments and shares are part of Premium.</span>
+                  <span className="small">
+                    Graphs of views, reactions, comments and shares are part of Premium.
+                  </span>
                   <Link href="/premium" className="btn btn-primary btn-sm">
                     See Premium
                   </Link>
@@ -93,7 +99,9 @@ export function PostAnalytics({ postId }: { postId: string }) {
                 {table ? "Show as charts" : "Show as a table"}
               </button>
             ) : null}
-            <p className="small muted">Local views come from people whose home area is within 10 km of where it happened.</p>
+            <p className="small muted">
+              Local views come from people whose home area is within 10 km of where it happened.
+            </p>
           </div>
         )}
       </Modal>
@@ -101,7 +109,13 @@ export function PostAnalytics({ postId }: { postId: string }) {
   );
 }
 
-function Charts({ points, interval }: { points: AnalyticsPointDto[]; interval: PostAnalyticsDto["interval"] }) {
+function Charts({
+  points,
+  interval,
+}: {
+  points: AnalyticsPointDto[];
+  interval: PostAnalyticsDto["interval"];
+}) {
   const of = (key: keyof Omit<AnalyticsPointDto, "start">) => points.map((p) => p[key]);
   return (
     <>
@@ -129,7 +143,13 @@ function Charts({ points, interval }: { points: AnalyticsPointDto[]; interval: P
   );
 }
 
-function AnalyticsTable({ points, interval }: { points: AnalyticsPointDto[]; interval: PostAnalyticsDto["interval"] }) {
+function AnalyticsTable({
+  points,
+  interval,
+}: {
+  points: AnalyticsPointDto[];
+  interval: PostAnalyticsDto["interval"];
+}) {
   return (
     <div className="an-table-wrap">
       <table className="an-table">
@@ -147,7 +167,13 @@ function AnalyticsTable({ points, interval }: { points: AnalyticsPointDto[]; int
         <tbody>
           {points.map((p) => (
             <tr key={p.start}>
-              <th scope="row">{new Date(p.start).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: interval === "Hour" ? "short" : undefined, timeZone: "Europe/London" })}</th>
+              <th scope="row">
+                {new Date(p.start).toLocaleString("en-GB", {
+                  dateStyle: "medium",
+                  timeStyle: interval === "Hour" ? "short" : undefined,
+                  timeZone: "Europe/London",
+                })}
+              </th>
               <td>{p.views}</td>
               <td>{p.localViews}</td>
               <td>{p.reactions}</td>

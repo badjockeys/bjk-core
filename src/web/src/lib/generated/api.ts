@@ -3417,6 +3417,59 @@ export class EngagementClient {
     }
 
     /**
+     * Your post's analytics: views, local views, reactions, comments and shares over time (hourly for 48 hours,
+    then daily, then weekly after 90 days). Its author only; on Free the points are locked (totals only).
+     */
+    engagement_Analytics(id: string, signal?: AbortSignal): Promise<PostAnalyticsDto> {
+        let url_ = this.baseUrl + "/api/posts/{id}/analytics";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processEngagement_Analytics(_response);
+        });
+    }
+
+    protected processEngagement_Analytics(response: Response): Promise<PostAnalyticsDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PostAnalyticsDto;
+            return result200;
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PostAnalyticsDto>(null as any);
+    }
+
+    /**
      * Your settings for your own posts: when votes on them close.
      */
     engagement_GetPreferences(signal?: AbortSignal): Promise<AuthorPreferencesDto> {
@@ -7973,6 +8026,29 @@ export interface ViewsRequest {
 /** How far a post reached, for its author (and moderators): unique viewers, viewers whose home area is within LocalKm km of where it happened, reactions, visible comments and shares. Counts only. */
 export interface PostReachDto {
     postId: string;
+    views: number;
+    localViews: number;
+    reactions: number;
+    comments: number;
+    shares: number;
+}
+
+/** A post's analytics (owner, 22 Oct 2026), for its author: views, local views, reactions, comments and shares over time since it was posted, hourly for its first 48 hours, then daily, then weekly once it's over 90 days old. Premium and Premium + only: on Free, Locked is true and there are no points (the app shows the graphs blurred, with an upgrade prompt); Totals are always there, as on the reach panel. Moderators see everything. */
+export interface PostAnalyticsDto {
+    postId: string;
+    locked: boolean;
+    interval: AnalyticsInterval;
+    since: string;
+    points: AnalyticsPointDto[];
+    totals: PostReachDto;
+}
+
+/** How long each point of a post's analytics covers. */
+export type AnalyticsInterval = "Hour" | "Day" | "Week";
+
+/** One point of a post's analytics: what happened from Start until the next point. */
+export interface AnalyticsPointDto {
+    start: string;
     views: number;
     localViews: number;
     reactions: number;

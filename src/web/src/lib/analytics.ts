@@ -27,7 +27,11 @@ export function intervalLabel(interval: AnalyticsInterval): string {
 export function pointLabel(start: string, interval: AnalyticsInterval, long = false): string {
   const date = new Date(start);
   if (interval === "Hour") {
-    const time = date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
+    const time = date.toLocaleTimeString("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "Europe/London",
+    });
     return long
       ? `${date.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "Europe/London" })}, ${time}`
       : time;

@@ -117,7 +117,10 @@ export function AnalyticsChart({
           <div
             className="an-tip"
             role="status"
-            style={{ left: `${(x(hover) / W) * 100}%`, transform: `translateX(${hover > count / 2 ? "-100%" : "0"})` }}
+            style={{
+              left: `${(x(hover) / W) * 100}%`,
+              transform: `translateX(${hover > count / 2 ? "-100%" : "0"})`,
+            }}
           >
             <strong>{pointLabel(points[hover]!.start, interval, true)}</strong>
             {series.map((s) => (
