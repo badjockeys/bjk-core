@@ -335,6 +335,9 @@ export function endpoints(api: ApiClient) {
       unfollow: (token: string, user: string) => profiles(token).profiles_Unfollow(user),
       /** Who to follow: adults whose home area is near yours. */
       suggestions: (token: string, limit = 3) => profiles(token).profiles_Suggestions(limit),
+      /** People to tag as you type: your connections first, then other adults. */
+      tagSuggestions: (token: string, q: string, limit = 8) =>
+        profiles(token).profiles_TagSuggestions(q, limit),
       followers: (token: string | null, handle: string, page = 1) =>
         profiles(token).profiles_Followers(handle, page, 20),
       following: (token: string | null, handle: string, page = 1) =>

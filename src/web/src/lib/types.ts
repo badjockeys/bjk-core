@@ -75,6 +75,8 @@ export type {
   ShareCopyState,
   SignedUpload,
   SubscriptionPlan,
+  TagConnection,
+  TagSuggestionDto,
   TimelineDto,
   TimelineRequest,
   TimelinesDto,

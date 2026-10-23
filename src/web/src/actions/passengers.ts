@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { api } from "@/lib/api";
 import { getViewer } from "@/lib/auth";
 import type { ActionResult } from "@/lib/action-result";
-import type { AuthorDto } from "@/lib/types";
+import type { AuthorDto, TagSuggestionDto } from "@/lib/types";
 
 import { asUser } from "./run";
 
@@ -31,6 +31,13 @@ export async function findPassenger(handle: string): Promise<ActionResult<Author
     ok: true,
     data: { id: p.id, handle: p.handle, displayName: p.displayName, avatarUrl: p.avatarUrl },
   };
+}
+
+/** People to tag as you type: those you're connected to first, then other adults (owner, 23 Oct 2026). */
+export async function suggestPassengers(text: string): Promise<ActionResult<TagSuggestionDto[]>> {
+  const q = text.trim().replace(/^@/, "").slice(0, 40);
+  if (!q) return { ok: true, data: [] };
+  return asUser((t) => api().profiles.tagSuggestions(t, q, 8));
 }
 
 /** Accept (your name then shows on the post) or decline being tagged as a passenger. */
