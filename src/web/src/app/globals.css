@@ -4132,3 +4132,104 @@ a.pf-count:hover {
 .share-caption .btn {
   align-self: flex-start;
 }
+
+/* The vault on your own profile (owner, 23 Oct 2026). */
+.vault {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.vault-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.vault-space {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vault-meter {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--fill);
+  overflow: hidden;
+}
+
+.vault-meter span {
+  display: block;
+  height: 100%;
+  background: var(--brand);
+}
+
+.vault-meter .vault-meter-full {
+  background: #c0392b;
+}
+
+.vault-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.vault-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+
+.vault-kind {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--soft);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.vault-info {
+  flex: 1;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.vault-name {
+  overflow-wrap: anywhere;
+}
+
+.vault-soon {
+  color: #a3341f;
+  font-weight: 600;
+}
+
+.vault-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.vault-actions .btn svg {
+  margin-right: 4px;
+}
+
+.vault-empty {
+  padding: 32px 16px;
+}
+
+.vault-pages {
+  gap: 16px;
+  justify-content: center;
+}

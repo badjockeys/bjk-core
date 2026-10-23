@@ -454,6 +454,7 @@ On your machine nothing needs a supplier account: S3Mock stands in for R2, email
 | `Media:Storage:ServiceUrl` | `https://<account id>.r2.cloudflarestorage.com` | A Cloudflare account |
 | `Media:Storage:AccessKeyId`, `SecretAccessKey` (secrets) | An R2 token with Object Read & Write on the live buckets only | A Cloudflare account |
 | `Media:Storage:OriginalsBucket`, `PublicBucket`, `SensitiveBucket` | e.g. `bjk-live-originals` (CORS `PUT` from the web app, 90-day deletion rule), `bjk-live-public`, `bjk-live-sensitive` (private) | The buckets (Terraform) |
+| `Media:Storage:VaultBucket` | e.g. `bjk-live-vault`: private, CORS `PUT` and `GET` from the web app, **no** deletion rule | The vault: people's originals for up to 3 years. Optional: without it the vault uses the sensitive bucket, which then needs the same CORS rule |
 | `Media:Storage:PublicBaseUrl` | The public bucket's domain behind Cloudflare, e.g. `https://media.badjockeys.com/` | The domain |
 | `Media:Processing:FfmpegPath`, `FfprobePath` | Paths in the worker image, e.g. `/usr/bin/ffmpeg` | |
 | `Media:Redaction:FaceModelPath`, `PlateModelPath`, `PersonModelPath` | Paths to the three models in the worker image (set by its Dockerfile) | The models in the image |
@@ -580,6 +581,11 @@ locally it uses the real head-turn check and stand-ins for Yoti that answer age 
   England and Wales, or call 101 in Scotland and Northern Ireland. It asks for the original, unedited file (ours is
   blurred and silent) within 7 to 14 days. Nothing is sent or recorded by us. The composer no longer asks whether it
   was reported; older posts still show their answer.
+- **Vault:** on your own profile, the **Vault** tab (`/u/{you}?tab=vault`, `GET /api/vault`) lists your original
+  clips: the originals of your posts, kept automatically while there's room, and clips you add (uploaded straight to
+  the vault bucket, `POST /api/vault/uploads`). Download, delete, or **Post it** (`/post/new?vault={id}`: the composer
+  fetches the clip and adds it as if you'd chosen it). Free keeps clips 30 days in 2 GB, Premium 12 months in 25 GB,
+  Premium + 3 years in 100 GB. Only you can see it; the originals aren't blurred.
 - **Sharing to other apps:** on your own video post, the ⋯ menu's **Download for TikTok, Reels and Shorts** asks the
   API for a vertical copy (`POST`/`GET /api/media/{id}/share-copy`; the media worker makes it from the blurred, silent
   video, with a watermark and end card), then offers the download and a caption to paste with the link back. Only the

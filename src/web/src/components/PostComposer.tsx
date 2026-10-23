@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState, useTransition, type ReactNode
 
 import { deleteDraft, listDrafts, saveDraft } from "@/actions/drafts";
 import { discardMedia, getMedia } from "@/actions/media";
+import { getVaultDownload } from "@/actions/vault";
 import { findPassenger } from "@/actions/passengers";
 import { getVehicleCatalogue } from "@/actions/vehicles";
 import { createPost } from "@/actions/posts";
@@ -145,6 +146,8 @@ export interface PostComposerProps {
   tileUrl: string;
   attribution: string;
   emailVerified: boolean;
+  /** Posting a clip from your vault (`/post/new?vault=…`): it's fetched and added as if you'd chosen the file. */
+  vaultClipId?: string;
   author: { name: string; avatarUrl: string | null };
   /** Dialog only: the composer was closed (cancelled, discarded or kept as a draft). */
   onClose?: () => void;
@@ -173,6 +176,7 @@ export function PostComposer({
   tileUrl,
   attribution,
   emailVerified,
+  vaultClipId,
   author,
   onClose,
   onPosted,
@@ -230,8 +234,12 @@ export function PostComposer({
       uploads.current.add(async () => {
         try {
           const file = await prepare();
-          const uploaded = await uploadFile(file.blob, file.name, file.type, (p) =>
-            patch(key, { progress: p }),
+          const uploaded = await uploadFile(
+            file.blob,
+            file.name,
+            file.type,
+            (p) => patch(key, { progress: p }),
+            vaultClipId ?? null,
           );
           patch(key, { progress: 1, status: "processing", mediaId: uploaded.mediaId });
         } catch (error) {
@@ -245,7 +253,7 @@ export function PostComposer({
         }
       });
     },
-    [patch],
+    [patch, vaultClipId],
   );
 
   // Keep an eye on processing so a file the server rejects (e.g. a video over 30 seconds) shows up straight away.
@@ -357,7 +365,7 @@ export function PostComposer({
     startUpload(key, async () => ({ blob: clip.blob, name: clip.fileName, type: clip.contentType }));
   };
 
-  const onFiles = (list: FileList | null) => {
+  const onFiles = (list: FileList | File[] | null) => {
     const files = Array.from(list ?? []);
     if (files.length === 0) {
       return;
@@ -373,6 +381,45 @@ export function PostComposer({
       addPhotos(files);
     }
   };
+
+  // Posting a clip from your vault: fetch the original once and add it as if it had been chosen (videos are trimmed
+  // as usual). The upload says which clip it is, so it isn't kept in the vault twice.
+  const addFiles = useRef(onFiles);
+  useEffect(() => {
+    addFiles.current = onFiles;
+  });
+  const [vaultLoading, setVaultLoading] = useState(false);
+  const vaultFetched = useRef(false);
+  useEffect(() => {
+    if (!vaultClipId || vaultFetched.current) {
+      return;
+    }
+    vaultFetched.current = true;
+    const timer = setTimeout(async () => {
+      setVaultLoading(true);
+      try {
+        const link = await getVaultDownload(vaultClipId);
+        if (!link.ok) {
+          setMediaError(link.error);
+          return;
+        }
+        const response = await fetch(link.data.url);
+        if (!response.ok) {
+          setMediaError("We couldn't get that clip from your vault. Please try again.");
+          return;
+        }
+        const blob = await response.blob();
+        const type = blob.type || "video/mp4";
+        const extension = type.split("/")[1]?.replace("quicktime", "mov") ?? "mp4";
+        addFiles.current([new File([blob], `vault-clip.${extension}`, { type })]);
+      } catch {
+        setMediaError("We couldn't get that clip from your vault. Please try again.");
+      } finally {
+        setVaultLoading(false);
+      }
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [vaultClipId]);
 
   const remove = (item: Item) => {
     setItems((current) => current.filter((i) => i.key !== item.key));
@@ -927,6 +974,7 @@ export function PostComposer({
           <span className={errors.media || mediaError ? "error" : "help"} aria-live="polite">
             {errors.media ||
               mediaError ||
+              (vaultLoading ? "Getting your clip from your vault…" : "") ||
               (uploading > 0
                 ? `Uploading ${plural(uploading, kind === "Video" ? "video" : "photo")}…`
                 : items.some((i) => i.status === "processing")
