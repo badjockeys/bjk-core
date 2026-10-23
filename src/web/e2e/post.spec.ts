@@ -491,29 +491,61 @@ test("other people's videos can't be downloaded for sharing", async ({ page }) =
 });
 
 test("your vault keeps clips you add, which you can post or delete", async ({ page }) => {
-  await signIn(page, "/u/roadhog?tab=vault");
-  const vault = page.getByRole("region", { name: "Your vault" });
-  await expect(vault.getByText(/Nothing here yet/)).toBeVisible();
-  await expect(vault.getByText(/of 2 GB used · clips are kept for 30 days/)).toBeVisible();
-  await expect(vault.getByText(/Only you can see your vault/)).toBeVisible();
+  await signIn(page, "/account/vault");
+  await expect(page.getByRole("heading", { name: "Vault", exact: true })).toBeVisible();
+  await expect(page.getByText(/of 2 GB used · clips are kept for 30 days/)).toBeVisible();
+  await expect(page.getByText(/Only you can see your vault/)).toBeVisible();
+  const collections = page.getByRole("list", { name: "Collections" });
+  await expect(collections.getByRole("link", { name: /All clips/ })).toContainText("0 clips");
 
-  await vault
+  await page
     .getByTestId("vault-input")
     .setInputFiles({ name: "dashcam-still.png", mimeType: "image/png", buffer: PNG });
-  const clips = vault.getByRole("list", { name: "Clips in your vault" });
-  await expect(clips.getByText("dashcam-still.png")).toBeVisible();
-  await expect(clips.getByText(/Kept until/)).toBeVisible();
+  await expect(page.getByText("dashcam-still.png is in your vault")).toBeVisible();
+  await expect(collections.getByRole("link", { name: /Uploaded/ })).toContainText("1 clip");
+
+  // Collections open to a grid, like Instagram's saved collections; a clip opens on its own.
+  await collections.getByRole("link", { name: /Uploaded/ }).click();
+  await expect(page).toHaveURL(/\/account\/vault\?c=uploads$/);
+  const grid = page.getByRole("list", { name: "Clips in Uploaded" });
+  await expect(grid.locator("img.vault-thumb")).toHaveCount(1);
+  await grid.getByRole("button", { name: "Open dashcam-still.png" }).click();
+  const clip = page.getByRole("dialog", { name: "dashcam-still.png" });
+  await expect(clip.getByText(/Kept until/)).toBeVisible();
 
   // Posting it opens the composer with the clip already added.
-  await clips.getByRole("link", { name: "Post dashcam-still.png" }).click();
+  await clip.getByRole("link", { name: "Post dashcam-still.png" }).click();
   await expect(page).toHaveURL(/\/post\/new\?vault=[0-9a-f-]{36}$/);
   await expect(page.getByText("1 of 10")).toBeVisible();
 
   // Deleting asks first.
-  await page.goto("/u/roadhog?tab=vault");
+  await page.goto("/account/vault?c=uploads");
+  await page.getByRole("button", { name: "Open dashcam-still.png" }).click();
   page.once("dialog", (dialog) => void dialog.accept());
   await page.getByRole("button", { name: "Delete dashcam-still.png" }).click();
-  await expect(page.getByText(/Nothing here yet/)).toBeVisible();
+  await expect(page.getByText(/Clips you add straight to your vault appear here/)).toBeVisible();
+});
+
+test("automatic saving of your posts' originals can be turned off, and the profile tab leads to the vault", async ({
+  page,
+}) => {
+  await signIn(page, "/u/roadhog");
+  await page.getByRole("link", { name: "Vault", exact: true }).click();
+  await expect(page).toHaveURL(/\/account\/vault$/);
+
+  const auto = page.getByLabel(/Save my posts' originals automatically/);
+  await expect(auto).toBeChecked();
+  await auto.uncheck();
+  await expect(page.getByText("Your posts' originals won't be kept from now on")).toBeVisible();
+  await expect(page.getByText(/Off: your posts' originals are deleted once they're published/)).toBeVisible();
+
+  // It stays off.
+  await page.reload();
+  await expect(page.getByLabel(/Save my posts' originals automatically/)).not.toBeChecked();
+
+  // Old links to the profile's vault tab come here too.
+  await page.goto("/u/roadhog?tab=vault");
+  await expect(page).toHaveURL(/\/account\/vault$/);
 });
 
 test("other people's profiles have no vault", async ({ page }) => {

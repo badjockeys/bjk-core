@@ -26,6 +26,7 @@ import {
 } from "./generated/api";
 import type {
   AreaAlertMode,
+  VaultClipSource,
   CommunityListKind,
   CommunityMembershipStatus,
   CommunityRequest,
@@ -370,7 +371,14 @@ export function endpoints(api: ApiClient) {
     },
     /** Your vault: your original clips, kept privately for you (owner, 23 Oct 2026). */
     vault: {
-      get: (token: string, page = 1) => client(VaultClient, { token }).vault_Get(page, 20),
+      /** A page of your clips; `source` keeps only clips from your posts or only uploads. */
+      get: (token: string, page = 1, pageSize = 20, source?: VaultClipSource) =>
+        client(VaultClient, { token }).vault_Get(page, pageSize, source),
+      /** Turn keeping your posts' originals automatically on or off. */
+      setAutoSave: (token: string, autoSave: boolean) =>
+        client(VaultClient, { token }).vault_UpdateSettings({ autoSave }),
+      /** Links (15 minutes) that show your clips in the page, for the grid. */
+      previews: (token: string, ids: string[]) => client(VaultClient, { token }).vault_Previews(ids),
       requestUpload: (token: string, body: { fileName: string; contentType: string; sizeBytes: number }) =>
         client(VaultClient, { token }).vault_RequestUpload(body),
       complete: (token: string, clipId: string) => client(VaultClient, { token }).vault_Complete(clipId),

@@ -581,11 +581,15 @@ locally it uses the real head-turn check and stand-ins for Yoti that answer age 
   England and Wales, or call 101 in Scotland and Northern Ireland. It asks for the original, unedited file (ours is
   blurred and silent) within 7 to 14 days. Nothing is sent or recorded by us. The composer no longer asks whether it
   was reported; older posts still show their answer.
-- **Vault:** on your own profile, the **Vault** tab (`/u/{you}?tab=vault`, `GET /api/vault`) lists your original
-  clips: the originals of your posts, kept automatically while there's room, and clips you add (uploaded straight to
-  the vault bucket, `POST /api/vault/uploads`). Download, delete, or **Post it** (`/post/new?vault={id}`: the composer
-  fetches the clip and adds it as if you'd chosen it). Free keeps clips 30 days in 2 GB, Premium 12 months in 25 GB,
-  Premium + 3 years in 100 GB. Only you can see it; the originals aren't blurred.
+- **Vault:** in Account, **Vault** (`/account/vault`; your profile's Vault tab links there) lists your original
+  clips, laid out like Instagram's Saved screen: collections (**All clips**, **From your posts**, **Uploaded**; `?c=`)
+  as tiles of four, each opening to a grid of three across, and a clip opens on its own to download, delete or
+  **Post it** (`/post/new?vault={id}`: the composer fetches the clip and adds it as if you'd chosen it). Thumbnails are
+  15-minute links from `GET /api/vault/previews`. At the top, **Save my posts' originals automatically** (on by
+  default; `PUT /api/vault/settings`): off, a post's originals are deleted once it's published and clips already kept
+  stay. You can also add clips you haven't posted (+, uploaded straight to the vault bucket,
+  `POST /api/vault/uploads`). Free keeps clips 30 days in 2 GB, Premium 12 months in 25 GB, Premium + 3 years in
+  100 GB. Only you can see it; the originals aren't blurred.
 - **Sharing to other apps:** on your own video post, the ⋯ menu's **Download for TikTok, Reels and Shorts** asks the
   API for a vertical copy (`POST`/`GET /api/media/{id}/share-copy`; the media worker makes it from the blurred, silent
   video, with a watermark and end card), then offers the download and a caption to paste with the link back. Only the
