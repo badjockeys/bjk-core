@@ -91,7 +91,9 @@ export function ShareToCommunityDialog({ postId, onClose }: { postId: string; on
               </span>
               <span className="col" style={{ gap: 0 }}>
                 <strong className="small">{c.name}</strong>
-                <span className={`small${c.recommended && !c.alreadyShared ? " community-share-why" : " muted"}`}>
+                <span
+                  className={`small${c.recommended && !c.alreadyShared ? " community-share-why" : " muted"}`}
+                >
                   {c.alreadyShared
                     ? "Already shared here"
                     : c.recommended
