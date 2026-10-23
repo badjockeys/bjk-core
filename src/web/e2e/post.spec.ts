@@ -394,3 +394,20 @@ test("new members get three welcome steps after making a profile", async ({ page
   await page.getByRole("link", { name: "Start browsing" }).click();
   await expect(page).toHaveURL(/\/$/);
 });
+
+test("members keep their household cars and pick one when posting", async ({ page }) => {
+  await signIn(page, "/account/cars");
+  await expect(page.getByText("No cars yet.")).toBeVisible();
+  await page.getByRole("button", { name: "Add a car" }).click();
+  const form = page.getByRole("form", { name: "Add a car" });
+  await form.getByLabel("Make").selectOption("BMW");
+  await form.getByLabel(/Model/).selectOption("3 Series");
+  await expect(form.getByText("Shown on your posts as “Filmed from: BMW 3 Series”.")).toBeVisible();
+  await form.getByLabel(/Nickname/).fill("The school-run BMW");
+  await form.getByRole("button", { name: "Add car" }).click();
+  await expect(page.getByRole("list", { name: "Your cars" }).getByText("The school-run BMW")).toBeVisible();
+
+  await page.goto("/post/new");
+  await expect(page.getByLabel(/Filmed from/)).toBeVisible();
+  await page.getByLabel(/Filmed from/).selectOption({ label: "The school-run BMW" });
+});

@@ -587,6 +587,9 @@ locally it uses the real head-turn check and stand-ins for Yoti that answer age 
   profiles show follower and following counts, with lists at `/u/{handle}/followers` and `/following`. A post's ⋯
   menu can limit comments to people you follow. The optional mobile number lives on the identity server
   (Account → Mobile number).
+- **Your cars:** Account → **Your cars** (`/account/cars`) keeps up to 5 household cars (make, model, colour and a
+  nickname; never a registration). The post form's **Filmed from** picks one, and the post shows "Filmed from:
+  Dave's Golf". Renaming a car renames it on its posts.
 - **Uploads** go straight from the browser to storage: the web server asks the API for a signed link
   (`POST /api/media/uploads`), the browser `PUT`s the file to S3Mock (or R2) with a progress bar, then the web server
   tells the API it's there. Photos are shrunk in the browser first; videos are trimmed to at most 30 seconds and

@@ -1,13 +1,14 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 
 import { deleteDraft, listDrafts, saveDraft } from "@/actions/drafts";
 import { discardMedia, getMedia } from "@/actions/media";
 import { findPassenger } from "@/actions/passengers";
-import { getVehicleCatalogue } from "@/actions/vehicles";
+import { getMyCars, getVehicleCatalogue } from "@/actions/vehicles";
 import { createPost } from "@/actions/posts";
 import { followBlocker } from "@/lib/blockers";
 import { categoryLabel, CATEGORY_CHOICES, DESCRIPTION_MAX } from "@/lib/categories";
@@ -16,6 +17,7 @@ import { shrinkPhoto } from "@/lib/image-resize";
 import type {
   AuthorDto,
   DraftDto,
+  HouseholdCarDto,
   IncidentCategory,
   SaveDraftRequest,
   VehicleCatalogue,
@@ -188,6 +190,18 @@ export function PostComposer({
     reportedToPolice: null,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  /** Your household cars, and the one this was filmed from (owner, 22 Oct 2026). */
+  const [cars, setCars] = useState<HouseholdCarDto[] | null>(null);
+  const [carId, setCarId] = useState<string>("");
+  useEffect(() => {
+    let live = true;
+    void getMyCars().then((result) => {
+      if (live && result.ok) setCars(result.data);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -616,6 +630,7 @@ export function PostComposer({
         category: null,
         types: fields.types,
         passengers: onTheRoad ? fields.passengers.map((p) => p.handle!) : [],
+        filmedFromCarId: carId || null,
         vehicleType: fields.vehicle?.type ?? null,
         vehicleMake: fields.vehicle?.make ?? null,
         vehicleModel: fields.vehicle?.model ?? null,
@@ -1041,6 +1056,34 @@ export function PostComposer({
               error={errors.passengers}
               onChange={(passengers) => set("passengers", passengers)}
             />
+          ) : null}
+
+          {cars ? (
+            <div className="cmp-row">
+              <label className="cmp-row-label" htmlFor="filmed-from">
+                Filmed from <span className="small">(optional)</span>
+              </label>
+              {cars.length > 0 ? (
+                <select
+                  id="filmed-from"
+                  className="input"
+                  style={{ width: "auto" }}
+                  value={carId}
+                  onChange={(e) => setCarId(e.target.value)}
+                >
+                  <option value="">Not one of my cars</option>
+                  {cars.map((car) => (
+                    <option key={car.id} value={car.id}>
+                      {car.nickname}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <Link href="/account/cars" className="link small">
+                  Add your car
+                </Link>
+              )}
+            </div>
           ) : null}
 
           <div className="cmp-row">

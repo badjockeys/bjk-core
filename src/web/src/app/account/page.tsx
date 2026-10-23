@@ -83,6 +83,13 @@ export default async function AccountPage() {
           </span>
           <ChevronIcon />
         </Link>
+        <Link href="/account/cars" className="list-item">
+          <span className="col" style={{ gap: 0 }}>
+            <span>Your cars</span>
+            <span className="small muted">The cars you film from, shown on your posts</span>
+          </span>
+          <ChevronIcon />
+        </Link>
         <Link href="/account/posts" className="list-item">
           <span className="col" style={{ gap: 0 }}>
             <span>Votes on your posts</span>
