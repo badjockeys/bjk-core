@@ -58,6 +58,8 @@ export type {
   RequestUploadResult,
   SignedUpload,
   SubscriptionPlan,
+  TagConnection,
+  TagSuggestionDto,
   TimelineDto,
   TimelineRequest,
   TimelinesDto,

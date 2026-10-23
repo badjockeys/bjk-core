@@ -3732,3 +3732,31 @@ dialog.composer-dialog::backdrop {
   padding: 0;
   list-style: none;
 }
+
+/* People to tag as you type (owner, 23 Oct 2026): avatar, name, then @handle and how you're connected. */
+.tag-picker {
+  position: relative;
+}
+
+.tag-people {
+  max-width: 360px;
+  margin-top: 6px;
+}
+
+.tag-people li {
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.tag-person {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tag-person b,
+.tag-person span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

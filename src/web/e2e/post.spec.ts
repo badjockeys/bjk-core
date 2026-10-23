@@ -111,11 +111,16 @@ test.describe("posting", () => {
     // Driving incidents can have passengers: they're asked to accept before their name shows.
     await composer.getByRole("button", { name: "Tag a passenger" }).click();
     // Not yourself: the author can't be their own passenger.
-    await composer.getByLabel("Passenger's username").fill("@roadhog");
+    const passenger = composer.getByLabel("Passenger's name or username");
+    await passenger.fill("@roadhog");
     await composer.getByRole("button", { name: "Add", exact: true }).click();
     await expect(composer.getByText("You can't tag yourself.")).toBeVisible();
-    await composer.getByLabel("Passenger's username").fill("@lane_one_larry");
-    await composer.getByRole("button", { name: "Add", exact: true }).click();
+    // Typing the start of a name drops down people to pick, your followers first (like Facebook and Instagram).
+    await passenger.fill("La");
+    const people = composer.getByRole("listbox", { name: "People to tag" });
+    await expect(people.getByRole("option").first()).toContainText("Lane One Larry");
+    await expect(people.getByRole("option").first()).toContainText("@lane_one_larry · Follows you");
+    await people.getByRole("option", { name: /Lane One Larry/ }).click();
     await expect(composer.getByRole("button", { name: "Remove @lane_one_larry" })).toBeVisible();
 
     await composer.getByLabel(/I took these photos/).check();
