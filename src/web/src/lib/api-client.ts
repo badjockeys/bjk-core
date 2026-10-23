@@ -251,6 +251,9 @@ export function endpoints(api: ApiClient) {
         client(EngagementClient, { token, headers: viewer(viewerId) }).engagement_RecordShare(postId),
       /** Views, local views, reactions, comments and shares: the author only. */
       reach: (token: string, postId: string) => client(EngagementClient, { token }).engagement_Reach(postId),
+      /** Views, reactions, comments and shares over time; locked (no points) on Free. */
+      analytics: (token: string, postId: string) =>
+        client(EngagementClient, { token }).engagement_Analytics(postId),
       preferences: (token: string) => client(EngagementClient, { token }).engagement_GetPreferences(),
       setVoteDuration: (token: string, voteDuration: VoteDuration) =>
         client(EngagementClient, { token }).engagement_SetPreferences({ voteDuration }),

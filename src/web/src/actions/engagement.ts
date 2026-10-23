@@ -8,6 +8,7 @@ import { viewerId } from "@/lib/reels";
 import type {
   BookmarkStateDto,
   PagedResult,
+  PostAnalyticsDto,
   PostDto,
   PostFollowStateDto,
   VoteChoice,
@@ -97,4 +98,10 @@ export async function setVoteDuration(duration: VoteDuration): Promise<ActionRes
     return { ok: false, error: "Choose 48 hours, 7 days or never." };
   }
   return asUser(async (t) => (await api().engagement.setVoteDuration(t, duration)).voteDuration);
+}
+
+/** Your post's analytics over time (the author only; on Free the API locks the points). */
+export async function loadAnalytics(postId: string): Promise<ActionResult<PostAnalyticsDto>> {
+  if (!isGuid(postId)) return NOT_FOUND;
+  return asUser((t) => api().engagement.analytics(t, postId));
 }

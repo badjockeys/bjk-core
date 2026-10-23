@@ -394,3 +394,17 @@ test("new members get three welcome steps after making a profile", async ({ page
   await page.getByRole("link", { name: "Start browsing" }).click();
   await expect(page).toHaveURL(/\/$/);
 });
+
+test("a Premium author opens their post's analytics, as charts or a table", async ({ page, request }) => {
+  await request.post("http://localhost:4010/__next-user", { data: "dave" });
+  await signIn(page, `/p/${SEED.photoPost}`);
+  await page.getByRole("button", { name: "Analytics" }).click();
+  const dialog = page.getByRole("dialog", { name: "Post analytics" });
+  await expect(dialog.getByText(/since it was posted\. Only you can see this\./)).toBeVisible();
+  await expect(dialog.getByRole("img", { name: /^Views:/ })).toBeVisible();
+  await expect(dialog.getByRole("img", { name: /^Reactions:/ })).toBeVisible();
+  await expect(dialog.getByText("See Premium")).toHaveCount(0);
+
+  await dialog.getByRole("button", { name: "Show as a table" }).click();
+  await expect(dialog.getByRole("columnheader", { name: "Shares" })).toBeVisible();
+});

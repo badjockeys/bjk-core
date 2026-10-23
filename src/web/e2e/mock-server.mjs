@@ -1375,6 +1375,35 @@ async function api(req, res, url) {
       engagement().shares.set(p.id, (engagement().shares.get(p.id) ?? 0) + 1);
       return send(res, 204);
     }
+    if (rest === "analytics" && method === "GET") {
+      if (p.authorId !== me) return problem(res, 403, "Only the post's author can see its analytics.");
+      // Hourly for 48 hours, then daily, then weekly, as the real API does; every view in the first point here.
+      const age = Date.now() - Date.parse(p.createdAt);
+      const interval = age <= 48 * 3_600_000 ? "Hour" : age <= 90 * 86_400_000 ? "Day" : "Week";
+      const length = { Hour: 3_600_000, Day: 86_400_000, Week: 7 * 86_400_000 }[interval];
+      const count = Math.max(1, Math.ceil(age / length));
+      const views = engagement().views.get(p.id)?.size ?? 0;
+      const reactions = db.reactions.get(p.id)?.size ?? 0;
+      const comments = db.comments.filter((c) => c.postId === p.id && c.status === "Visible").length;
+      const shares = engagement().shares.get(p.id) ?? 0;
+      const premium = viewer.plan === "premium" || viewer.plan === "premium_plus";
+      const points = Array.from({ length: count }, (_, i) => ({
+        start: new Date(Date.parse(p.createdAt) + i * length).toISOString(),
+        views: i === 0 ? views : 0,
+        localViews: 0,
+        reactions: i === 0 ? reactions : 0,
+        comments: i === 0 ? comments : 0,
+        shares: i === 0 ? shares : 0,
+      }));
+      return send(res, 200, {
+        postId: p.id,
+        locked: !premium,
+        interval,
+        since: p.createdAt,
+        points: premium ? points : [],
+        totals: { postId: p.id, views, localViews: 0, reactions, comments, shares },
+      });
+    }
     if (rest === "reach" && method === "GET") {
       if (p.authorId !== me) return problem(res, 403, "Only the post's author can see its reach.");
       const reactions = db.reactions.get(p.id);

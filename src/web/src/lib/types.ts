@@ -4,6 +4,8 @@
 import type { HeatmapDays, HeatmapLight, ReactionType } from "./generated/api";
 
 export type {
+  AnalyticsInterval,
+  AnalyticsPointDto,
   AppealDto,
   AreaAlertMode,
   AreaSettingsDto,
@@ -40,6 +42,7 @@ export type {
   PassengerDto,
   PassengerTagStatus,
   PlaceDto,
+  PostAnalyticsDto,
   PostDto,
   PostFollowStateDto,
   PostMediaDto,
