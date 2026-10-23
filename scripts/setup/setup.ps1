@@ -9,7 +9,7 @@
   (others are left alone), and restarts itself if that brought a newer setup.ps1.
 
   It installs any missing tools with winget (Git, GitHub CLI, .NET 10 SDK, Node.js LTS, Docker Desktop, ffmpeg,
-  VS Code), turns on WSL 2 for Docker, signs you in to GitHub in your browser (that sign-in also gives access to the
+  Ollama for Ask Bad Jockeys, VS Code), turns on WSL 2 for Docker, signs you in to GitHub in your browser (that sign-in also gives access to the
   private BJK.Modules packages), clones the four repos into %USERPROFILE%\Git\badjockeys (or next to this bjk-core),
   runs scripts\setup-local.mjs for the project setup, and opens the VS Code workspace.
 
@@ -37,7 +37,7 @@ function Find-VSCode {
 }
 function Refresh-Path {
     $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
-    foreach ($extra in @("$env:ProgramFiles\Docker\Docker\resources\bin", "$env:ProgramFiles\GitHub CLI", "$env:ProgramFiles\dotnet")) {
+    foreach ($extra in @("$env:ProgramFiles\Docker\Docker\resources\bin", "$env:ProgramFiles\GitHub CLI", "$env:ProgramFiles\dotnet", "$env:LOCALAPPDATA\Programs\Ollama")) {
         if ((Test-Path $extra) -and ($env:Path -notlike "*$extra*")) { $env:Path += ";$extra" }
     }
 }
@@ -54,6 +54,8 @@ $tools = @(
     @{ Name = 'Node.js 24+'; Id = 'OpenJS.NodeJS.LTS'; Check = { (Has 'node') -and ([int]((node --version).TrimStart('v').Split('.')[0]) -ge 24) } },
     @{ Name = 'Docker Desktop'; Id = 'Docker.DockerDesktop'; Check = { (Has 'docker') -or (Test-Path "$env:ProgramFiles\Docker\Docker\Docker Desktop.exe") } },
     @{ Name = 'ffmpeg'; Id = 'Gyan.FFmpeg'; Check = { Has 'ffmpeg' } },
+    # Ask Bad Jockeys' model server: it starts with Windows and runs in the tray. setup-local.mjs downloads the model.
+    @{ Name = 'Ollama'; Id = 'Ollama.Ollama'; Check = { (Has 'ollama') -or (Test-Path "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe") } },
     @{ Name = 'VS Code'; Id = 'Microsoft.VisualStudioCode'; Check = { [bool](Find-VSCode) } }
 )
 foreach ($tool in $tools) {

@@ -8,7 +8,8 @@
 # changes (others are left alone), and restarts itself if that brought a newer setup.sh.
 #
 # It installs any missing tools with Homebrew (installing Homebrew first if needed): GitHub CLI, .NET 10 SDK,
-# Node.js 24, Docker Desktop, ffmpeg (and ffmpeg-full, for WebP photos), VS Code, plus Rosetta on Apple Silicon. It
+# Node.js 24, Docker Desktop, ffmpeg (and ffmpeg-full, for WebP photos), Ollama (the model behind Ask Bad Jockeys,
+# started in the background), VS Code, plus Rosetta on Apple Silicon. It
 # signs you in to GitHub in your browser (that sign-in also gives access to the private BJK.Modules packages), clones the four repos into
 # ~/Git/GitHub/badjockeys (or next to this bjk-core), runs scripts/setup-local.mjs for the project setup, and opens
 # the VS Code workspace. macOS asks for your password for some installs and to trust the HTTPS certificate.
@@ -74,6 +75,7 @@ if [ "$(uname -s)" = Darwin ]; then
   # The Docker Desktop app itself; a docker command on its own (Homebrew's docker formula, minikube) isn't
   # enough, unless some other Docker engine is already running and answering.
   has_docker() { [ -d /Applications/Docker.app ] || docker info >/dev/null 2>&1; }
+  has_ollama() { has ollama; }
   # The app itself: a "code" command can belong to another editor (Cursor installs one), so it doesn't count.
   has_code() { [ -d "/Applications/Visual Studio Code.app" ] || [ -d "$HOME/Applications/Visual Studio Code.app" ]; }
 
@@ -104,11 +106,18 @@ if [ "$(uname -s)" = Darwin ]; then
   # --force: Homebrew's docker formula (CLI only) owns /opt/homebrew/bin/docker, which would block the app's links.
   install "Docker Desktop" has_docker --cask --force docker
   install "VS Code" has_code --cask visual-studio-code
+  # Ask Bad Jockeys' model server (setup-local.mjs downloads the model). Homebrew's formula, started as a background
+  # service that comes back after a restart; the Ollama app from ollama.com works too.
+  install "Ollama" has_ollama ollama
+  if ! curl -fs -o /dev/null http://localhost:11434/api/version; then
+    brew services start ollama >/dev/null 2>&1 && echo "Ollama: started in the background (brew services)" \
+      || echo "Ollama: couldn't start it with brew services; setup-local.mjs will try."
+  fi
 
   if [ "$UPGRADE" = 1 ]; then
     step "Upgrading the tools (--upgrade)"
     brew update
-    for f in gh node@24 ffmpeg ffmpeg-full; do
+    for f in gh node@24 ffmpeg ffmpeg-full ollama; do
       brew list --formula "$f" >/dev/null 2>&1 && { brew upgrade "$f" || echo "Couldn't upgrade $f; carrying on."; }
     done
     for c in dotnet-sdk docker visual-studio-code; do
@@ -128,6 +137,8 @@ else
   node_ok || missing+=("Node.js 24+")
   [ ${#missing[@]} -eq 0 ] || fail "Install these with your package manager, then run this again: ${missing[*]}"
   echo "All tools installed"
+  # Optional: only Ask Bad Jockeys needs it, and setup-local.mjs carries on without it.
+  has ollama || printf '\033[33mOllama is missing, so Ask Bad Jockeys won'"'"'t answer locally. Install it (curl -fsSL https://ollama.com/install.sh | sh), then run this again.\033[0m\n'
   [ "$UPGRADE" = 1 ] && echo "On Linux, upgrade the tools with your package manager; --upgrade only covers macOS."
 fi
 

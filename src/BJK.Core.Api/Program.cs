@@ -1,4 +1,5 @@
 using BJK.Core.Api;
+using BJK.Modules.Chat;
 using BJK.Modules.Email;
 using BJK.Modules.Media;
 using BJK.Modules.Notifications;
@@ -14,6 +15,9 @@ using NSwag;
 using NSwag.Generation.Processors.Security;
 
 const string ConnectionStringName = "BadJockeysDatabase";
+
+// Ask Bad Jockeys' read-only bjk_chat login: it can read reporting.Incidents and reporting.Subcategories only.
+const string ChatConnectionStringName = "BadJockeysChat";
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -69,6 +73,7 @@ builder.Services.AddBjkModules(
     new ProfilesModule(ConnectionStringName),
     new PostsModule(ConnectionStringName),
     new NotificationsModule(ConnectionStringName),
+    new ChatModule(ConnectionStringName, ChatConnectionStringName),
     new EmailModule(),
     new SMSModule());
 
@@ -91,8 +96,8 @@ builder.Services.AddOpenApiDocument(document =>
     document.Title = "Bad Jockeys API";
     document.Version = "v1";
     document.Description =
-        "The Media, Profiles, Posts and Notifications modules. Calls that need a signed-in user take an access " +
-        "token from bjk-identity-server with that module's scope (bjk.media, bjk.profiles or bjk.posts; " +
+        "The Media, Profiles, Posts, Notifications and Chat modules. Calls that need a signed-in user take an " +
+        "access token from bjk-identity-server with that module's scope (bjk.media, bjk.profiles or bjk.posts; " +
         "Notifications uses bjk.profiles). Back-office calls need the .manage scope too.";
     document.AddSecurity(BearerScheme, new OpenApiSecurityScheme
     {
