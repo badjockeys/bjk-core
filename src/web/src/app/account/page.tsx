@@ -76,6 +76,13 @@ export default async function AccountPage() {
           </span>
           <ChevronIcon />
         </Link>
+        <Link href="/communities" className="list-item">
+          <span className="col" style={{ gap: 0 }}>
+            <span>Communities</span>
+            <span className="small muted">People around a place or a topic: join, share and discuss</span>
+          </span>
+          <ChevronIcon />
+        </Link>
         <Link href="/bookmarks" className="list-item">
           <span className="col" style={{ gap: 0 }}>
             <span>Bookmarks</span>

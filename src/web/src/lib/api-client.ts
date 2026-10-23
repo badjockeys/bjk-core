@@ -7,6 +7,7 @@
 
 import {
   AreaClient,
+  CommunitiesClient,
   DraftsClient,
   EngagementClient,
   HashtagsClient,
@@ -25,6 +26,10 @@ import {
 } from "./generated/api";
 import type {
   AreaAlertMode,
+  CommunityListKind,
+  CommunityMembershipStatus,
+  CommunityRequest,
+  CommunityRole,
   CommentSetting,
   HeatmapQuery,
   IncidentCategory,
@@ -360,6 +365,62 @@ export function endpoints(api: ApiClient) {
       complete: (token: string, clipId: string) => client(VaultClient, { token }).vault_Complete(clipId),
       download: (token: string, clipId: string) => client(VaultClient, { token }).vault_Download(clipId),
       remove: (token: string, clipId: string) => client(VaultClient, { token }).vault_Delete(clipId),
+    },
+    /** Communities (owner, 23 Oct 2026): forums around a place or a topic. Signed-in members only. */
+    communities: {
+      list: (token: string, kind: CommunityListKind, search: string | null, page = 1) =>
+        client(CommunitiesClient, { token }).communities_List(kind, search, page, 20),
+      create: (token: string, body: CommunityRequest) =>
+        client(CommunitiesClient, { token }).communities_Create(body),
+      suggestions: (
+        token: string,
+        q: { latitude?: number | null; longitude?: number | null; postId?: string | null },
+      ) =>
+        client(CommunitiesClient, { token }).communities_Suggestions(
+          q.latitude ?? null,
+          q.longitude ?? null,
+          q.postId ?? null,
+        ),
+      get: (token: string, slug: string) => client(CommunitiesClient, { token }).communities_Get(slug),
+      update: (token: string, slug: string, body: CommunityRequest) =>
+        client(CommunitiesClient, { token }).communities_Update(slug, body),
+      remove: (token: string, slug: string) => client(CommunitiesClient, { token }).communities_Delete(slug),
+      join: (token: string, slug: string) => client(CommunitiesClient, { token }).communities_Join(slug),
+      leave: (token: string, slug: string) => client(CommunitiesClient, { token }).communities_Leave(slug),
+      members: (token: string, slug: string, status: CommunityMembershipStatus, page = 1) =>
+        client(CommunitiesClient, { token }).communities_Members(slug, status, page, 30),
+      decide: (token: string, slug: string, userId: string, approve: boolean) =>
+        client(CommunitiesClient, { token }).communities_DecideRequest(slug, userId, { approve }),
+      setRole: (token: string, slug: string, userId: string, role: CommunityRole) =>
+        client(CommunitiesClient, { token }).communities_SetRole(slug, userId, { role }),
+      removeMember: (token: string, slug: string, userId: string, ban: boolean) =>
+        client(CommunitiesClient, { token }).communities_RemoveMember(slug, userId, ban),
+      unban: (token: string, slug: string, userId: string) =>
+        client(CommunitiesClient, { token }).communities_Unban(slug, userId),
+      posts: (token: string, slug: string, page = 1) =>
+        client(CommunitiesClient, { token }).communities_Posts(slug, page, 20),
+      unshare: (token: string, slug: string, postId: string) =>
+        client(CommunitiesClient, { token }).communities_Unshare(slug, postId),
+      discussions: (token: string, slug: string, page = 1) =>
+        client(CommunitiesClient, { token }).communities_Discussions(slug, page, 20),
+      startDiscussion: (token: string, slug: string, body: { title: string; body: string | null }) =>
+        client(CommunitiesClient, { token }).communities_StartDiscussion(slug, body),
+      discussion: (token: string, slug: string, id: string, page = 1) =>
+        client(CommunitiesClient, { token }).communities_Discussion(slug, id, page, 50),
+      removeDiscussion: (token: string, slug: string, id: string) =>
+        client(CommunitiesClient, { token }).communities_RemoveDiscussion(slug, id),
+      reply: (token: string, slug: string, id: string, body: string) =>
+        client(CommunitiesClient, { token }).communities_Reply(slug, id, { body }),
+      removeReply: (token: string, slug: string, id: string, replyId: string) =>
+        client(CommunitiesClient, { token }).communities_RemoveReply(slug, id, replyId),
+      report: (token: string, slug: string, reason: ReportReason, details: string | null) =>
+        client(CommunitiesClient, { token }).communities_Report(slug, { reason, details }),
+      reportDiscussion: (token: string, id: string, reason: ReportReason, details: string | null) =>
+        client(CommunitiesClient, { token }).communities_ReportDiscussion(id, { reason, details }),
+      reportReply: (token: string, id: string, reason: ReportReason, details: string | null) =>
+        client(CommunitiesClient, { token }).communities_ReportReply(id, { reason, details }),
+      share: (token: string, postId: string, communityIds: string[]) =>
+        client(CommunitiesClient, { token }).communities_SharePost(postId, { communityIds }),
     },
     media: {
       requestUpload: (
