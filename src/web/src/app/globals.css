@@ -4650,3 +4650,25 @@ a.pf-count:hover {
   text-align: left;
   font-weight: 500;
 }
+/* Household cars (owner, 22 Oct 2026). */
+.cars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.car {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.car-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  flex: none;
+}
