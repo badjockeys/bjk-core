@@ -199,7 +199,8 @@ function seed() {
     publicReports: [],
     blocks: new Map(),
     // UI step 6: "follower>followee" pairs, and custom timelines.
-    follows: new Set(),
+    // Larry follows roadhog, so he's suggested first when roadhog tags a passenger.
+    follows: new Set([`${USERS.larry.id}>${USERS.roadhog.id}`]),
     timelines: [],
     appeals: [],
     reelPlays: new Map(),
@@ -2219,6 +2220,39 @@ async function api(req, res, url) {
       .slice(0, Number(url.searchParams.get("limit") ?? 3))
       .map(followProfile);
     return send(res, 200, { people, hasHomeArea: true });
+  }
+  if (path === "/api/profiles/me/tag-suggestions" && method === "GET") {
+    if (!requireUser()) return;
+    // Handle or any word of the name starting with what's typed: connections first, as the real API does.
+    const q = (url.searchParams.get("q") ?? "").replace(/^@/, "").toLowerCase();
+    const blocked = db.blocks.get(me) ?? new Set();
+    const rank = { Mutual: 0, FollowsYou: 1, YouFollow: 2, None: 3 };
+    const people = [...db.profiles.values()]
+      .filter((p) => q && p.id !== me && !blocked.has(p.id))
+      .filter(
+        (p) =>
+          p.handle.startsWith(q) ||
+          p.displayName
+            .toLowerCase()
+            .split(/\s+/)
+            .some((w) => w.startsWith(q)),
+      )
+      .map((p) => {
+        const theyFollow = follows(p.id, me);
+        const iFollow = follows(me, p.id);
+        const connection =
+          theyFollow && iFollow ? "Mutual" : theyFollow ? "FollowsYou" : iFollow ? "YouFollow" : "None";
+        return {
+          id: p.id,
+          handle: p.handle,
+          displayName: p.displayName,
+          avatarUrl: avatarUrl(p),
+          connection,
+        };
+      })
+      .sort((a, b) => rank[a.connection] - rank[b.connection] || a.displayName.localeCompare(b.displayName))
+      .slice(0, Number(url.searchParams.get("limit") ?? 8));
+    return send(res, 200, people);
   }
   if ((m = path.match(/^\/api\/profiles\/([A-Za-z0-9_]+)\/(followers|following)$/)) && method === "GET") {
     const owner = byHandle(m[1]);

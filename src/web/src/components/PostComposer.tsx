@@ -56,6 +56,7 @@ import {
 import { useHashtagSuggest } from "./HashtagSuggest";
 import type { Pin } from "./MapPicker";
 import { CommunityShareField } from "./communities/CommunityShareField";
+import { PassengerPicker } from "./PassengerPicker";
 import { PlaceSearch } from "./PlaceSearch";
 import { TrimVideo, type TrimmedClip } from "./TrimVideo";
 
@@ -1442,7 +1443,10 @@ function VehiclePanel({
   );
 }
 
-/** Tag up to four people who were in your vehicle. Each is asked to accept before their name shows. */
+/**
+ * Tag up to four people who were in your vehicle, picked from the list that drops down as you type
+ * (PassengerPicker). Each is asked to accept before their name shows.
+ */
 function PassengersRow({
   passengers,
   error,
@@ -1453,11 +1457,11 @@ function PassengersRow({
   onChange: (passengers: AuthorDto[]) => void;
 }) {
   const [adding, setAdding] = useState(false);
-  const [handle, setHandle] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
   const [looking, startLooking] = useTransition();
 
-  const add = () =>
+  // Enter or Add without picking from the list: look up exactly what was typed.
+  const add = (handle: string) =>
     startLooking(async () => {
       setProblem(null);
       const found = await findPassenger(handle);
@@ -1470,7 +1474,6 @@ function PassengersRow({
         return;
       }
       onChange([...passengers, found.data]);
-      setHandle("");
       setAdding(false);
     });
 
@@ -1505,33 +1508,17 @@ function PassengersRow({
           ) : null}
         </div>
         {adding ? (
-          <div className="row" style={{ gap: 8 }}>
-            <label className="sr-only" htmlFor="passenger-handle">
-              Passenger&apos;s username
-            </label>
-            <input
-              id="passenger-handle"
-              className="input"
-              type="text"
-              placeholder="@username"
-              autoComplete="off"
-              autoCapitalize="none"
-              value={handle}
-              onChange={(e) => setHandle(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  add();
-                }
-              }}
-            />
-            <button type="button" className="btn btn-sm" disabled={looking || !handle.trim()} onClick={add}>
-              Add
-            </button>
-            <button type="button" className="link" onClick={() => setAdding(false)}>
-              Cancel
-            </button>
-          </div>
+          <PassengerPicker
+            taken={passengers.map((p) => p.id)}
+            busy={looking}
+            onPick={(person) => {
+              setProblem(null);
+              onChange([...passengers, person]);
+              setAdding(false);
+            }}
+            onExact={add}
+            onCancel={() => setAdding(false)}
+          />
         ) : null}
         <span className={problem || error ? "error" : "help"}>
           {problem || error || "They'll be asked to confirm before their name shows on the post."}
