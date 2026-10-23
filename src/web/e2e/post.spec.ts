@@ -101,6 +101,8 @@ test.describe("posting", () => {
 
     await page.getByRole("button", { name: "Type", exact: true }).click();
     await expect(page.getByRole("dialog", { name: "What kind of bad driving?" })).toBeVisible();
+    // Open a group and pick from it.
+    await dialog.locator("summary", { hasText: "Following too close" }).click();
     await dialog.getByLabel("Tailgating").check();
     await dialog.getByRole("button", { name: "Done · 1 chosen" }).click();
     await expect(page.getByRole("dialog", { name: "Create post" })).toBeVisible();
