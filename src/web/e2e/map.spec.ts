@@ -33,7 +33,7 @@ test("Free members get the 7-day preview with filters locked, and area figures",
   await expect(page.getByText("Kirkstall Road, Leeds", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("+12%")).toBeVisible();
   await expect(page.getByText("8–9am")).toBeVisible();
-  await expect(page.getByText("Bad parking 36% · Tailgating 29%")).toBeVisible();
+  await expect(page.getByText("On double yellow lines 36% · Tailgating 29%")).toBeVisible();
 });
 
 test("Premium members filter by vehicle and conditions", async ({ page, request }) => {

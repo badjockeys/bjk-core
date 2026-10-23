@@ -25,13 +25,17 @@ test.describe("posting", () => {
     await page.getByLabel("What happened? (optional)").fill("Right on the zigzags at home time.");
     await expect(page.getByText("34 / 500")).toBeVisible();
 
-    // Several types: each shows as a tag, the first chosen is the main one.
+    // Several types, found by searching: each shows as a tag, the first chosen is the main one.
     await page.getByRole("button", { name: "What kind of bad driving?" }).click();
-    const types = page.getByRole("group", { name: "Types of bad driving" });
-    await types.getByLabel("Bad parking").check();
-    await types.getByLabel("Other").check();
+    const search = page.getByLabel("Search the types of bad driving");
+    await search.fill("zig");
+    await page.getByLabel("On school zig-zags").check();
+    await search.fill("phone");
+    await page.getByLabel("Phone in hand").check();
+    await search.fill("");
+    await expect(page.getByText("Parking · 1 chosen")).toBeVisible();
     await page.getByRole("button", { name: "Done · 2 chosen" }).click();
-    await expect(page.getByRole("button", { name: "Remove Other" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Remove Phone in hand" })).toBeVisible();
 
     await page.getByRole("button", { name: "Add where it happened" }).click();
     await page.getByLabel("Road and town").fill("Kirkstall Road, Leeds");
@@ -60,7 +64,7 @@ test.describe("posting", () => {
     await expect(page).toHaveURL(/\/p\/[0-9a-f-]{36}/);
     await expect(page.getByText("Posted. Thanks for sharing.")).toBeVisible();
     const tags = page.getByRole("list", { name: "Types of bad driving" }).first();
-    await expect(tags.getByRole("link")).toHaveText(["Bad parking", "Other"]);
+    await expect(tags.getByRole("link")).toHaveText(["On school zig-zags", "Phone in hand"]);
     await expect(page.getByText("Black BMW 3 Series (car)").first()).toBeVisible();
     await expect(page.getByText(/Processing your photos/)).toBeVisible();
 
@@ -169,7 +173,8 @@ test.describe("posting", () => {
     await composer.getByRole("button", { name: /You have 1 draft saved/ }).click();
     await panel.getByRole("button", { name: "Open Parked across the dropped kerb" }).click();
     await composer.getByRole("button", { name: "What kind of bad driving?" }).click();
-    await panel.getByLabel("Bad parking").check();
+    await panel.getByLabel("Search the types of bad driving").fill("dropped");
+    await panel.getByLabel("Blocking a driveway or dropped kerb").check();
     await panel.getByRole("button", { name: "Done · 1 chosen" }).click();
     await composer.getByRole("button", { name: "Add where it happened" }).click();
     await panel.getByLabel("Road and town").fill("The Headrow, Leeds");
@@ -374,7 +379,7 @@ test("vote on who's at fault, then save the post to bookmarks", async ({ page })
   await expect(vote).toBeVisible();
   await expect(vote.getByText("0 votes")).toBeVisible();
 
-  await vote.getByRole("button", { name: "The other road user" }).click();
+  await vote.getByRole("button", { name: "The undertaker" }).click();
   await expect(vote.getByText("Your vote")).toBeVisible();
   await expect(vote.getByText("100%")).toBeVisible();
   await expect(vote.getByText("1 vote")).toBeVisible();

@@ -1,22 +1,6 @@
 // The words and sums for a post's vote. Pure, so the browser and tests share them.
 
-import type { Badge, VoteChoice, VoteDuration, VoteKind, VoteSummaryDto } from "./generated/api";
-
-export const VOTE_QUESTION: Record<VoteKind, string> = {
-  Fault: "Who's at fault?",
-  Severity: "How bad was it?",
-};
-
-export const VOTE_CHOICE_LABEL: Record<VoteChoice, string> = {
-  FilmingDriver: "The driver filming",
-  OtherRoadUser: "The other road user",
-  Both: "Both",
-  Nobody: "Nobody really",
-  Minor: "Minor",
-  Careless: "Careless",
-  Dangerous: "Dangerous",
-  Shocking: "Shocking",
-};
+import type { Badge, VoteChoice, VoteDuration, VoteSummaryDto } from "./generated/api";
 
 export const VOTE_DURATION_LABEL: Record<VoteDuration, string> = {
   Hours48: "48 hours after posting",

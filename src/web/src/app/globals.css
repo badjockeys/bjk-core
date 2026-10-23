@@ -319,6 +319,17 @@ p {
   background: #ffffff;
 }
 
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+a.chip {
+  color: var(--ink);
+  text-decoration: none;
+}
+
 .chip-on {
   background: var(--brand);
   border-color: var(--brand);
@@ -2522,6 +2533,40 @@ dialog.composer-dialog::backdrop {
   font-weight: 600;
 }
 
+.cmp-type:has(input:disabled) {
+  cursor: default;
+  color: var(--muted);
+}
+
+.cmp-type-group,
+.cmp-type-count {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.cmp-type-search {
+  width: 100%;
+  min-height: 44px;
+  margin-bottom: 8px;
+}
+
+.cmp-type-group-box {
+  border-bottom: 1px solid var(--line);
+}
+
+.cmp-type-group-box > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cmp-type-group-box > .cmp-types {
+  padding-bottom: 8px;
+}
+
 .d-only-inline {
   display: none;
 }
@@ -2590,6 +2635,43 @@ dialog.composer-dialog::backdrop {
 .pill-choice:focus-within {
   outline: 2px solid var(--brand);
   outline-offset: 2px;
+}
+
+.cat-filter {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.cat-filter-group {
+  border-bottom: 1px solid var(--line);
+}
+
+.cat-filter-head {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cat-filter-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+
+.cat-filter-all input {
+  accent-color: var(--brand);
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
+.cat-filter-types {
+  gap: 6px;
+  padding: 0 0 12px 28px;
 }
 
 .pill-on {

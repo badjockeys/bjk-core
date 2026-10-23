@@ -10,7 +10,17 @@ import { findPassenger } from "@/actions/passengers";
 import { getVehicleCatalogue } from "@/actions/vehicles";
 import { createPost } from "@/actions/posts";
 import { followBlocker } from "@/lib/blockers";
-import { categoryLabel, CATEGORY_CHOICES, DESCRIPTION_MAX } from "@/lib/categories";
+import {
+  type CategoryInfo,
+  categoriesIn,
+  categoryLabel,
+  DESCRIPTION_MAX,
+  GROUPS,
+  groupLabel,
+  groupOf,
+  MAX_TYPES,
+  searchCategories,
+} from "@/lib/categories";
 import { duration, plural, timeAgo, ukDateAndTime, ukLocalToIso, whenLabel } from "@/lib/format";
 import { shrinkPhoto } from "@/lib/image-resize";
 import type {
@@ -579,7 +589,9 @@ export function PostComposer({
   const toggleType = (type: IncidentCategory, on: boolean) => {
     set(
       "types",
-      on ? [...fields.types.filter((t) => t !== type), type] : fields.types.filter((t) => t !== type),
+      on
+        ? [...fields.types.filter((t) => t !== type), type].slice(0, MAX_TYPES)
+        : fields.types.filter((t) => t !== type),
     );
   };
 
@@ -672,7 +684,7 @@ export function PostComposer({
     });
   };
 
-  const onTheRoad = fields.types.some((t) => t !== "BadParking");
+  const onTheRoad = fields.types.some((t) => groupOf(t) !== "Parking");
   const needed = stillNeeded(fields, items.length, failed > 0);
   const canPost = needed.length === 0 && uploading === 0 && !pending;
   const when = whenLabel(fields.date, fields.time, defaultDate);
@@ -937,7 +949,7 @@ export function PostComposer({
                   <TagIcon />
                   What kind of bad driving?
                 </button>
-              ) : (
+              ) : fields.types.length >= MAX_TYPES ? null : (
                 <button
                   type="button"
                   className="cmp-chip"
@@ -1597,7 +1609,10 @@ function PanelHead({ title, onBack }: { title: string; onBack: () => void }) {
   );
 }
 
-/** Choose every type of bad driving that applies. The first one chosen is the main type. */
+/**
+ * Choose up to three subcategories of bad driving: search the whole list, or open a group. The first one chosen is the
+ * main one, and its vote is the post's.
+ */
 function TypesPanel({
   chosen,
   onToggle,
@@ -1607,23 +1622,69 @@ function TypesPanel({
   onToggle: (type: IncidentCategory, on: boolean) => void;
   onDone: () => void;
 }) {
+  const [query, setQuery] = useState("");
+  const full = chosen.length >= MAX_TYPES;
+  const results = searchCategories(query, 12);
+  const box = (info: CategoryInfo, showGroup: boolean) => {
+    const on = chosen.includes(info.value);
+    return (
+      <label key={info.value} className={`cmp-type${on ? " cmp-type-on" : ""}`}>
+        <input
+          type="checkbox"
+          checked={on}
+          disabled={!on && full}
+          onChange={(e) => onToggle(info.value, e.target.checked)}
+        />
+        <span>
+          {info.label}
+          {showGroup ? <span className="cmp-type-group"> · {groupLabel(info.group)}</span> : null}
+        </span>
+      </label>
+    );
+  };
   return (
     <div className="cmp-panel">
       <PanelHead title="What kind of bad driving?" onBack={onDone} />
       <div className="cmp-scroll cmp-panel-body">
-        <p className="small muted">Choose all that apply. Each one shows as a tag on your post.</p>
-        <fieldset className="cmp-types">
-          <legend className="sr-only">Types of bad driving</legend>
-          {CATEGORY_CHOICES.map((type) => {
-            const on = chosen.includes(type);
+        <input
+          type="search"
+          className="cmp-type-search"
+          placeholder="Search, e.g. pavement or phone"
+          aria-label="Search the types of bad driving"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <p className="small muted" aria-live="polite">
+          {full
+            ? `That's the most: ${MAX_TYPES}. Untick one to choose another.`
+            : `Choose up to ${MAX_TYPES}. The first is the main one, and its vote goes on your post.`}
+        </p>
+        {query.trim() ? (
+          <fieldset className="cmp-types">
+            <legend className="sr-only">Matches</legend>
+            {results.length > 0 ? (
+              results.map((info) => box(info, true))
+            ) : (
+              <p className="small muted">Nothing matches. Try another word, or pick an Other below a group.</p>
+            )}
+          </fieldset>
+        ) : (
+          GROUPS.map((group) => {
+            const picked = chosen.filter((t) => groupOf(t) === group.value).length;
             return (
-              <label key={type} className={`cmp-type${on ? " cmp-type-on" : ""}`}>
-                <input type="checkbox" checked={on} onChange={(e) => onToggle(type, e.target.checked)} />
-                {categoryLabel(type)}
-              </label>
+              <details key={group.value} className="cmp-type-group-box" open={picked > 0}>
+                <summary>
+                  {group.label}
+                  {picked > 0 ? <span className="cmp-type-count"> · {picked} chosen</span> : null}
+                </summary>
+                <fieldset className="cmp-types">
+                  <legend className="sr-only">{group.label}</legend>
+                  {categoriesIn(group.value).map((info) => box(info, false))}
+                </fieldset>
+              </details>
             );
-          })}
-        </fieldset>
+          })
+        )}
       </div>
       <div className="cmp-panel-foot">
         <button type="button" className="btn btn-primary btn-block" onClick={onDone}>
