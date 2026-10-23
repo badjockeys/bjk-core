@@ -30,3 +30,48 @@ export function expiresSoon(expiresAt: string, now: number = Date.now()): boolea
 export function usedShare(used: number, limit: number): number {
   return limit <= 0 ? 1 : Math.min(1, Math.max(0, used / limit));
 }
+
+/** The vault's collections, like Instagram's saved collections: everything, the originals of your posts, uploads. */
+export type VaultCollection = "all" | "posts" | "uploads";
+
+export const VAULT_COLLECTIONS: readonly { id: VaultCollection; name: string; empty: string }[] = [
+  { id: "all", name: "All clips", empty: "Nothing in your vault yet." },
+  {
+    id: "posts",
+    name: "From your posts",
+    empty: "The originals of your posts appear here once they're published.",
+  },
+  { id: "uploads", name: "Uploaded", empty: "Clips you add straight to your vault appear here." },
+];
+
+/** A collection from the page's ?c= (anything else: none, so the collections show). */
+export function parseCollection(value: string | string[] | undefined): VaultCollection | null {
+  const one = Array.isArray(value) ? value[0] : value;
+  return VAULT_COLLECTIONS.some((c) => c.id === one) ? (one as VaultCollection) : null;
+}
+
+/** The API's source filter for a collection. */
+export function sourceOf(collection: VaultCollection): "Post" | "Upload" | undefined {
+  return collection === "posts" ? "Post" : collection === "uploads" ? "Upload" : undefined;
+}
+
+export function collectionName(collection: VaultCollection): string {
+  return VAULT_COLLECTIONS.find((c) => c.id === collection)!.name;
+}
+
+/** Where a collection opens. */
+export function collectionHref(collection: VaultCollection): string {
+  return `/account/vault?c=${collection}`;
+}
+
+/** Previews the browser can show in a grid; other formats (HEIC, MKV, AVI…) get an icon instead. */
+export function previewable(contentType: string): "image" | "video" | null {
+  const type = contentType.toLowerCase();
+  if (["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"].includes(type)) {
+    return "image";
+  }
+  if (["video/mp4", "video/webm", "video/quicktime", "video/x-m4v"].includes(type)) {
+    return "video";
+  }
+  return null;
+}

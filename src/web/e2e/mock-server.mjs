@@ -103,6 +103,8 @@ function seed() {
   db = {
     // Vault clips (bjk-modules media.VaultClips), with the file's bytes once uploaded.
     vault: [],
+    // People who've turned off keeping their posts' originals in the vault.
+    vaultAutoSaveOff: new Set(),
     // Vertical copies of videos for sharing, by media id.
     shareCopies: new Map(),
     // Drafts of posts (bjk-modules DraftsController): up to 5 each.
@@ -2387,14 +2389,44 @@ async function api(req, res, url) {
   if (path === "/api/vault" && method === "GET") {
     if (!requireUser()) return;
     const mine = db.vault.filter((c) => c.userId === me && c.status === "Stored");
+    const source = url.searchParams.get("source");
+    const page = Number(url.searchParams.get("page") ?? 1);
+    const pageSize = Number(url.searchParams.get("pageSize") ?? 20);
+    const listed = mine.filter((c) => !source || c.source === source).reverse();
     return send(res, 200, {
       plan: "Free",
       usedBytes: mine.reduce((sum, c) => sum + c.sizeBytes, 0),
       limitBytes: 2 * 1024 ** 3,
       retentionDays: 30,
       maxFileBytes: 2 * 1024 ** 3,
-      clips: { items: mine.map(vaultClipDto), page: 1, pageSize: 20, totalCount: mine.length },
+      clips: {
+        items: listed.slice((page - 1) * pageSize, page * pageSize).map(vaultClipDto),
+        page,
+        pageSize,
+        totalCount: listed.length,
+      },
+      autoSave: !db.vaultAutoSaveOff.has(me),
     });
+  }
+  // Keeping your posts' originals automatically (on unless turned off).
+  if (path === "/api/vault/settings" && method === "PUT") {
+    if (!requireUser()) return;
+    const body = await json();
+    if (body.autoSave) db.vaultAutoSaveOff.delete(me);
+    else db.vaultAutoSaveOff.add(me);
+    return send(res, 200, { autoSave: !db.vaultAutoSaveOff.has(me) });
+  }
+  // Links that show your stored clips in the page.
+  if (path === "/api/vault/previews" && method === "GET") {
+    if (!requireUser()) return;
+    const ids = url.searchParams.getAll("ids");
+    return send(
+      res,
+      200,
+      db.vault
+        .filter((c) => ids.includes(c.id) && c.userId === me && c.status === "Stored")
+        .map((c) => ({ clipId: c.id, url: `${ORIGIN}/vault-storage/${c.id}` })),
+    );
   }
   if (path === "/api/vault/uploads" && method === "POST") {
     if (!requireUser()) return;
