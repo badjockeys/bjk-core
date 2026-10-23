@@ -10,8 +10,8 @@ import type { CommunityStanding, CommunityVisibility } from "@/lib/types";
 import { toast } from "../toast";
 
 /**
- * Join a public community, or ask to join a private one; "Requested" withdraws the request. Members see "Joined"
- * (leaving is in the community's ⋯ menu).
+ * Join a public community, or ask to join a private one; "Requested" withdraws the request. Invited people accept
+ * or decline. Members see "Joined" (leaving is in the community's ⋯ menu).
  */
 export function JoinButton({
   slug,
@@ -60,6 +60,50 @@ export function JoinButton({
       >
         Requested
       </button>
+    );
+  }
+  if (standing === "Invited") {
+    return (
+      <span className="row" style={{ gap: 8 }}>
+        <button
+          type="button"
+          className={`${cls} btn-primary`}
+          disabled={pending || !canJoin}
+          aria-label={`Accept the invitation to join ${name}`}
+          onClick={() =>
+            start(async () => {
+              const result = await joinCommunity(slug);
+              if (!result.ok) {
+                toast(result.error);
+                return;
+              }
+              toast(`You've joined ${name}`);
+              router.refresh();
+            })
+          }
+        >
+          {pending ? "…" : "Accept"}
+        </button>
+        <button
+          type="button"
+          className={cls}
+          disabled={pending}
+          aria-label={`Decline the invitation to join ${name}`}
+          onClick={() =>
+            start(async () => {
+              const result = await leaveCommunity(slug);
+              if (!result.ok) {
+                toast(result.error);
+                return;
+              }
+              toast("Invitation declined");
+              router.refresh();
+            })
+          }
+        >
+          Decline
+        </button>
+      </span>
     );
   }
   if (!canJoin) {

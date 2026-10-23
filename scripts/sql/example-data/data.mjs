@@ -18,7 +18,10 @@ const userId = (n) => `e0000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const postId = (n) => `e0000000-0000-4000-8001-${String(n).padStart(12, "0")}`;
 const mediaId = (post, n) => `e0000000-0000-4000-8002-${String(post * 10 + n).padStart(12, "0")}`;
 const commentId = (n) => `e0000000-0000-4000-8003-${String(n).padStart(12, "0")}`;
-export const ids = { userId, postId, mediaId, commentId };
+const communityId = (n) => `e0000000-0000-4000-8007-${String(n).padStart(12, "0")}`;
+const discussionId = (n) => `e0000000-0000-4000-8008-${String(n).padStart(12, "0")}`;
+const replyId = (n) => `e0000000-0000-4000-8009-${String(n).padStart(12, "0")}`;
+export const ids = { userId, postId, mediaId, commentId, communityId, discussionId, replyId };
 
 export const users = [
   { n: 1, handle: "dashcam_dave", name: "Dashcam Dave", email: "dave@example.test", location: "Prescot", bio: "Driving instructor. Front, rear and side cameras, so I see it all." },
@@ -88,4 +91,26 @@ export const posts = [
   { n: 24, by: 6, at: P.londonVauxhall, ago: 11, time: "08:05", types: ["RedLightRunning", "ClosePass"], title: "Ran the red and squeezed past me at Vauxhall Cross", text: "Cycle lane was full, so he just used the junction box.", vehicle: ["Van", "Volkswagen", "Transporter", "White"], photos: 1, reported: false, reactions: { Angry: [2] }, comments: [] },
   { n: 25, by: 7, at: P.prescotHigh, ago: 9, time: "11:15", types: ["BadParking"], title: "Disabled bay, no blue badge", text: "Jumped out to the cashpoint and left it there twenty minutes.", vehicle: ["Car", "Mini", "Hatch", "Yellow"], photos: 1, reported: false, reactions: { Angry: [1, 8] }, comments: [] },
   { n: 26, by: 8, at: P.warringtonRd, ago: 13, time: "16:55", types: ["Speeding", "DangerousOvertaking"], title: "Overtaking on the hill on Warrington Road", text: "Blind crest, double white lines, still went for it.", vehicle: ["Car", "Ford", "Fiesta", "Blue"], photos: 1, reported: true, reactions: { Shocked: [1, 3, 7] }, comments: [[7, "Someone will get killed there."]] },
+];
+
+// Communities (owner, 23 Oct 2026): places (with an area) and topics, each run by one of the hand-written members.
+// generate.mjs fills them with members, shared posts, discussions and replies. If the owner account exists, it's a
+// moderator of the private Leeds School Run, which has a few requests waiting.
+export const communities = [
+  { n: 1, owner: 1, name: "Knowsley Road Watch", visibility: "Public", area: ["Prescot", 53.43, -2.8, 10], description: "Bad driving around Prescot, Huyton, Whiston and Rainhill.", rules: "Blur plates and faces. No names or addresses. Report it to Merseyside Police too.", discussions: [["Lickers Lane at school time", "Cars parked on both pavements again. Anyone know if the council are doing anything?"], ["Is the A58 bypass camera working?", "Seen people doing 60 past it every night this week."]] },
+  { n: 2, owner: 4, name: "Manchester Road Watch", visibility: "Public", area: ["Manchester", 53.48, -2.25, 15], description: "Manchester and Salford: clips, near misses and the junctions to avoid.", rules: "Keep it about the driving, not the driver.", discussions: [["Mancunian Way roadworks", "Anyone else seeing people cut across at the last second?"], ["Oxford Road bus gate", "Taxis using it at all hours. Is that allowed now?"], ["Best dashcam for a taxi?", "Front and rear, needs to cope with nights."]] },
+  { n: 3, owner: 5, name: "Leeds School Run", visibility: "Private", area: ["Leeds", 53.8, -1.55, 10], description: "Parents watching the school gates in Leeds.", rules: "Never post children's faces. Members only, so be kind.", discussions: [["Zigzags outside St Mary's", "Three cars on them this morning. I've emailed the head."], ["Walking bus on Fridays?", "Would anyone join a walking bus from the park?"]] },
+  { n: 4, owner: 2, name: "Cyclists UK", visibility: "Public", area: null, description: "Close passes, dooring and the good drivers too.", rules: "Helmet cam clips welcome. No abuse of any road user.", discussions: [["What counts as a close pass?", "The Highway Code says at least 1.5 metres at up to 30 mph."], ["Best helmet camera under £150?", null]] },
+  { n: 5, owner: 3, name: "HGV Drivers", visibility: "Private", area: null, description: "Professional drivers sharing what they see from the cab.", rules: "Drivers only. Ask to join and tell us what you drive.", discussions: [["Undertaking at the M6 roadworks", "Every day at junction 21A. Cars sitting in the blind spot."]] },
+  { n: 6, owner: 6, name: "London Riders", visibility: "Public", area: ["London", 51.51, -0.13, 15], description: "Bikes, scooters and delivery riders in London.", rules: null, discussions: [["Old Street roundabout layout", "Is anyone else finding the new layout worse?"]] },
+];
+
+export const COMMUNITY_REPLIES = [
+  "Same here, every single day.",
+  "I've reported it twice. Nothing happens.",
+  "Thanks for posting, good to know it's not just me.",
+  "Avoid it at 8:30 if you can.",
+  "Worth emailing the council with the clips.",
+  "Got one of those on camera last week too.",
+  "Agreed. Something needs to change there.",
 ];

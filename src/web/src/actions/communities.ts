@@ -7,6 +7,7 @@ import type { ActionResult } from "@/lib/action-result";
 import type {
   CommunityDiscussionDto,
   CommunityDto,
+  CommunityMemberDto,
   CommunityReplyDto,
   CommunityRequest,
   CommunityRole,
@@ -64,6 +65,19 @@ export async function joinCommunity(slug: string): Promise<ActionResult<Communit
 export async function leaveCommunity(slug: string): Promise<ActionResult> {
   if (!SLUG.test(slug)) return NOT_FOUND;
   const result = await asUser((t) => api().communities.leave(t, slug));
+  if (result.ok) changed(slug);
+  return result;
+}
+
+/** Invite someone by their @handle (admins and moderators). */
+export async function inviteToCommunity(
+  slug: string,
+  handle: string,
+): Promise<ActionResult<CommunityMemberDto>> {
+  const clean = handle.trim().replace(/^@/, "");
+  if (!SLUG.test(slug)) return NOT_FOUND;
+  if (!/^[A-Za-z0-9_]{1,40}$/.test(clean)) return { ok: false, error: "Enter their @handle." };
+  const result = await asUser((t) => api().communities.invite(t, slug, clean));
   if (result.ok) changed(slug);
   return result;
 }

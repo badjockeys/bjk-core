@@ -11,7 +11,10 @@ import type { CommunityMemberDto, CommunityRole } from "@/lib/types";
 import { Avatar } from "../Avatar";
 import { toast } from "../toast";
 
-/** One person on the Manage page: approve or decline a request, change a member's role, remove, ban or unban. */
+/**
+ * One person on the Manage page: approve or decline a request, cancel an invitation, change a member's role, remove,
+ * ban or unban.
+ */
 export function ManageRow({
   slug,
   person,
@@ -21,7 +24,7 @@ export function ManageRow({
 }: {
   slug: string;
   person: CommunityMemberDto;
-  mode: "requests" | "members" | "banned";
+  mode: "requests" | "members" | "invited" | "banned";
   isAdmin: boolean;
   isMe: boolean;
 }) {
@@ -120,6 +123,17 @@ export function ManageRow({
               </>
             ) : null}
           </>
+        ) : null}
+        {mode === "invited" ? (
+          <button
+            type="button"
+            className="btn btn-sm"
+            disabled={pending}
+            aria-label={`Cancel the invitation to ${who}`}
+            onClick={() => run(() => removeMember(slug, person.person.id, false), "Invitation cancelled")}
+          >
+            Cancel invitation
+          </button>
         ) : null}
         {mode === "banned" ? (
           <button

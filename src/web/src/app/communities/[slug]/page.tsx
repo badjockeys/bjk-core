@@ -89,7 +89,9 @@ export default async function CommunityPage({ params, searchParams }: Props) {
           <p className="small muted">
             {community.standing === "Requested"
               ? "You've asked to join. An admin or moderator will decide."
-              : "Ask to join and an admin or moderator will decide. Clips shared here are still public on Bad Jockeys; the discussions are members-only."}
+              : community.standing === "Invited"
+                ? "You've been invited. Accept to see inside."
+                : "Ask to join and an admin or moderator will decide. Clips shared here are still public on Bad Jockeys; the discussions are members-only."}
           </p>
           <About community={community} />
         </section>
