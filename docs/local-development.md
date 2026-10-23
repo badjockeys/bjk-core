@@ -609,6 +609,18 @@ Ask for the API's scopes when you sign in with the identity server's local test 
 
 Posting and commenting also need a confirmed email address (confirm it from the link in the identity server's console).
 
+## Communities
+
+Communities (`/communities` in the web app; `api/communities` in the Posts module) are groups around a place or a topic. To try them locally:
+
+- **Start one** at `/communities/new`. Only Premium and Premium+ members can, up to 5 each. Your own account has Premium+ locally (see Example users and posts), or set a plan for another user through `Plans:Overrides`.
+- **Public or private.** Anyone can read a public community and join straight away. A private one is ask-to-join: an admin or moderator approves the request under **Manage community → Requests**. Under-18s can join public communities only and can't run one.
+- **Area.** An optional place and radius (5, 10, 15, 25 or 50 km). When a member posts something inside it, the post form recommends the community and ticks it; the post stays public either way.
+- **Inside:** posts shared into it, and text discussions with replies. Authors and the community's admins and moderators can remove them; anyone can report them.
+- **Not yet:** the example data adds no communities, and joining, requests and replies don't send notifications.
+
+The e2e mock server (`src/web/e2e/mock-server.mjs`) seeds three communities, so the web tests cover joining, discussions and sharing from the post form.
+
 ## Online safety checks
 
 What runs on your machine, and what doesn't. The setup prints the same summary at the end.

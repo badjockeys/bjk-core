@@ -6,6 +6,7 @@ import type { Viewer } from "@/lib/viewer";
 
 import { Avatar } from "./Avatar";
 import {
+  CommunitiesIcon,
   AccountIcon,
   BookmarkIcon,
   HomeIcon,
@@ -19,7 +20,16 @@ import {
 import { NotificationBell } from "./NotificationBell";
 import { SignOutMenu } from "./SignOutMenu";
 
-export type Section = "home" | "reels" | "map" | "profile" | "account" | "notifications" | "bookmarks" | null;
+export type Section =
+  | "home"
+  | "reels"
+  | "map"
+  | "communities"
+  | "profile"
+  | "account"
+  | "notifications"
+  | "bookmarks"
+  | null;
 
 /**
  * The page frame. Desktop (1024 px and up): X-style navigation on the left (Home, Reels, Map, then the member's
@@ -82,6 +92,13 @@ export function AppShell({
           </NavItem>
           {viewer.signedIn ? (
             <>
+              <NavItem
+                href="/communities"
+                on={section === "communities"}
+                icon={<CommunitiesIcon size={26} filled={section === "communities"} />}
+              >
+                Communities
+              </NavItem>
               <NotificationBell label className={`nav-i${section === "notifications" ? " nav-on" : ""}`} />
               <NavItem
                 href="/bookmarks"
