@@ -309,13 +309,15 @@ test("members report a post from its ⋯ menu", async ({ page, request }) => {
   await page.getByRole("button", { name: "More: report or copy link" }).click();
   await page.getByRole("menuitem", { name: "Report post" }).click();
   const dialog = page.getByRole("dialog", { name: "Report this post" });
-  await dialog.getByLabel("Spam").check();
-  await dialog.getByLabel(/Anything else/).fill("Posted the same thing three times.");
+  // "Not about driving" is the first choice: a few of those hold a post for a moderator straight away.
+  await expect(dialog.getByRole("radio").first()).toHaveAccessibleName("Not about driving");
+  await dialog.getByLabel("Not about driving").check();
+  await dialog.getByLabel(/Anything else/).fill("It's an advert for a car wash, not bad driving.");
   await dialog.getByRole("button", { name: "Send report" }).click();
   await expect(page.getByText("Thanks. Our moderators will review it.")).toBeVisible();
 
   const state = await (await request.get("http://localhost:4010/__state")).json();
-  expect(state.reports).toEqual([expect.objectContaining({ target: SEED.photoPost, reason: "Spam" })]);
+  expect(state.reports).toEqual([expect.objectContaining({ target: SEED.photoPost, reason: "NotADrivingIncident" })]);
 });
 
 test("the bell shows unread notifications until you open them", async ({ page }) => {

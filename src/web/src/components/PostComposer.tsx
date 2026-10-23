@@ -13,6 +13,7 @@ import { followBlocker } from "@/lib/blockers";
 import { categoryLabel, CATEGORY_CHOICES, DESCRIPTION_MAX } from "@/lib/categories";
 import { duration, plural, timeAgo, ukDateAndTime, ukLocalToIso, whenLabel } from "@/lib/format";
 import { shrinkPhoto } from "@/lib/image-resize";
+import { containsWebAddress, LINK_MESSAGE } from "@/lib/links";
 import type {
   AuthorDto,
   DraftDto,
@@ -588,6 +589,8 @@ export function PostComposer({
     if (items.length === 0) problems.media = "Add photos or a video.";
     else if (failed > 0) problems.media = "Remove the files that didn't work.";
     if (!fields.title.trim()) problems.title = "Give your post a title.";
+    else if (containsWebAddress(fields.title)) problems.title = LINK_MESSAGE;
+    if (containsWebAddress(fields.description)) problems.description = LINK_MESSAGE;
     if (fields.types.length === 0) problems.types = "Choose at least one type of bad driving.";
     if (!fields.placeName.trim()) problems.placeName = "Add a place name, such as a road and town.";
     if (!fields.pin) problems.pin = "Put a pin on the map where it happened.";

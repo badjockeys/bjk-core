@@ -1,28 +1,15 @@
-// Sensitive media for age-verified members come as signed links that stop working after about 10 minutes
-// (`linksExpireAt` on each photo or video). Pages fetch fresh ones shortly before then.
+/**
+ * Web addresses in a post's text (owner, 23 Oct 2026: links are refused in posts to keep spam out). Mirrors the API's
+ * TextSafety.ContainsWebAddress, so the form can say so before posting: anything with http(s):// or www., or a bare
+ * lower-case domain ending in a common top-level domain. "left.In the lane" and "St.Helens" aren't links.
+ */
+const EXPLICIT = /(?:\bhttps?:\/\/|(?<![\w.@])www\.)\S+/i;
+const BARE =
+  /(?<![\w.@-])[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*\.(?:com|net|org|uk|io|ly|tv|info|biz|shop|store|app|link|xyz|site|online|live|gg|ai|eu|ie|top|club|click|win|bet|casino|vip|pro|news|blog|dev|page|icu|cc|ws|ru|cn)(?![\w-])/;
 
-/** The earliest `linksExpireAt` of these posts' media (signed links to sensitive media), or null. */
-export function earliestExpiry(posts: { media: { linksExpireAt?: string | null }[] }[]): string | null {
-  let earliest: number | null = null;
-  for (const post of posts) {
-    for (const m of post.media) {
-      const at = m.linksExpireAt ? Date.parse(m.linksExpireAt) : NaN;
-      if (!Number.isNaN(at) && (earliest === null || at < earliest)) {
-        earliest = at;
-      }
-    }
-  }
-  return earliest === null ? null : new Date(earliest).toISOString();
-}
+export const LINK_MESSAGE =
+  "Links can't be included in posts. Keep it to what happened on the road: the photos or video show the rest.";
 
-/** How long before a link expires to fetch fresh ones. */
-export const REFRESH_MARGIN_MS = 30_000;
-
-/** Milliseconds until fresh links should be fetched (never negative), or null if nothing expires. */
-export function refreshDelay(expiresAt: string | null, at: number = Date.now()): number | null {
-  if (!expiresAt) {
-    return null;
-  }
-  const when = Date.parse(expiresAt);
-  return Number.isNaN(when) ? null : Math.max(0, when - REFRESH_MARGIN_MS - at);
+export function containsWebAddress(text: string | null | undefined): boolean {
+  return !!text && (EXPLICIT.test(text) || BARE.test(text));
 }
