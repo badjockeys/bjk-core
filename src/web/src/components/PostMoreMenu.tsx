@@ -10,6 +10,7 @@ import { postPath } from "@/lib/paths";
 import { shareCaption, type ShareCaptionPost } from "@/lib/share-video";
 import type { CommentSetting } from "@/lib/types";
 
+import { ShareToCommunityDialog } from "./communities/ShareToCommunityDialog";
 import { MoreIcon } from "./icons";
 import { Menu, type MenuItem } from "./Menu";
 import { ReportDialog } from "./ReportDialog";
@@ -18,8 +19,8 @@ import { copyLink } from "./ShareButton";
 import { toast } from "./toast";
 
 /**
- * The ⋯ on a post: copy the link; report it or block its author; or, on your own post, download the video for
- * TikTok, Reels and Shorts, turn comments off or on, and delete it.
+ * The ⋯ on a post: copy the link; report it or block its author; or, on your own post, share it to your communities,
+ * download the video for TikTok, Reels and Shorts, turn comments off or on, and delete it.
  */
 export function PostMoreMenu({
   postId,
@@ -47,9 +48,13 @@ export function PostMoreMenu({
   const router = useRouter();
   const [reporting, setReporting] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [sharingToCommunity, setSharingToCommunity] = useState(false);
   const link = () => new URL(postPath(postId), window.location.origin).href;
 
   const items: MenuItem[] = [{ label: "Copy link", onSelect: () => void copyLink(link()) }];
+  if (isMine) {
+    items.push({ label: "Share to a community", onSelect: () => setSharingToCommunity(true) });
+  }
   if (isMine && shareVideo) {
     items.push({ label: "Download for TikTok, Reels and Shorts", onSelect: () => setSharing(true) });
   }
@@ -154,6 +159,9 @@ export function PostMoreMenu({
           open
           onClose={() => setSharing(false)}
         />
+      ) : null}
+      {isMine && sharingToCommunity ? (
+        <ShareToCommunityDialog postId={postId} onClose={() => setSharingToCommunity(false)} />
       ) : null}
       {signedIn && !isMine ? (
         <ReportDialog
