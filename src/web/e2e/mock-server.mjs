@@ -920,11 +920,16 @@ async function api(req, res, url) {
       if (!premium) return problem(res, 403, "Ask Bad Jockeys is part of Premium.");
       const used = db.chatUsed.get(me) ?? 0;
       if (used >= limit) {
-        return problem(res, 403, `That's your ${limit} questions for today. You can ask again from midnight.`, {
-          code: "daily_limit",
-          limit,
-          resetsAt: "2026-10-24T00:00:00+01:00",
-        });
+        return problem(
+          res,
+          403,
+          `That's your ${limit} questions for today. You can ask again from midnight.`,
+          {
+            code: "daily_limit",
+            limit,
+            resetsAt: "2026-10-24T00:00:00+01:00",
+          },
+        );
       }
       const body = await json();
       db.chatUsed.set(me, used + 1);
@@ -938,8 +943,20 @@ async function api(req, res, url) {
               title: "Tailgating reports by road",
               valueLabel: "reports",
               points: [
-                { label: "A57 Warrington Road, Prescot", value: 14, hidden: false, latitude: 53.43, longitude: -2.8 },
-                { label: "High Street, Prescot", value: null, hidden: true, latitude: 53.43, longitude: -2.81 },
+                {
+                  label: "A57 Warrington Road, Prescot",
+                  value: 14,
+                  hidden: false,
+                  latitude: 53.43,
+                  longitude: -2.8,
+                },
+                {
+                  label: "High Street, Prescot",
+                  value: null,
+                  hidden: true,
+                  latitude: 53.43,
+                  longitude: -2.81,
+                },
               ],
               columns: null,
               rows: null,
@@ -2770,7 +2787,12 @@ const server = createServer(async (req, res) => {
       const body = JSON.parse((await readBody(req)).toString());
       const user = USERS[body.user];
       if (!user) return send(res, 400, "Unknown user");
-      db.areas.set(user.id, { placeName: body.placeName, latitude: body.latitude, longitude: body.longitude, radiusKm: 5 });
+      db.areas.set(user.id, {
+        placeName: body.placeName,
+        latitude: body.latitude,
+        longitude: body.longitude,
+        radiusKm: 5,
+      });
       return send(res, 204);
     }
     if (url.pathname === "/health") return send(res, 200, "Healthy");

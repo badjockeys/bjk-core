@@ -16,11 +16,15 @@ test("Premium members ask about their own town and open the answer on the map", 
   await page.getByRole("button", { name: "Ask Bad Jockeys" }).click();
   const chat = page.getByRole("dialog", { name: "Ask Bad Jockeys" });
   await expect(chat.getByText("20 questions left today")).toBeVisible();
-  await expect(chat.getByRole("button", { name: "How many incidents have there been in Prescot this month?" })).toBeVisible();
+  await expect(
+    chat.getByRole("button", { name: "How many incidents have there been in Prescot this month?" }),
+  ).toBeVisible();
 
   await chat.getByRole("button", { name: "Worst roads for tailgating in Prescot" }).click();
-  await expect(chat.getByText("The A57 Warrington Road had the most tailgating reports in the last year.")).toBeVisible();
-  await expect(chat.getByText("fewer than 3")).toBeVisible();
+  await expect(
+    chat.getByText("The A57 Warrington Road had the most tailgating reports in the last year."),
+  ).toBeVisible();
+  await expect(chat.getByText("fewer than 3", { exact: true })).toBeVisible();
   await expect(chat.getByText("19 questions left today")).toBeVisible();
 
   await chat.getByRole("link", { name: "Open on the map" }).click();
@@ -34,7 +38,9 @@ test("Free members without a home area see untailored examples and the locked pr
   await page.getByRole("button", { name: "Ask Bad Jockeys" }).click();
   const chat = page.getByRole("dialog", { name: "Ask Bad Jockeys" });
   await expect(chat.getByText("Ask Bad Jockeys is part of Premium")).toBeVisible();
-  await expect(chat.getByRole("button", { name: "Which towns have had the most incidents this month?" })).toBeDisabled();
+  await expect(
+    chat.getByRole("button", { name: "Which towns have had the most incidents this month?" }),
+  ).toBeDisabled();
   await expect(chat.getByText(/Prescot|Warrington/)).toHaveCount(0);
   await expect(chat.getByLabel("Your question")).toBeDisabled();
 });

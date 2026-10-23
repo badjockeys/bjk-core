@@ -42,7 +42,15 @@ const usage = (over: Partial<ChatUsageDto> = {}): ChatUsageDto => ({
 const answer = (over: Partial<ChatAnswerDto> = {}): ChatAnswerDto => ({
   text: "There were 42 reports in Prescot this month.",
   kind: "Answer",
-  card: { type: "Number", title: null, valueLabel: "reports", points: [n("Reports", 42)], columns: null, rows: null, hiddenRows: 0 },
+  card: {
+    type: "Number",
+    title: null,
+    valueLabel: "reports",
+    points: [n("Reports", 42)],
+    columns: null,
+    rows: null,
+    hiddenRows: 0,
+  },
   map: null,
   suggestions: ["Which roads in Prescot are worst?"],
   ...over,
@@ -94,19 +102,30 @@ describe("chat helpers", () => {
 
   it("links to the map with a UK centre and known types only", () => {
     expect(
-      mapHref({ latitude: 53.4312, longitude: -2.8011, zoom: 12, subcategories: ["Tailgating", "Nonsense", "PhoneInHand"] }),
+      mapHref({
+        latitude: 53.4312,
+        longitude: -2.8011,
+        zoom: 12,
+        subcategories: ["Tailgating", "Nonsense", "PhoneInHand"],
+      }),
     ).toBe("/map?lat=53.431&lng=-2.801&zoom=12&types=Tailgating%2CPhoneInHand");
     expect(mapHref({ latitude: 40.7, longitude: -74, zoom: 10, subcategories: [] })).toBe("/map");
     expect(mapHref(null)).toBeNull();
   });
 
   it("reads the map's starting point back, ignoring anything odd", () => {
-    expect(parseMapStart({ lat: "53.431", lng: "-2.801", zoom: "12", types: "Tailgating,Nonsense" })).toEqual({
-      centre: [53.431, -2.801],
-      zoom: 12,
-      types: ["Tailgating"],
+    expect(parseMapStart({ lat: "53.431", lng: "-2.801", zoom: "12", types: "Tailgating,Nonsense" })).toEqual(
+      {
+        centre: [53.431, -2.801],
+        zoom: 12,
+        types: ["Tailgating"],
+      },
+    );
+    expect(parseMapStart({ lat: "999", lng: "0", zoom: "40" })).toEqual({
+      centre: null,
+      zoom: null,
+      types: [],
     });
-    expect(parseMapStart({ lat: "999", lng: "0", zoom: "40" })).toEqual({ centre: null, zoom: null, types: [] });
     expect(parseMapStart({})).toEqual({ centre: null, zoom: null, types: [] });
   });
 });
@@ -157,7 +176,13 @@ describe("ChatCard", () => {
 });
 
 describe("Ask Bad Jockeys", () => {
-  const premium: Viewer = { ...ANONYMOUS, signedIn: true, userId: "u1", email: "me@example.com", hasProfile: true };
+  const premium: Viewer = {
+    ...ANONYMOUS,
+    signedIn: true,
+    userId: "u1",
+    email: "me@example.com",
+    hasProfile: true,
+  };
 
   beforeEach(() => {
     sessionStorage.clear();
@@ -177,14 +202,23 @@ describe("Ask Bad Jockeys", () => {
 
   it("shows the member's own example questions and answers one", async () => {
     actions.getChatUsage.mockResolvedValue({ ok: true, data: usage() });
-    const reply: ChatReplyDto = { answer: answer(), usage: usage({ used: 3, remaining: 17 }), turnToken: "tok" };
+    const reply: ChatReplyDto = {
+      answer: answer(),
+      usage: usage({ used: 3, remaining: 17 }),
+      turnToken: "tok",
+    };
     actions.askChat.mockResolvedValue({ ok: true, data: reply });
 
     await openWindow();
-    const example = await screen.findByRole("button", { name: "How many incidents have there been in Prescot this month?" });
+    const example = await screen.findByRole("button", {
+      name: "How many incidents have there been in Prescot this month?",
+    });
     await userEvent.click(example);
 
-    expect(actions.askChat).toHaveBeenCalledWith("How many incidents have there been in Prescot this month?", []);
+    expect(actions.askChat).toHaveBeenCalledWith(
+      "How many incidents have there been in Prescot this month?",
+      [],
+    );
     expect(await screen.findByText("There were 42 reports in Prescot this month.")).toBeInTheDocument();
     expect(screen.getByText("17 questions left today")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Which roads in Prescot are worst?" })).toBeEnabled();
@@ -192,7 +226,10 @@ describe("Ask Bad Jockeys", () => {
 
   it("sends earlier answered turns with the next question", async () => {
     actions.getChatUsage.mockResolvedValue({ ok: true, data: usage() });
-    actions.askChat.mockResolvedValue({ ok: true, data: { answer: answer(), usage: usage(), turnToken: "tok" } });
+    actions.askChat.mockResolvedValue({
+      ok: true,
+      data: { answer: answer(), usage: usage(), turnToken: "tok" },
+    });
 
     await openWindow();
     await screen.findByText("18 questions left today");
@@ -240,7 +277,10 @@ describe("Ask Bad Jockeys", () => {
 
   it("keeps the conversation when the page changes, but not for another account", async () => {
     actions.getChatUsage.mockResolvedValue({ ok: true, data: usage() });
-    actions.askChat.mockResolvedValue({ ok: true, data: { answer: answer(), usage: usage(), turnToken: "tok" } });
+    actions.askChat.mockResolvedValue({
+      ok: true,
+      data: { answer: answer(), usage: usage(), turnToken: "tok" },
+    });
 
     await openWindow();
     await screen.findByText("18 questions left today");

@@ -483,7 +483,13 @@ export function AskIcon({ filled, ...p }: IconProps & { filled?: boolean }) {
 export function SendIcon({ color = "#FFFFFF", ...p }: IconProps) {
   return (
     <Svg {...p}>
-      <path d="M4 12l16-8-6 16-2.5-6.5L4 12z" fill={color} stroke={color} strokeWidth="1.4" strokeLinejoin="round" />
+      <path
+        d="M4 12l16-8-6 16-2.5-6.5L4 12z"
+        fill={color}
+        stroke={color}
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
     </Svg>
   );
 }

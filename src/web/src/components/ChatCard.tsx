@@ -11,7 +11,9 @@ export function ChatCard({ card }: { card: ChatCardDto }) {
       {card.title ? <figcaption className="chat-card-title">{card.title}</figcaption> : null}
       {card.type === "Number" ? <NumberCard card={card} /> : null}
       {card.type === "Line" ? <LineCard card={card} /> : null}
-      {card.type === "Bar" || card.type === "Places" ? <BarCard card={card} numbered={card.type === "Places"} /> : null}
+      {card.type === "Bar" || card.type === "Places" ? (
+        <BarCard card={card} numbered={card.type === "Places"} />
+      ) : null}
       {card.type === "Table" ? <TableCard card={card} /> : null}
       {card.hiddenRows > 0 ? (
         <p className="small muted chat-card-note">
@@ -65,13 +67,21 @@ function LineCard({ card }: { card: ChatCardDto }) {
   const width = 300;
   const height = 96;
   const step = points.length > 1 ? width / (points.length - 1) : 0;
-  const y = (p: ChatCardPointDto) => height - ((p.hidden || p.value === null ? 0 : p.value) / max) * (height - 8) - 4;
-  const path = points.map((p, i) => `${i === 0 ? "M" : "L"}${(i * step).toFixed(1)},${y(p).toFixed(1)}`).join(" ");
+  const y = (p: ChatCardPointDto) =>
+    height - ((p.hidden || p.value === null ? 0 : p.value) / max) * (height - 8) - 4;
+  const path = points
+    .map((p, i) => `${i === 0 ? "M" : "L"}${(i * step).toFixed(1)},${y(p).toFixed(1)}`)
+    .join(" ");
   const first = points[0]!;
   const last = points[points.length - 1]!;
   return (
     <div className="chat-line">
-      <svg viewBox={`-4 0 ${width + 8} ${height}`} role="presentation" aria-hidden="true" preserveAspectRatio="none">
+      <svg
+        viewBox={`-4 0 ${width + 8} ${height}`}
+        role="presentation"
+        aria-hidden="true"
+        preserveAspectRatio="none"
+      >
         <path d={path} fill="none" stroke="var(--brand)" strokeWidth="2.5" strokeLinejoin="round" />
         {points.map((p, i) => (
           <circle

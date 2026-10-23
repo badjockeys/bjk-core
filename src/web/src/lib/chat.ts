@@ -65,7 +65,9 @@ export function pointValue(point: Pick<ChatCardPointDto, "value" | "hidden">): s
   if (point.hidden || point.value === null) {
     return "fewer than 3";
   }
-  return Number.isInteger(point.value) ? count(point.value) : point.value.toLocaleString("en-GB", { maximumFractionDigits: 1 });
+  return Number.isInteger(point.value)
+    ? count(point.value)
+    : point.value.toLocaleString("en-GB", { maximumFractionDigits: 1 });
 }
 
 /** The largest shown figure on a card, for scaling its bars (at least 1, so empty cards don't divide by zero). */
@@ -160,7 +162,9 @@ export function problemMessage(problem: ChatProblem, detail?: string): string {
     case "premium":
       return "Ask Bad Jockeys is part of Premium.";
     case "busy":
-      return detail || "Ask Bad Jockeys is busy right now. Try again in a minute; that question didn't count.";
+      return (
+        detail || "Ask Bad Jockeys is busy right now. Try again in a minute; that question didn't count."
+      );
     default:
       return detail || "Something went wrong. Please try again.";
   }

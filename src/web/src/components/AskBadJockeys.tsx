@@ -4,14 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 
 import { askChat, getChatUsage } from "@/actions/chat";
-import {
-  allowanceLabel,
-  entryId,
-  historyFor,
-  mapHref,
-  MAX_QUESTION,
-  type ChatEntry,
-} from "@/lib/chat";
+import { allowanceLabel, entryId, historyFor, mapHref, MAX_QUESTION, type ChatEntry } from "@/lib/chat";
 import { signInPath } from "@/lib/paths";
 import type { ChatUsageDto } from "@/lib/types";
 import type { Viewer } from "@/lib/viewer";
@@ -66,7 +59,10 @@ function load(userId: string | null): ChatEntry[] {
 
 function save(userId: string | null, entries: ChatEntry[]) {
   try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ userId, entries: entries.slice(-20) } satisfies Saved));
+    sessionStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ userId, entries: entries.slice(-20) } satisfies Saved),
+    );
   } catch {
     // Private browsing or storage full: the conversation just won't survive a page change.
   }
@@ -86,16 +82,24 @@ export function AskBadJockeys({ viewer }: { viewer: Viewer }) {
   const [usage, setUsage] = useState<ChatUsageDto | null>(null);
   const [usageError, setUsageError] = useState<string | null>(null);
   const [entries, setEntries] = useState<ChatEntry[]>([]);
-  const [restored, setRestored] = useState(false);
+  // The conversation is read back from this tab the first time the window opens (not while rendering, where the
+  // server has no sessionStorage), and saved as it changes after that.
+  const restored = useRef(false);
   const [question, setQuestion] = useState("");
   const pending = entries.some((e) => e.answer === null && e.error === null);
 
   // Open from any Ask button.
   useEffect(() => {
-    const show = () => setOpen(true);
+    const show = () => {
+      if (!restored.current) {
+        restored.current = true;
+        setEntries(load(viewer.userId));
+      }
+      setOpen(true);
+    };
     window.addEventListener(OPEN_EVENT, show);
     return () => window.removeEventListener(OPEN_EVENT, show);
-  }, []);
+  }, [viewer.userId]);
 
   useEffect(() => {
     const element = dialog.current;
@@ -110,18 +114,11 @@ export function AskBadJockeys({ viewer }: { viewer: Viewer }) {
     }
   }, [open]);
 
-  // The conversation so far in this tab, once; then kept as it changes.
   useEffect(() => {
-    if (!restored) {
-      setEntries(load(viewer.userId));
-      setRestored(true);
-    }
-  }, [restored, viewer.userId]);
-  useEffect(() => {
-    if (restored) {
+    if (restored.current) {
       save(viewer.userId, entries);
     }
-  }, [restored, entries, viewer.userId]);
+  }, [entries, viewer.userId]);
 
   // The allowance and examples each time the window opens (they change with the plan, home area and the day).
   useEffect(() => {
@@ -248,7 +245,9 @@ export function AskBadJockeys({ viewer }: { viewer: Viewer }) {
               ) : null}
               {examples.length > 0 ? (
                 <div className="chat-examples">
-                  <span className="small muted">{locked ? "Premium members can ask things like:" : "Try asking:"}</span>
+                  <span className="small muted">
+                    {locked ? "Premium members can ask things like:" : "Try asking:"}
+                  </span>
                   {examples.map((example) => (
                     <button
                       key={example}
@@ -327,8 +326,8 @@ export function AskBadJockeys({ viewer }: { viewer: Viewer }) {
           </button>
         </form>
         <p className="chat-small small muted">
-          Answers come from reports on Bad Jockeys. Figures from fewer than 3 reports are hidden, and it can&apos;t
-          look up people or number plates.
+          Answers come from reports on Bad Jockeys. Figures from fewer than 3 reports are hidden, and it
+          can&apos;t look up people or number plates.
           {question.length > MAX_QUESTION - 100 ? ` ${MAX_QUESTION - question.length} characters left.` : ""}
         </p>
       </div>
@@ -363,8 +362,8 @@ function Locked({ viewer }: { viewer: Viewer }) {
     <div className="chat-locked">
       <strong>Ask Bad Jockeys is part of Premium</strong>
       <span className="small muted">
-        Premium members ask about their own area: the worst roads, the busiest times and whether it&apos;s getting
-        better.
+        Premium members ask about their own area: the worst roads, the busiest times and whether it&apos;s
+        getting better.
       </span>
       <Link className="btn btn-primary btn-sm" href="/premium">
         See Premium

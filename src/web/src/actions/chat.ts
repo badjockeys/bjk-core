@@ -39,9 +39,16 @@ export async function askChat(question: string, history: ChatTurn[]): Promise<As
 
   // Only well-formed turns, and only as many as the API reads: anything else would be dropped there anyway.
   const turns = (Array.isArray(history) ? history : [])
-    .filter((t) => t && typeof t.question === "string" && typeof t.answer === "string" && typeof t.token === "string")
+    .filter(
+      (t) =>
+        t && typeof t.question === "string" && typeof t.answer === "string" && typeof t.token === "string",
+    )
     .slice(-6)
-    .map((t) => ({ question: t.question.slice(0, MAX_QUESTION), answer: t.answer.slice(0, 2000), token: t.token }));
+    .map((t) => ({
+      question: t.question.slice(0, MAX_QUESTION),
+      answer: t.answer.slice(0, 2000),
+      token: t.token,
+    }));
 
   try {
     return { ok: true, data: await api().chat.ask(token, text, turns) };
@@ -67,7 +74,9 @@ export async function askChat(question: string, history: ChatTurn[]): Promise<As
     if (error.status === 503 || error.status === 504 || error.status === 502) {
       return {
         ok: false,
-        error: error.problem?.detail || "Ask Bad Jockeys is busy right now. Try again in a minute; that question didn't count.",
+        error:
+          error.problem?.detail ||
+          "Ask Bad Jockeys is busy right now. Try again in a minute; that question didn't count.",
         problem: "busy",
       };
     }
