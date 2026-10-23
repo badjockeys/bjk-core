@@ -209,6 +209,8 @@ export function PostComposer({
     reportedToPolice: null,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  /** Communities to share the post into once it's up (owner, 23 Oct 2026). */
+  const [shareTo, setShareTo] = useState<string[]>([]);
   /** Your household cars, and the one this was filmed from (owner, 22 Oct 2026). */
   const [cars, setCars] = useState<HouseholdCarDto[] | null>(null);
   const [carId, setCarId] = useState<string>("");
@@ -221,7 +223,6 @@ export function PostComposer({
       live = false;
     };
   }, []);
-import { shareToCommunities } from "@/actions/communities";
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
