@@ -397,7 +397,8 @@ function OwnerNotices({ post, kind }: { post: PostDto; kind: string | null }) {
         <div className="notice" role="status">
           <span>
             <strong>A moderator is checking your post.</strong> Others will see it once it&apos;s been
-            approved.
+            approved. Posts are checked when we can&apos;t see a vehicle in the photos or video, when members
+            report them as not about driving, or when the words need a second look.
           </span>
         </div>
       </div>

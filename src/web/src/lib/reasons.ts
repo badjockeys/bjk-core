@@ -5,13 +5,16 @@ export interface ReasonChoice {
   label: string;
 }
 
-/** In-app reports on a post, comment or profile (screen 07). */
+/**
+ * In-app reports on a post, comment or profile (screen 07). "Not about driving" comes first (owner, 23 Oct 2026):
+ * a few of those, or spam reports, hold a post for a moderator straight away.
+ */
 export const IN_APP_REASONS: readonly ReasonChoice[] = [
+  { value: "NotADrivingIncident", label: "Not about driving" },
+  { value: "Spam", label: "Spam or advertising" },
   { value: "PersonalInformation", label: "Shows a face, number plate or home" },
   { value: "DangerousOrIllegal", label: "Dangerous or illegal" },
   { value: "HarassmentOrHate", label: "Harassment or hate" },
-  { value: "Spam", label: "Spam" },
-  { value: "NotADrivingIncident", label: "Not a driving incident" },
   { value: "Other", label: "Something else" },
 ];
 
