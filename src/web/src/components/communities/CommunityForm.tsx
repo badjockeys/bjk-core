@@ -78,7 +78,9 @@ export function CommunityForm({ existing }: { existing?: CommunityDto }) {
         description: body.description?.trim() || null,
         rules: body.rules?.trim() || null,
       };
-      const result = existing ? await updateCommunity(existing.slug, request) : await createCommunity(request);
+      const result = existing
+        ? await updateCommunity(existing.slug, request)
+        : await createCommunity(request);
       if (!result.ok) {
         setError(result.error);
         setFieldErrors(result.fieldErrors ?? {});
@@ -91,7 +93,10 @@ export function CommunityForm({ existing }: { existing?: CommunityDto }) {
   };
 
   const remove = () => {
-    if (!existing || !window.confirm(`Delete ${existing.name} for everyone? Posts shared into it stay on Bad Jockeys.`)) {
+    if (
+      !existing ||
+      !window.confirm(`Delete ${existing.name} for everyone? Posts shared into it stay on Bad Jockeys.`)
+    ) {
       return;
     }
     start(async () => {
@@ -150,10 +155,17 @@ export function CommunityForm({ existing }: { existing?: CommunityDto }) {
         {(
           [
             ["Public", "Public", "Anyone can see inside and join."],
-            ["Private", "Private", "Listed, but people ask to join and only members see inside. Adults only."],
+            [
+              "Private",
+              "Private",
+              "Listed, but people ask to join and only members see inside. Adults only.",
+            ],
           ] as [CommunityVisibility, string, string][]
         ).map(([value, label, help]) => (
-          <label key={value} className={`community-choice${body.visibility === value ? " community-choice-on" : ""}`}>
+          <label
+            key={value}
+            className={`community-choice${body.visibility === value ? " community-choice-on" : ""}`}
+          >
             <input
               type="radio"
               name={`${id}-visibility`}
@@ -203,7 +215,9 @@ export function CommunityForm({ existing }: { existing?: CommunityDto }) {
             of {body.placeName}
           </label>
         ) : null}
-        <span className="help">Members posting something that happened in the area are offered this community.</span>
+        <span className="help">
+          Members posting something that happened in the area are offered this community.
+        </span>
       </div>
 
       {error ? (

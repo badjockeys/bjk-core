@@ -82,7 +82,10 @@ export function ManageRow({
                 value={person.role}
                 disabled={pending}
                 onChange={(e) =>
-                  run(() => setMemberRole(slug, person.person.id, e.target.value as CommunityRole), `${who}'s role changed`)
+                  run(
+                    () => setMemberRole(slug, person.person.id, e.target.value as CommunityRole),
+                    `${who}'s role changed`,
+                  )
                 }
               >
                 <option value="Member">Member</option>

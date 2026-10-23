@@ -6,7 +6,13 @@ import { communityFacts, communityInitials, communityPath, roleLabel } from "@/l
 import type { CommunityDto } from "@/lib/types";
 
 /** The top of a community's pages: badge, name, facts, description, join and the ⋯ menu, then its tabs. */
-export function CommunityHeader({ community, tab }: { community: CommunityDto; tab?: "posts" | "discussions" | "about" }) {
+export function CommunityHeader({
+  community,
+  tab,
+}: {
+  community: CommunityDto;
+  tab?: "posts" | "discussions" | "about";
+}) {
   const here = communityPath(community.slug);
   const role = roleLabel(community.role);
   return (

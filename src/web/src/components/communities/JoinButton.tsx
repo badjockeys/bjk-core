@@ -82,7 +82,11 @@ export function JoinButton({
             toast(result.error);
             return;
           }
-          toast(result.data.standing === "Requested" ? "Request sent. An admin or moderator will decide." : `You've joined ${name}`);
+          toast(
+            result.data.standing === "Requested"
+              ? "Request sent. An admin or moderator will decide."
+              : `You've joined ${name}`,
+          );
           router.refresh();
         })
       }

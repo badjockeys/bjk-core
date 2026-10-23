@@ -16,15 +16,21 @@ export default async function NewCommunityPage() {
     redirect(signInPath("/communities/new"));
   }
   return (
-    <AppShell viewer={viewer} section="communities" returnTo="/communities/new" bottomNav aside={<FooterLinks />}>
+    <AppShell
+      viewer={viewer}
+      section="communities"
+      returnTo="/communities/new"
+      bottomNav
+      aside={<FooterLinks />}
+    >
       <header className="c-head">
         <BackButton arrow />
         <h1>Start a community</h1>
       </header>
       <div className="pad stack">
         <p className="small muted">
-          Communities are for Premium members to start; you&apos;ll be its admin. Anyone can join public ones; private
-          ones are for adults who ask to join.
+          Communities are for Premium members to start; you&apos;ll be its admin. Anyone can join public ones;
+          private ones are for adults who ask to join.
         </p>
         <CommunityForm />
       </div>

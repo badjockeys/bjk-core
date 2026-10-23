@@ -35,7 +35,10 @@ export async function createCommunity(body: CommunityRequest): Promise<ActionRes
   return result;
 }
 
-export async function updateCommunity(slug: string, body: CommunityRequest): Promise<ActionResult<CommunityDto>> {
+export async function updateCommunity(
+  slug: string,
+  body: CommunityRequest,
+): Promise<ActionResult<CommunityDto>> {
   if (!SLUG.test(slug)) return NOT_FOUND;
   const result = await asUser((t) => api().communities.update(t, slug, body));
   if (result.ok) changed(slug);
@@ -72,7 +75,11 @@ export async function decideRequest(slug: string, userId: string, approve: boole
   return result;
 }
 
-export async function setMemberRole(slug: string, userId: string, role: CommunityRole): Promise<ActionResult> {
+export async function setMemberRole(
+  slug: string,
+  userId: string,
+  role: CommunityRole,
+): Promise<ActionResult> {
   if (!SLUG.test(slug) || !ID.test(userId)) return NOT_FOUND;
   const result = await asUser((t) => api().communities.setRole(t, slug, userId, role));
   if (result.ok) changed(slug);
@@ -101,14 +108,24 @@ export async function unsharePost(slug: string, postId: string): Promise<ActionR
   return result;
 }
 
-export async function startDiscussion(slug: string, title: string, body: string): Promise<ActionResult<CommunityDiscussionDto>> {
+export async function startDiscussion(
+  slug: string,
+  title: string,
+  body: string,
+): Promise<ActionResult<CommunityDiscussionDto>> {
   if (!SLUG.test(slug)) return NOT_FOUND;
-  const result = await asUser((t) => api().communities.startDiscussion(t, slug, { title, body: body || null }));
+  const result = await asUser((t) =>
+    api().communities.startDiscussion(t, slug, { title, body: body || null }),
+  );
   if (result.ok) changed(slug);
   return result;
 }
 
-export async function replyToDiscussion(slug: string, id: string, body: string): Promise<ActionResult<CommunityReplyDto>> {
+export async function replyToDiscussion(
+  slug: string,
+  id: string,
+  body: string,
+): Promise<ActionResult<CommunityReplyDto>> {
   if (!SLUG.test(slug) || !ID.test(id)) return NOT_FOUND;
   const result = await asUser((t) => api().communities.reply(t, slug, id, body));
   if (result.ok) changed(slug);
@@ -129,12 +146,20 @@ export async function removeReply(slug: string, id: string, replyId: string): Pr
   return result;
 }
 
-export async function reportCommunity(slug: string, reason: ReportReason, details: string): Promise<ActionResult> {
+export async function reportCommunity(
+  slug: string,
+  reason: ReportReason,
+  details: string,
+): Promise<ActionResult> {
   if (!SLUG.test(slug)) return NOT_FOUND;
   return asUser((t) => api().communities.report(t, slug, reason, details || null));
 }
 
-export async function reportDiscussion(id: string, reason: ReportReason, details: string): Promise<ActionResult> {
+export async function reportDiscussion(
+  id: string,
+  reason: ReportReason,
+  details: string,
+): Promise<ActionResult> {
   if (!ID.test(id)) return NOT_FOUND;
   return asUser((t) => api().communities.reportDiscussion(t, id, reason, details || null));
 }
@@ -154,7 +179,10 @@ export async function suggestCommunities(q: {
 }
 
 /** Share your post into communities you're a member of. */
-export async function shareToCommunities(postId: string, communityIds: string[]): Promise<ActionResult<string[]>> {
+export async function shareToCommunities(
+  postId: string,
+  communityIds: string[],
+): Promise<ActionResult<string[]>> {
   if (!ID.test(postId) || communityIds.length === 0) return { ok: true, data: [] };
   return asUser((t) => api().communities.share(t, postId, communityIds));
 }

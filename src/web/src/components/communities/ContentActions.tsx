@@ -37,7 +37,9 @@ export function ContentActions({
         if (!window.confirm(`Remove this ${what}? This can't be undone.`)) {
           return;
         }
-        const result = replyId ? await removeReply(slug, discussionId, replyId) : await removeDiscussion(slug, discussionId);
+        const result = replyId
+          ? await removeReply(slug, discussionId, replyId)
+          : await removeDiscussion(slug, discussionId);
         if (!result.ok) {
           toast(result.error);
           return;
@@ -60,7 +62,11 @@ export function ContentActions({
 
   return (
     <>
-      <Menu label={`More: ${canRemove ? "remove or " : ""}report this ${what}`} items={items} buttonClassName="icon-btn">
+      <Menu
+        label={`More: ${canRemove ? "remove or " : ""}report this ${what}`}
+        items={items}
+        buttonClassName="icon-btn"
+      >
         <MoreIcon />
       </Menu>
       {isMine ? null : (
@@ -68,7 +74,9 @@ export function ContentActions({
           open={reporting}
           onClose={() => setReporting(false)}
           what={what}
-          submit={(reason, details) => (replyId ? reportReply(replyId, reason, details) : reportDiscussion(discussionId, reason, details))}
+          submit={(reason, details) =>
+            replyId ? reportReply(replyId, reason, details) : reportDiscussion(discussionId, reason, details)
+          }
         />
       )}
     </>

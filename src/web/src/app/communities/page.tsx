@@ -44,7 +44,9 @@ export default async function CommunitiesPage({ searchParams }: Props) {
             <h2 id="start-title" className="h2">
               Start a community
             </h2>
-            <p className="small">Bring people together around a place or a topic. You&apos;ll be its admin.</p>
+            <p className="small">
+              Bring people together around a place or a topic. You&apos;ll be its admin.
+            </p>
             <span className="badge-premium">Premium</span>
             <Link href="/communities/new" className="btn btn-primary">
               Create a community
@@ -131,7 +133,9 @@ export default async function CommunitiesPage({ searchParams }: Props) {
       )}
       {list && list.page * list.pageSize < list.totalCount ? (
         <p className="centre pad">
-          <Link href={`/communities?${search ? `q=${encodeURIComponent(search)}` : `tab=${tab.tab}`}&page=${page + 1}`}>
+          <Link
+            href={`/communities?${search ? `q=${encodeURIComponent(search)}` : `tab=${tab.tab}`}&page=${page + 1}`}
+          >
             More communities
           </Link>
         </p>

@@ -56,8 +56,15 @@ export function CommunityShareField({
       <legend className="label">Share with your communities</legend>
       <span className="small muted">Your post stays public. Sharing adds it to the community too.</span>
       {shown.map((s) => (
-        <label key={s.id} className={`community-share-item${s.recommended ? " community-share-recommended" : ""}`}>
-          <input type="checkbox" checked={selected.includes(s.id)} onChange={(e) => toggle(s.id, e.target.checked)} />
+        <label
+          key={s.id}
+          className={`community-share-item${s.recommended ? " community-share-recommended" : ""}`}
+        >
+          <input
+            type="checkbox"
+            checked={selected.includes(s.id)}
+            onChange={(e) => toggle(s.id, e.target.checked)}
+          />
           <span className="community-badge community-badge-sm" aria-hidden="true">
             {communityInitials(s.name)}
           </span>

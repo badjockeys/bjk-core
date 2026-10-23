@@ -89,7 +89,11 @@ export default async function ManageCommunityPage({ params, searchParams }: Prop
         </p>
       ) : people.items.length === 0 ? (
         <p className="centre muted pad">
-          {tab.tab === "requests" ? "No one is asking to join." : tab.tab === "banned" ? "No one is banned." : "No members."}
+          {tab.tab === "requests"
+            ? "No one is asking to join."
+            : tab.tab === "banned"
+              ? "No one is banned."
+              : "No members."}
         </p>
       ) : (
         <>

@@ -27,7 +27,10 @@ export function CommunityMenu({
   const router = useRouter();
   const [reporting, setReporting] = useState(false);
   const items: MenuItem[] = [
-    { label: "Copy link", onSelect: () => void copyLink(new URL(communityPath(slug), window.location.origin).href) },
+    {
+      label: "Copy link",
+      onSelect: () => void copyLink(new URL(communityPath(slug), window.location.origin).href),
+    },
   ];
   if (canModerate) {
     items.push({ label: "Manage community", href: `${communityPath(slug)}/manage` });

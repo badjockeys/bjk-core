@@ -100,9 +100,21 @@ export function CommunitiesIcon({ filled, ...p }: IconProps & { filled?: boolean
   return (
     <Svg {...p}>
       <circle cx="9" cy="8" r="3.2" fill="none" stroke={INK} strokeWidth={w} />
-      <path d="M3 20c.6-3.6 3-5.6 6-5.6s5.4 2 6 5.6" fill="none" stroke={INK} strokeWidth={w} strokeLinecap="round" />
+      <path
+        d="M3 20c.6-3.6 3-5.6 6-5.6s5.4 2 6 5.6"
+        fill="none"
+        stroke={INK}
+        strokeWidth={w}
+        strokeLinecap="round"
+      />
       <circle cx="16.5" cy="9" r="2.6" fill="none" stroke={INK} strokeWidth={w - 0.4} />
-      <path d="M16.8 14.2c2.4.3 3.9 2 4.2 4.8" fill="none" stroke={INK} strokeWidth={w - 0.4} strokeLinecap="round" />
+      <path
+        d="M16.8 14.2c2.4.3 3.9 2 4.2 4.8"
+        fill="none"
+        stroke={INK}
+        strokeWidth={w - 0.4}
+        strokeLinecap="round"
+      />
     </Svg>
   );
 }

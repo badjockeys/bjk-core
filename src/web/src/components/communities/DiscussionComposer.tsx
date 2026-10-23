@@ -55,7 +55,13 @@ export function DiscussionComposer({ slug }: { slug: string }) {
         <span className="label">
           More detail <span className="muted">(optional)</span>
         </span>
-        <textarea className="textarea" rows={4} maxLength={2000} value={body} onChange={(e) => setBody(e.target.value)} />
+        <textarea
+          className="textarea"
+          rows={4}
+          maxLength={2000}
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+        />
       </label>
       <p className="small muted">No number plates, names or addresses.</p>
       {error ? (

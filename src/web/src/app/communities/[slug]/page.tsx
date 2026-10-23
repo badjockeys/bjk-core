@@ -161,7 +161,14 @@ function About({
   community,
   compact = false,
 }: {
-  community: { name: string; description: string; rules: string | null; placeName: string | null; radiusKm: number | null; owner: { displayName: string; handle: string | null } };
+  community: {
+    name: string;
+    description: string;
+    rules: string | null;
+    placeName: string | null;
+    radiusKm: number | null;
+    owner: { displayName: string; handle: string | null };
+  };
   compact?: boolean;
 }) {
   return (

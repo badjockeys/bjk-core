@@ -12,13 +12,19 @@ test.beforeEach(async ({ request }) => {
 test("members see a community's shared posts and can reply to its discussions", async ({ page }) => {
   await signIn(page, "/communities");
   await expect(page.getByRole("heading", { name: "Communities" })).toBeVisible();
-  await page.getByRole("link", { name: /Manchester Road Watch/ }).first().click();
+  await page
+    .getByRole("link", { name: /Manchester Road Watch/ })
+    .first()
+    .click();
 
   await expect(page).toHaveURL(/\/communities\/manchester-road-watch/);
   await expect(page.getByText("Joined").first()).toBeVisible();
   await expect(page.locator(`a[href="/p/${SEED.photoPost}"]`).first()).toBeVisible();
 
-  await page.getByRole("navigation", { name: "Community" }).getByRole("link", { name: "Discussions" }).click();
+  await page
+    .getByRole("navigation", { name: "Community" })
+    .getByRole("link", { name: "Discussions" })
+    .click();
   await page.getByRole("link", { name: /Mancunian Way roadworks/ }).click();
   await page.getByLabel("Your reply").fill("Every morning at the Oxford Road exit.");
   await page.getByRole("button", { name: "Reply", exact: true }).click();

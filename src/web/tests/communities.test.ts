@@ -13,9 +13,9 @@ describe("communities", () => {
   });
 
   it("sums up a community", () => {
-    expect(communityFacts({ visibility: "Public", placeName: "Salford", radiusKm: 10, memberCount: 1240 })).toBe(
-      "Public · Salford, 10 km · 1,240 members",
-    );
+    expect(
+      communityFacts({ visibility: "Public", placeName: "Salford", radiusKm: 10, memberCount: 1240 }),
+    ).toBe("Public · Salford, 10 km · 1,240 members");
     expect(communityFacts({ visibility: "Private", placeName: null, radiusKm: null, memberCount: 1 })).toBe(
       "Private · 1 member",
     );

@@ -93,7 +93,8 @@ export default async function DiscussionPage({ params, searchParams }: Props) {
               <Avatar name={r.author.displayName} url={r.author.avatarUrl} size="sm" />
               <div className="community-reply-text">
                 <span className="small">
-                  <strong>{r.author.displayName}</strong> <span className="muted">· {timeAgo(r.createdAt)}</span>
+                  <strong>{r.author.displayName}</strong>{" "}
+                  <span className="muted">· {timeAgo(r.createdAt)}</span>
                 </span>
                 <p className="post-text">{r.body}</p>
               </div>

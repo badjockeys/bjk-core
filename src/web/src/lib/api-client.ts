@@ -354,9 +354,17 @@ export function endpoints(api: ApiClient) {
     communities: {
       list: (token: string, kind: CommunityListKind, search: string | null, page = 1) =>
         client(CommunitiesClient, { token }).communities_List(kind, search, page, 20),
-      create: (token: string, body: CommunityRequest) => client(CommunitiesClient, { token }).communities_Create(body),
-      suggestions: (token: string, q: { latitude?: number | null; longitude?: number | null; postId?: string | null }) =>
-        client(CommunitiesClient, { token }).communities_Suggestions(q.latitude ?? null, q.longitude ?? null, q.postId ?? null),
+      create: (token: string, body: CommunityRequest) =>
+        client(CommunitiesClient, { token }).communities_Create(body),
+      suggestions: (
+        token: string,
+        q: { latitude?: number | null; longitude?: number | null; postId?: string | null },
+      ) =>
+        client(CommunitiesClient, { token }).communities_Suggestions(
+          q.latitude ?? null,
+          q.longitude ?? null,
+          q.postId ?? null,
+        ),
       get: (token: string, slug: string) => client(CommunitiesClient, { token }).communities_Get(slug),
       update: (token: string, slug: string, body: CommunityRequest) =>
         client(CommunitiesClient, { token }).communities_Update(slug, body),
