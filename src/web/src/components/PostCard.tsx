@@ -89,6 +89,7 @@ export function PostCard({ post, viewer }: { post: PostDto; viewer: Viewer }) {
             </span>
           ) : null}
           {post.vehicle ? <span>{describeVehicle(post.vehicle)}</span> : null}
+          {post.filmedFrom ? <span>Filmed from: {post.filmedFrom.label}</span> : null}
           {post.reportedToPolice ? <span>Reported to police</span> : null}
           {post.isSensitive ? <span>Sensitive</span> : null}
         </div>

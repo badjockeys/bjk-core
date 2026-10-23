@@ -32,6 +32,7 @@ import type {
   CommunityRole,
   CommentSetting,
   HeatmapQuery,
+  HouseholdCarRequest,
   IncidentCategory,
   NotificationSettingDto,
   PassengerTagStatus,
@@ -531,6 +532,13 @@ export function endpoints(api: ApiClient) {
     },
     vehicles: {
       catalogue: () => client(VehiclesClient, { revalidate: 86_400 }).vehicles_Get(),
+      /** Your household cars (private to you). */
+      mine: (token: string) => client(VehiclesClient, { token }).vehicles_MyCars(),
+      addCar: (token: string, body: HouseholdCarRequest) =>
+        client(VehiclesClient, { token }).vehicles_AddCar(body),
+      updateCar: (token: string, id: string, body: HouseholdCarRequest) =>
+        client(VehiclesClient, { token }).vehicles_UpdateCar(id, body),
+      deleteCar: (token: string, id: string) => client(VehiclesClient, { token }).vehicles_DeleteCar(id),
     },
     places: {
       search: (token: string, q: string) => client(PlacesClient, { token }).places_Search(q),

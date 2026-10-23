@@ -611,6 +611,9 @@ locally it uses the real head-turn check and stand-ins for Yoti that answer age 
 - **Post analytics:** under your own post, **Analytics** opens graphs of views (and local views), reactions, comments
   and shares since posting: hour by hour for 48 hours, then day by day, then week by week after 90 days, with a table
   view. Premium and Premium + only; on Free the graphs are blurred with a link to Premium (the API sends no points).
+- **Your cars:** Account → **Your cars** (`/account/cars`) keeps up to 5 household cars (make, model, colour and a
+  nickname; never a registration). The post form's **Filmed from** picks one, and the post shows "Filmed from:
+  Dave's Golf". Renaming a car renames it on its posts.
 - **Uploads** go straight from the browser to storage: the web server asks the API for a signed link
   (`POST /api/media/uploads`), the browser `PUT`s the file to S3Mock (or R2) with a progress bar, then the web server
   tells the API it's there. Photos are shrunk in the browser first; videos are trimmed to at most 30 seconds and

@@ -199,6 +199,12 @@ export default async function PostPage({ params, searchParams }: Props) {
               <span>{describeVehicle(post.vehicle)}</span>
             </div>
           ) : null}
+          {post.filmedFrom ? (
+            <div className="fact">
+              <span className="small muted">Filmed from</span>
+              <span>{post.filmedFrom.label}</span>
+            </div>
+          ) : null}
           {post.reportedToPolice !== null && post.reportedToPolice !== undefined ? (
             <div className="fact">
               <span className="small muted">Reported to police</span>

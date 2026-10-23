@@ -97,6 +97,7 @@ const post: PostDto = {
   isSaved: false,
   shareCount: 0,
   isProcessing: false,
+  filmedFrom: null,
 };
 
 const member: Viewer = {
