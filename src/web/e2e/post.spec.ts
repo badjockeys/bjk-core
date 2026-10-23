@@ -25,13 +25,17 @@ test.describe("posting", () => {
     await page.getByLabel("What happened? (optional)").fill("Right on the zigzags at home time.");
     await expect(page.getByText("34 / 500")).toBeVisible();
 
-    // Several types: each shows as a tag, the first chosen is the main one.
+    // Several types, found by searching: each shows as a tag, the first chosen is the main one.
     await page.getByRole("button", { name: "What kind of bad driving?" }).click();
-    const types = page.getByRole("group", { name: "Types of bad driving" });
-    await types.getByLabel("Bad parking").check();
-    await types.getByLabel("Other").check();
+    const search = page.getByLabel("Search the types of bad driving");
+    await search.fill("zig");
+    await page.getByLabel("On school zig-zags").check();
+    await search.fill("phone");
+    await page.getByLabel("Phone in hand").check();
+    await search.fill("");
+    await expect(page.getByText("Parking · 1 chosen")).toBeVisible();
     await page.getByRole("button", { name: "Done · 2 chosen" }).click();
-    await expect(page.getByRole("button", { name: "Remove Other" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Remove Phone in hand" })).toBeVisible();
 
     await page.getByRole("button", { name: "Add where it happened" }).click();
     await page.getByLabel("Road and town").fill("Kirkstall Road, Leeds");
@@ -59,13 +63,13 @@ test.describe("posting", () => {
     await expect(page).toHaveURL(/\/p\/[0-9a-f-]{36}/);
     await expect(page.getByText("Posted. Thanks for sharing.")).toBeVisible();
     const tags = page.getByRole("list", { name: "Types of bad driving" }).first();
-    await expect(tags.getByRole("link")).toHaveText(["Bad parking", "Other"]);
+    await expect(tags.getByRole("link")).toHaveText(["On school zig-zags", "Phone in hand"]);
     await expect(page.getByText("Black BMW 3 Series (car)").first()).toBeVisible();
     await expect(page.getByText(/Processing your photos/)).toBeVisible();
 
     // The mock finishes processing after a couple of seconds; the page checks again by itself.
     await expect(page.getByText(/Processing your photos/)).toBeHidden({ timeout: 20_000 });
-    await expect(page.getByRole("button", { name: "Like 0" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Like", exact: true })).toBeVisible();
 
     await page.goto("/");
     await expect(page.getByText("Parked on the zigzags outside the school")).toBeVisible();
@@ -97,6 +101,8 @@ test.describe("posting", () => {
 
     await page.getByRole("button", { name: "Type", exact: true }).click();
     await expect(page.getByRole("dialog", { name: "What kind of bad driving?" })).toBeVisible();
+    // Open a group and pick from it.
+    await dialog.locator("summary", { hasText: "Following too close" }).click();
     await dialog.getByLabel("Tailgating").check();
     await dialog.getByRole("button", { name: "Done · 1 chosen" }).click();
     await expect(page.getByRole("dialog", { name: "Create post" })).toBeVisible();
@@ -116,11 +122,16 @@ test.describe("posting", () => {
     // Driving incidents can have passengers: they're asked to accept before their name shows.
     await dialog.getByRole("button", { name: "Tag a passenger" }).click();
     // Not yourself: the author can't be their own passenger.
-    await dialog.getByLabel("Passenger's username").fill("@roadhog");
+    const passenger = dialog.getByLabel("Passenger's name or username");
+    await passenger.fill("@roadhog");
     await dialog.getByRole("button", { name: "Add", exact: true }).click();
     await expect(dialog.getByText("You can't tag yourself.")).toBeVisible();
-    await dialog.getByLabel("Passenger's username").fill("@lane_one_larry");
-    await dialog.getByRole("button", { name: "Add", exact: true }).click();
+    // Typing the start of a name drops down people to pick, your followers first (like Facebook and Instagram).
+    await passenger.fill("La");
+    const people = dialog.getByRole("listbox", { name: "People to tag" });
+    await expect(people.getByRole("option").first()).toContainText("Lane One Larry");
+    await expect(people.getByRole("option").first()).toContainText("@lane_one_larry · Follows you");
+    await people.getByRole("option", { name: /Lane One Larry/ }).click();
     await expect(dialog.getByRole("button", { name: "Remove @lane_one_larry" })).toBeVisible();
 
     await dialog.getByLabel(/I took these photos/).check();
@@ -174,7 +185,8 @@ test.describe("posting", () => {
     await dialog.getByRole("button", { name: /You have 1 draft saved/ }).click();
     await dialog.getByRole("button", { name: "Open Parked across the dropped kerb" }).click();
     await dialog.getByRole("button", { name: "What kind of bad driving?" }).click();
-    await dialog.getByLabel("Bad parking").check();
+    await dialog.getByLabel("Search the types of bad driving").fill("dropped");
+    await dialog.getByLabel("Blocking a driveway or dropped kerb").check();
     await dialog.getByRole("button", { name: "Done · 1 chosen" }).click();
     await dialog.getByRole("button", { name: "Add where it happened" }).click();
     await dialog.getByLabel("Road and town").fill("The Headrow, Leeds");
@@ -241,8 +253,25 @@ test("the post's author hides a comment and turns comments off", async ({ page, 
 test("comment, reply and react", async ({ page }) => {
   await signIn(page, `/p/${SEED.photoPost}`);
 
-  await page.getByRole("button", { name: "Angry 2" }).click();
-  await expect(page.getByRole("button", { name: "Angry 3" })).toHaveAttribute("aria-pressed", "true");
+  // React from the picker (arrow up opens it from the keyboard), then see who reacted.
+  const like = page.getByRole("button", { name: "Like", exact: true });
+  await like.focus();
+  await page.keyboard.press("ArrowUp");
+  await page.getByRole("group", { name: "Choose a reaction" }).getByRole("button", { name: "Angry" }).click();
+  await expect(page.getByRole("button", { name: "Angry: tap to remove your reaction" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await page.getByRole("button", { name: "4 reactions. See who reacted" }).click();
+  const who = page.getByRole("dialog", { name: "Reactions" });
+  await expect(who.getByRole("link", { name: /Lane One Larry/ })).toBeVisible();
+  await expect(who.getByRole("link", { name: /Road Hog/ })).toBeVisible();
+  await who.getByRole("tab", { name: "Angry 3" }).click();
+  await expect(who.getByRole("link", { name: /Lane One Larry/ })).toHaveCount(0);
+  await expect(who.getByText("And 2 others.")).toBeVisible();
+  await who.getByPlaceholder("Search by name").fill("road");
+  await expect(who.getByRole("link", { name: /Road Hog/ })).toBeVisible();
+  await who.getByRole("button", { name: "Close" }).click();
 
   await expect(page.getByText("Report it to the store too, they can fine them.")).toBeVisible();
   await page.getByPlaceholder("Add a comment").fill("Same car was outside the school yesterday.");
@@ -304,7 +333,10 @@ test("comment, reply and react", async ({ page }) => {
 
   // Everything was saved.
   await page.reload();
-  await expect(page.getByRole("button", { name: "Angry 3" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "Angry: tap to remove your reaction" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
   await expect(page.getByText("Already done, they said they'd look into it.")).toBeVisible();
   await expect(page.getByRole("heading", { name: "3 comments" })).toBeVisible();
 });
@@ -314,13 +346,17 @@ test("members report a post from its ⋯ menu", async ({ page, request }) => {
   await page.getByRole("button", { name: "More: report or copy link" }).click();
   await page.getByRole("menuitem", { name: "Report post" }).click();
   const dialog = page.getByRole("dialog", { name: "Report this post" });
-  await dialog.getByLabel("Spam").check();
-  await dialog.getByLabel(/Anything else/).fill("Posted the same thing three times.");
+  // "Not about driving" is the first choice: a few of those hold a post for a moderator straight away.
+  await expect(dialog.getByRole("radio").first()).toHaveAccessibleName("Not about driving");
+  await dialog.getByLabel("Not about driving").check();
+  await dialog.getByLabel(/Anything else/).fill("It's an advert for a car wash, not bad driving.");
   await dialog.getByRole("button", { name: "Send report" }).click();
   await expect(page.getByText("Thanks. Our moderators will review it.")).toBeVisible();
 
   const state = await (await request.get("http://localhost:4010/__state")).json();
-  expect(state.reports).toEqual([expect.objectContaining({ target: SEED.photoPost, reason: "Spam" })]);
+  expect(state.reports).toEqual([
+    expect.objectContaining({ target: SEED.photoPost, reason: "NotADrivingIncident" }),
+  ]);
 });
 
 test("the bell shows unread notifications until you open them", async ({ page }) => {
@@ -379,7 +415,7 @@ test("vote on who's at fault, then save the post to bookmarks", async ({ page })
   await expect(vote).toBeVisible();
   await expect(vote.getByText("0 votes")).toBeVisible();
 
-  await vote.getByRole("button", { name: "The other road user" }).click();
+  await vote.getByRole("button", { name: "The undertaker" }).click();
   await expect(vote.getByText("Your vote")).toBeVisible();
   await expect(vote.getByText("100%")).toBeVisible();
   await expect(vote.getByText("1 vote")).toBeVisible();
@@ -427,4 +463,92 @@ test("other people's posts don't offer to report them to the police", async ({ p
   await signIn(page, `/p/${SEED.photoPost}`);
   await expect(page.getByRole("heading", { name: "Parked across two disabled bays, again" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Report to the police" })).toBeHidden();
+});
+
+test("authors download their video for TikTok, Reels and Shorts, with a caption to paste", async ({
+  page,
+  request,
+}) => {
+  await request.post("http://localhost:4010/__next-user", { data: "dave" });
+  await signIn(page, `/p/${SEED.videoPost}`);
+  await page.getByRole("button", { name: "Edit or delete your post" }).click();
+  await page.getByRole("menuitem", { name: "Download for TikTok, Reels and Shorts" }).click();
+
+  const dialog = page.getByRole("dialog", { name: "Share on TikTok, Reels and Shorts" });
+  await expect(dialog.getByText(/Making your video/)).toBeVisible();
+  const download = dialog.getByRole("link", { name: "Download video" });
+  await expect(download).toHaveAttribute("href", /\/share\/m-4\/vertical\.mp4$/);
+  await expect(dialog.getByLabel("Caption to paste")).toHaveValue(
+    new RegExp(`^Undertaking a lorry on the M62[\\s\\S]*/p/${SEED.videoPost}[\\s\\S]*#dashcam`),
+  );
+});
+
+test("other people's videos can't be downloaded for sharing", async ({ page }) => {
+  await signIn(page, `/p/${SEED.videoPost}`);
+  await page.getByRole("button", { name: "More: report or copy link" }).click();
+  await expect(page.getByRole("menuitem", { name: "Copy link" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: /TikTok/ })).toHaveCount(0);
+});
+
+test("your vault keeps clips you add, which you can post or delete", async ({ page }) => {
+  await signIn(page, "/u/roadhog?tab=vault");
+  const vault = page.getByRole("region", { name: "Your vault" });
+  await expect(vault.getByText(/Nothing here yet/)).toBeVisible();
+  await expect(vault.getByText(/of 2 GB used · clips are kept for 30 days/)).toBeVisible();
+  await expect(vault.getByText(/Only you can see your vault/)).toBeVisible();
+
+  await vault
+    .getByTestId("vault-input")
+    .setInputFiles({ name: "dashcam-still.png", mimeType: "image/png", buffer: PNG });
+  const clips = vault.getByRole("list", { name: "Clips in your vault" });
+  await expect(clips.getByText("dashcam-still.png")).toBeVisible();
+  await expect(clips.getByText(/Kept until/)).toBeVisible();
+
+  // Posting it opens the composer with the clip already added.
+  await clips.getByRole("link", { name: "Post dashcam-still.png" }).click();
+  await expect(page).toHaveURL(/\/post\/new\?vault=[0-9a-f-]{36}$/);
+  await expect(page.getByText("1 of 10")).toBeVisible();
+
+  // Deleting asks first.
+  await page.goto("/u/roadhog?tab=vault");
+  page.once("dialog", (dialog) => void dialog.accept());
+  await page.getByRole("button", { name: "Delete dashcam-still.png" }).click();
+  await expect(page.getByText(/Nothing here yet/)).toBeVisible();
+});
+
+test("other people's profiles have no vault", async ({ page }) => {
+  await signIn(page, "/u/dashcam_dave");
+  await expect(page.getByRole("link", { name: "Posts", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Vault", exact: true })).toHaveCount(0);
+});
+
+test("a Premium author opens their post's analytics, as charts or a table", async ({ page, request }) => {
+  await request.post("http://localhost:4010/__next-user", { data: "dave" });
+  await signIn(page, `/p/${SEED.photoPost}`);
+  await page.getByRole("button", { name: "Analytics" }).click();
+  const dialog = page.getByRole("dialog", { name: "Post analytics" });
+  await expect(dialog.getByText(/since it was posted\. Only you can see this\./)).toBeVisible();
+  await expect(dialog.getByRole("img", { name: /^Views:/ })).toBeVisible();
+  await expect(dialog.getByRole("img", { name: /^Reactions:/ })).toBeVisible();
+  await expect(dialog.getByText("See Premium")).toHaveCount(0);
+
+  await dialog.getByRole("button", { name: "Show as a table" }).click();
+  await expect(dialog.getByRole("columnheader", { name: "Shares" })).toBeVisible();
+});
+
+test("members keep their household cars and pick one when posting", async ({ page }) => {
+  await signIn(page, "/account/cars");
+  await expect(page.getByText("No cars yet.")).toBeVisible();
+  await page.getByRole("button", { name: "Add a car" }).click();
+  const form = page.getByRole("form", { name: "Add a car" });
+  await form.getByLabel("Make").selectOption("BMW");
+  await form.getByLabel(/Model/).selectOption("3 Series");
+  await expect(form.getByText("Shown on your posts as “Filmed from: BMW 3 Series”.")).toBeVisible();
+  await form.getByLabel(/Nickname/).fill("The school-run BMW");
+  await form.getByRole("button", { name: "Add car" }).click();
+  await expect(page.getByRole("list", { name: "Your cars" }).getByText("The school-run BMW")).toBeVisible();
+
+  await page.goto("/post/new");
+  await expect(page.getByLabel(/Filmed from/)).toBeVisible();
+  await page.getByLabel(/Filmed from/).selectOption({ label: "The school-run BMW" });
 });

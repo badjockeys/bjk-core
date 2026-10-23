@@ -996,6 +996,354 @@ export class MediaClient {
         }
         return Promise.resolve<PagedResultOfMediaDto>(null as any);
     }
+
+    /**
+     * Your video's vertical copy for TikTok, Reels, Shorts and X: whether it's been made, and a short-lived download
+    link once it has. Only the uploader can see it; anyone else gets 404.
+     */
+    media_GetShareCopy(id: string, signal?: AbortSignal): Promise<ShareCopyDto> {
+        let url_ = this.baseUrl + "/api/media/{id}/share-copy";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processMedia_GetShareCopy(_response);
+        });
+    }
+
+    protected processMedia_GetShareCopy(response: Response): Promise<ShareCopyDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ShareCopyDto;
+            return result200;
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<ShareCopyDto>(null as any);
+    }
+
+    /**
+     * Ask for your video's vertical copy for sharing: 1080×1920, made from the published (blurred, silent) file with a
+    small watermark and an end card. Returns at once (Rendering); poll GET /api/media/{id}/share-copy. If one
+    is already made or being made, that's returned instead. Not for photos or videos marked sensitive (400).
+     */
+    media_RequestShareCopy(id: string, signal?: AbortSignal): Promise<ShareCopyDto> {
+        let url_ = this.baseUrl + "/api/media/{id}/share-copy";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "POST",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processMedia_RequestShareCopy(_response);
+        });
+    }
+
+    protected processMedia_RequestShareCopy(response: Response): Promise<ShareCopyDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 202) {
+            return response.text().then((_responseText) => {
+            let result202: any = null;
+            result202 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ShareCopyDto;
+            return result202;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<ShareCopyDto>(null as any);
+    }
+}
+
+export class VaultClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * Your vault: your plan's limits, the space used, and a page of your clips, newest first.
+     * @param page (optional) 
+     * @param pageSize (optional) 
+     */
+    vault_Get(page?: number | undefined, pageSize?: number | undefined, signal?: AbortSignal): Promise<VaultDto> {
+        let url_ = this.baseUrl + "/api/vault?";
+        if (page === null)
+            throw new globalThis.Error("The parameter 'page' cannot be null.");
+        else if (page !== undefined)
+            url_ += "page=" + encodeURIComponent("" + page) + "&";
+        if (pageSize === null)
+            throw new globalThis.Error("The parameter 'pageSize' cannot be null.");
+        else if (pageSize !== undefined)
+            url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processVault_Get(_response);
+        });
+    }
+
+    protected processVault_Get(response: Response): Promise<VaultDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as VaultDto;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<VaultDto>(null as any);
+    }
+
+    /**
+     * Start an upload straight to your vault. Returns a link valid for a few minutes: PUT the file to it with the
+    headers given, then call POST /api/vault/{id}/complete. 400 if the vault hasn't room.
+     */
+    vault_RequestUpload(request: VaultUploadRequest, signal?: AbortSignal): Promise<VaultUploadResult> {
+        let url_ = this.baseUrl + "/api/vault/uploads";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processVault_RequestUpload(_response);
+        });
+    }
+
+    protected processVault_RequestUpload(response: Response): Promise<VaultUploadResult> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 201) {
+            return response.text().then((_responseText) => {
+            let result201: any = null;
+            result201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as VaultUploadResult;
+            return result201;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<VaultUploadResult>(null as any);
+    }
+
+    /**
+     * The file has been uploaded: keeps it, if it arrived and fits.
+     */
+    vault_Complete(id: string, signal?: AbortSignal): Promise<VaultClipDto> {
+        let url_ = this.baseUrl + "/api/vault/{id}/complete";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "POST",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processVault_Complete(_response);
+        });
+    }
+
+    protected processVault_Complete(response: Response): Promise<VaultClipDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as VaultClipDto;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<VaultClipDto>(null as any);
+    }
+
+    /**
+     * A link, valid for 15 minutes, that downloads one of your clips.
+     */
+    vault_Download(id: string, signal?: AbortSignal): Promise<VaultDownloadDto> {
+        let url_ = this.baseUrl + "/api/vault/{id}/download";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processVault_Download(_response);
+        });
+    }
+
+    protected processVault_Download(response: Response): Promise<VaultDownloadDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as VaultDownloadDto;
+            return result200;
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<VaultDownloadDto>(null as any);
+    }
+
+    /**
+     * Delete one of your clips now.
+     */
+    vault_Delete(id: string, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/vault/{id}";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            signal,
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processVault_Delete(_response);
+        });
+    }
+
+    protected processVault_Delete(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
 }
 
 export class AreaClient {
@@ -2690,6 +3038,1340 @@ export class AdminPostsClient {
     }
 }
 
+export class CommunitiesClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * Communities near you (covering your home area), yours, about topics (no area), or matching a search.
+     * @param kind (optional) 
+     * @param search (optional) 
+     * @param page (optional) 
+     * @param pageSize (optional) 
+     */
+    communities_List(kind?: CommunityListKind | undefined, search?: string | null | undefined, page?: number | undefined, pageSize?: number | undefined, signal?: AbortSignal): Promise<PagedResultOfCommunitySummaryDto> {
+        let url_ = this.baseUrl + "/api/communities?";
+        if (kind === null)
+            throw new globalThis.Error("The parameter 'kind' cannot be null.");
+        else if (kind !== undefined)
+            url_ += "kind=" + encodeURIComponent("" + kind) + "&";
+        if (search !== undefined && search !== null)
+            url_ += "search=" + encodeURIComponent("" + search) + "&";
+        if (page === null)
+            throw new globalThis.Error("The parameter 'page' cannot be null.");
+        else if (page !== undefined)
+            url_ += "page=" + encodeURIComponent("" + page) + "&";
+        if (pageSize === null)
+            throw new globalThis.Error("The parameter 'pageSize' cannot be null.");
+        else if (pageSize !== undefined)
+            url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_List(_response);
+        });
+    }
+
+    protected processCommunities_List(response: Response): Promise<PagedResultOfCommunitySummaryDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PagedResultOfCommunitySummaryDto;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PagedResultOfCommunitySummaryDto>(null as any);
+    }
+
+    /**
+     * Start a community (Premium and Premium +, adults, up to 5). You're its admin.
+     */
+    communities_Create(request: CommunityRequest, signal?: AbortSignal): Promise<CommunityDto> {
+        let url_ = this.baseUrl + "/api/communities";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_Create(_response);
+        });
+    }
+
+    protected processCommunities_Create(response: Response): Promise<CommunityDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 201) {
+            return response.text().then((_responseText) => {
+            let result201: any = null;
+            result201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as CommunityDto;
+            return result201;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<CommunityDto>(null as any);
+    }
+
+    /**
+     * Your communities to share a post into, those covering where it happened first (recommended). Give the place, or
+    an existing post of yours (which also marks the communities it's in).
+     * @param latitude (optional) 
+     * @param longitude (optional) 
+     * @param postId (optional) 
+     */
+    communities_Suggestions(latitude?: number | null | undefined, longitude?: number | null | undefined, postId?: string | null | undefined, signal?: AbortSignal): Promise<CommunitySuggestionDto[]> {
+        let url_ = this.baseUrl + "/api/communities/suggestions?";
+        if (latitude !== undefined && latitude !== null)
+            url_ += "latitude=" + encodeURIComponent("" + latitude) + "&";
+        if (longitude !== undefined && longitude !== null)
+            url_ += "longitude=" + encodeURIComponent("" + longitude) + "&";
+        if (postId !== undefined && postId !== null)
+            url_ += "postId=" + encodeURIComponent("" + postId) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_Suggestions(_response);
+        });
+    }
+
+    protected processCommunities_Suggestions(response: Response): Promise<CommunitySuggestionDto[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as CommunitySuggestionDto[];
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<CommunitySuggestionDto[]>(null as any);
+    }
+
+    /**
+     * One community, with what you may do in it.
+     */
+    communities_Get(slug: string, signal?: AbortSignal): Promise<CommunityDto> {
+        let url_ = this.baseUrl + "/api/communities/{slug}";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_Get(_response);
+        });
+    }
+
+    protected processCommunities_Get(response: Response): Promise<CommunityDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as CommunityDto;
+            return result200;
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<CommunityDto>(null as any);
+    }
+
+    /**
+     * Change a community's details (admins). Its address stays the same.
+     */
+    communities_Update(slug: string, request: CommunityRequest, signal?: AbortSignal): Promise<CommunityDto> {
+        let url_ = this.baseUrl + "/api/communities/{slug}";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_Update(_response);
+        });
+    }
+
+    protected processCommunities_Update(response: Response): Promise<CommunityDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as CommunityDto;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<CommunityDto>(null as any);
+    }
+
+    /**
+     * Delete a community for everyone (admins). Posts shared into it stay on Bad Jockeys.
+     */
+    communities_Delete(slug: string, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/communities/{slug}";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            signal,
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_Delete(_response);
+        });
+    }
+
+    protected processCommunities_Delete(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    /**
+     * Join a public community, or ask to join a private one (adults only).
+     */
+    communities_Join(slug: string, signal?: AbortSignal): Promise<CommunityDto> {
+        let url_ = this.baseUrl + "/api/communities/{slug}/join";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "POST",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_Join(_response);
+        });
+    }
+
+    protected processCommunities_Join(response: Response): Promise<CommunityDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as CommunityDto;
+            return result200;
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<CommunityDto>(null as any);
+    }
+
+    /**
+     * Leave, or withdraw your request to join.
+     */
+    communities_Leave(slug: string, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/communities/{slug}/membership";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            signal,
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_Leave(_response);
+        });
+    }
+
+    protected processCommunities_Leave(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    /**
+     * Members (anyone who can see inside), or requests, invitations and bans (admins and moderators).
+     * @param status (optional) 
+     * @param page (optional) 
+     * @param pageSize (optional) 
+     */
+    communities_Members(slug: string, status?: CommunityMembershipStatus | undefined, page?: number | undefined, pageSize?: number | undefined, signal?: AbortSignal): Promise<PagedResultOfCommunityMemberDto> {
+        let url_ = this.baseUrl + "/api/communities/{slug}/members?";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        if (status === null)
+            throw new globalThis.Error("The parameter 'status' cannot be null.");
+        else if (status !== undefined)
+            url_ += "status=" + encodeURIComponent("" + status) + "&";
+        if (page === null)
+            throw new globalThis.Error("The parameter 'page' cannot be null.");
+        else if (page !== undefined)
+            url_ += "page=" + encodeURIComponent("" + page) + "&";
+        if (pageSize === null)
+            throw new globalThis.Error("The parameter 'pageSize' cannot be null.");
+        else if (pageSize !== undefined)
+            url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_Members(_response);
+        });
+    }
+
+    protected processCommunities_Members(response: Response): Promise<PagedResultOfCommunityMemberDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PagedResultOfCommunityMemberDto;
+            return result200;
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PagedResultOfCommunityMemberDto>(null as any);
+    }
+
+    /**
+     * Invite someone by their @handle (admins and moderators). They're notified and join when they accept (Join);
+    decline with Leave, and cancel an invitation by removing them. Inviting someone who asked to join lets them in.
+     */
+    communities_Invite(slug: string, request: CommunityInviteRequest, signal?: AbortSignal): Promise<CommunityMemberDto> {
+        let url_ = this.baseUrl + "/api/communities/{slug}/invites";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_Invite(_response);
+        });
+    }
+
+    protected processCommunities_Invite(response: Response): Promise<CommunityMemberDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as CommunityMemberDto;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<CommunityMemberDto>(null as any);
+    }
+
+    /**
+     * Approve or decline someone's request to join (admins and moderators).
+     */
+    communities_DecideRequest(slug: string, userId: string, request: CommunityRequestDecision, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/communities/{slug}/requests/{userId}";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        if (userId === undefined || userId === null)
+            throw new globalThis.Error("The parameter 'userId' must be defined.");
+        url_ = url_.replace("{userId}", encodeURIComponent("" + userId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_DecideRequest(_response);
+        });
+    }
+
+    protected processCommunities_DecideRequest(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    /**
+     * Make a member an admin, a moderator or a member (admins). Admins and moderators must be adults.
+     */
+    communities_SetRole(slug: string, userId: string, request: CommunityRoleRequest, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/communities/{slug}/members/{userId}/role";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        if (userId === undefined || userId === null)
+            throw new globalThis.Error("The parameter 'userId' must be defined.");
+        url_ = url_.replace("{userId}", encodeURIComponent("" + userId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_SetRole(_response);
+        });
+    }
+
+    protected processCommunities_SetRole(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    /**
+     * Remove a member, optionally banning them (admins and moderators).
+     * @param ban (optional) 
+     */
+    communities_RemoveMember(slug: string, userId: string, ban?: boolean | undefined, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/communities/{slug}/members/{userId}?";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        if (userId === undefined || userId === null)
+            throw new globalThis.Error("The parameter 'userId' must be defined.");
+        url_ = url_.replace("{userId}", encodeURIComponent("" + userId));
+        if (ban === null)
+            throw new globalThis.Error("The parameter 'ban' cannot be null.");
+        else if (ban !== undefined)
+            url_ += "ban=" + encodeURIComponent("" + ban) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            signal,
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_RemoveMember(_response);
+        });
+    }
+
+    protected processCommunities_RemoveMember(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    /**
+     * Lift a ban (admins and moderators).
+     */
+    communities_Unban(slug: string, userId: string, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/communities/{slug}/bans/{userId}";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        if (userId === undefined || userId === null)
+            throw new globalThis.Error("The parameter 'userId' must be defined.");
+        url_ = url_.replace("{userId}", encodeURIComponent("" + userId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            signal,
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_Unban(_response);
+        });
+    }
+
+    protected processCommunities_Unban(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    /**
+     * Posts shared into the community, newest share first.
+     * @param page (optional) 
+     * @param pageSize (optional) 
+     */
+    communities_Posts(slug: string, page?: number | undefined, pageSize?: number | undefined, signal?: AbortSignal): Promise<PagedResultOfPostDto> {
+        let url_ = this.baseUrl + "/api/communities/{slug}/posts?";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        if (page === null)
+            throw new globalThis.Error("The parameter 'page' cannot be null.");
+        else if (page !== undefined)
+            url_ += "page=" + encodeURIComponent("" + page) + "&";
+        if (pageSize === null)
+            throw new globalThis.Error("The parameter 'pageSize' cannot be null.");
+        else if (pageSize !== undefined)
+            url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_Posts(_response);
+        });
+    }
+
+    protected processCommunities_Posts(response: Response): Promise<PagedResultOfPostDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PagedResultOfPostDto;
+            return result200;
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PagedResultOfPostDto>(null as any);
+    }
+
+    /**
+     * Take a post out of the community (whoever shared it, or admins and moderators).
+     */
+    communities_Unshare(slug: string, postId: string, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/communities/{slug}/posts/{postId}";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        if (postId === undefined || postId === null)
+            throw new globalThis.Error("The parameter 'postId' must be defined.");
+        url_ = url_.replace("{postId}", encodeURIComponent("" + postId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            signal,
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_Unshare(_response);
+        });
+    }
+
+    protected processCommunities_Unshare(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    /**
+     * The community's discussions, most recently active first.
+     * @param page (optional) 
+     * @param pageSize (optional) 
+     */
+    communities_Discussions(slug: string, page?: number | undefined, pageSize?: number | undefined, signal?: AbortSignal): Promise<PagedResultOfCommunityDiscussionDto> {
+        let url_ = this.baseUrl + "/api/communities/{slug}/discussions?";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        if (page === null)
+            throw new globalThis.Error("The parameter 'page' cannot be null.");
+        else if (page !== undefined)
+            url_ += "page=" + encodeURIComponent("" + page) + "&";
+        if (pageSize === null)
+            throw new globalThis.Error("The parameter 'pageSize' cannot be null.");
+        else if (pageSize !== undefined)
+            url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_Discussions(_response);
+        });
+    }
+
+    protected processCommunities_Discussions(response: Response): Promise<PagedResultOfCommunityDiscussionDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PagedResultOfCommunityDiscussionDto;
+            return result200;
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PagedResultOfCommunityDiscussionDto>(null as any);
+    }
+
+    /**
+     * Start a discussion (members).
+     */
+    communities_StartDiscussion(slug: string, request: DiscussionRequest, signal?: AbortSignal): Promise<CommunityDiscussionDto> {
+        let url_ = this.baseUrl + "/api/communities/{slug}/discussions";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_StartDiscussion(_response);
+        });
+    }
+
+    protected processCommunities_StartDiscussion(response: Response): Promise<CommunityDiscussionDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 201) {
+            return response.text().then((_responseText) => {
+            let result201: any = null;
+            result201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as CommunityDiscussionDto;
+            return result201;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<CommunityDiscussionDto>(null as any);
+    }
+
+    /**
+     * A discussion and a page of its replies, oldest first.
+     * @param page (optional) 
+     * @param pageSize (optional) 
+     */
+    communities_Discussion(slug: string, discussionId: string, page?: number | undefined, pageSize?: number | undefined, signal?: AbortSignal): Promise<CommunityDiscussionDetailDto> {
+        let url_ = this.baseUrl + "/api/communities/{slug}/discussions/{discussionId}?";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        if (discussionId === undefined || discussionId === null)
+            throw new globalThis.Error("The parameter 'discussionId' must be defined.");
+        url_ = url_.replace("{discussionId}", encodeURIComponent("" + discussionId));
+        if (page === null)
+            throw new globalThis.Error("The parameter 'page' cannot be null.");
+        else if (page !== undefined)
+            url_ += "page=" + encodeURIComponent("" + page) + "&";
+        if (pageSize === null)
+            throw new globalThis.Error("The parameter 'pageSize' cannot be null.");
+        else if (pageSize !== undefined)
+            url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_Discussion(_response);
+        });
+    }
+
+    protected processCommunities_Discussion(response: Response): Promise<CommunityDiscussionDetailDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as CommunityDiscussionDetailDto;
+            return result200;
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<CommunityDiscussionDetailDto>(null as any);
+    }
+
+    /**
+     * Remove a discussion (its author, or admins and moderators).
+     */
+    communities_RemoveDiscussion(slug: string, discussionId: string, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/communities/{slug}/discussions/{discussionId}";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        if (discussionId === undefined || discussionId === null)
+            throw new globalThis.Error("The parameter 'discussionId' must be defined.");
+        url_ = url_.replace("{discussionId}", encodeURIComponent("" + discussionId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            signal,
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_RemoveDiscussion(_response);
+        });
+    }
+
+    protected processCommunities_RemoveDiscussion(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    /**
+     * Reply to a discussion (members).
+     */
+    communities_Reply(slug: string, discussionId: string, request: DiscussionReplyRequest, signal?: AbortSignal): Promise<CommunityReplyDto> {
+        let url_ = this.baseUrl + "/api/communities/{slug}/discussions/{discussionId}/replies";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        if (discussionId === undefined || discussionId === null)
+            throw new globalThis.Error("The parameter 'discussionId' must be defined.");
+        url_ = url_.replace("{discussionId}", encodeURIComponent("" + discussionId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_Reply(_response);
+        });
+    }
+
+    protected processCommunities_Reply(response: Response): Promise<CommunityReplyDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 201) {
+            return response.text().then((_responseText) => {
+            let result201: any = null;
+            result201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as CommunityReplyDto;
+            return result201;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<CommunityReplyDto>(null as any);
+    }
+
+    /**
+     * Remove a reply (its author, or admins and moderators).
+     */
+    communities_RemoveReply(slug: string, discussionId: string, replyId: string, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/communities/{slug}/discussions/{discussionId}/replies/{replyId}";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        if (discussionId === undefined || discussionId === null)
+            throw new globalThis.Error("The parameter 'discussionId' must be defined.");
+        url_ = url_.replace("{discussionId}", encodeURIComponent("" + discussionId));
+        if (replyId === undefined || replyId === null)
+            throw new globalThis.Error("The parameter 'replyId' must be defined.");
+        url_ = url_.replace("{replyId}", encodeURIComponent("" + replyId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            signal,
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_RemoveReply(_response);
+        });
+    }
+
+    protected processCommunities_RemoveReply(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    /**
+     * Report a community (its name, description or rules) to Bad Jockeys' moderators.
+     */
+    communities_Report(slug: string, request: ReportRequest, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/communities/{slug}/report";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_Report(_response);
+        });
+    }
+
+    protected processCommunities_Report(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    /**
+     * Report a discussion to Bad Jockeys' moderators.
+     */
+    communities_ReportDiscussion(discussionId: string, request: ReportRequest, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/communities/discussions/{discussionId}/report";
+        if (discussionId === undefined || discussionId === null)
+            throw new globalThis.Error("The parameter 'discussionId' must be defined.");
+        url_ = url_.replace("{discussionId}", encodeURIComponent("" + discussionId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_ReportDiscussion(_response);
+        });
+    }
+
+    protected processCommunities_ReportDiscussion(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    /**
+     * Report a reply to Bad Jockeys' moderators.
+     */
+    communities_ReportReply(replyId: string, request: ReportRequest, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/communities/replies/{replyId}/report";
+        if (replyId === undefined || replyId === null)
+            throw new globalThis.Error("The parameter 'replyId' must be defined.");
+        url_ = url_.replace("{replyId}", encodeURIComponent("" + replyId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_ReportReply(_response);
+        });
+    }
+
+    protected processCommunities_ReportReply(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    /**
+     * Share your own post into communities you're a member of (offered when posting). It stays public everywhere.
+    Returns the communities it's in now.
+     */
+    communities_SharePost(postId: string, request: SharePostRequest, signal?: AbortSignal): Promise<string[]> {
+        let url_ = this.baseUrl + "/api/posts/{postId}/communities";
+        if (postId === undefined || postId === null)
+            throw new globalThis.Error("The parameter 'postId' must be defined.");
+        url_ = url_.replace("{postId}", encodeURIComponent("" + postId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_SharePost(_response);
+        });
+    }
+
+    protected processCommunities_SharePost(response: Response): Promise<string[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as string[];
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<string[]>(null as any);
+    }
+}
+
 export class DraftsClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -3417,6 +5099,59 @@ export class EngagementClient {
     }
 
     /**
+     * Your post's analytics: views, local views, reactions, comments and shares over time (hourly for 48 hours,
+    then daily, then weekly after 90 days). Its author only; on Free the points are locked (totals only).
+     */
+    engagement_Analytics(id: string, signal?: AbortSignal): Promise<PostAnalyticsDto> {
+        let url_ = this.baseUrl + "/api/posts/{id}/analytics";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processEngagement_Analytics(_response);
+        });
+    }
+
+    protected processEngagement_Analytics(response: Response): Promise<PostAnalyticsDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PostAnalyticsDto;
+            return result200;
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PostAnalyticsDto>(null as any);
+    }
+
+    /**
      * Your settings for your own posts: when votes on them close.
      */
     engagement_GetPreferences(signal?: AbortSignal): Promise<AuthorPreferencesDto> {
@@ -3909,7 +5644,7 @@ export class PostsClient {
     /**
      * The public feed, newest first. Anyone can call this; logged-out callers never get sensitive posts, and
     signed-in callers don't get posts by people they've blocked.
-     * @param type (optional) Only posts with this type of bad driving among their types.
+     * @param type (optional) Only posts with this subcategory of bad driving among their subcategories.
      * @param category (optional) The old name for type, still accepted.
      * @param author (optional) Only posts by this @handle.
      * @param lat (optional) Centre of an area to search (with lng and radiusKm).
@@ -3918,8 +5653,9 @@ export class PostsClient {
      * @param page (optional) Page number, from 1.
      * @param pageSize (optional) Posts per page, up to 50.
      * @param hashtag (optional) Only posts with this hashtag (with or without the #, any case).
+     * @param group (optional) Only posts with a subcategory in this group.
      */
-    posts_List(type?: IncidentCategory | null | undefined, category?: IncidentCategory | null | undefined, author?: string | null | undefined, lat?: number | null | undefined, lng?: number | null | undefined, radiusKm?: number | null | undefined, page?: number | undefined, pageSize?: number | undefined, hashtag?: string | null | undefined, signal?: AbortSignal): Promise<PagedResultOfPostDto> {
+    posts_List(type?: IncidentCategory | null | undefined, category?: IncidentCategory | null | undefined, author?: string | null | undefined, lat?: number | null | undefined, lng?: number | null | undefined, radiusKm?: number | null | undefined, page?: number | undefined, pageSize?: number | undefined, hashtag?: string | null | undefined, group?: IncidentGroup | null | undefined, signal?: AbortSignal): Promise<PagedResultOfPostDto> {
         let url_ = this.baseUrl + "/api/posts?";
         if (type !== undefined && type !== null)
             url_ += "type=" + encodeURIComponent("" + type) + "&";
@@ -3943,6 +5679,8 @@ export class PostsClient {
             url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
         if (hashtag !== undefined && hashtag !== null)
             url_ += "hashtag=" + encodeURIComponent("" + hashtag) + "&";
+        if (group !== undefined && group !== null)
+            url_ += "group=" + encodeURIComponent("" + group) + "&";
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
@@ -4519,6 +6257,75 @@ export class PostsClient {
             });
         }
         return Promise.resolve<void>(null as any);
+    }
+
+    /**
+     * Who reacted to a post, newest first, with the totals per reaction. Signed-in members only. Filter with
+    type (Like, Heart, Angry, Shocked) and search names with search. Under-18s are counted but not named.
+     * @param type (optional) 
+     * @param search (optional) 
+     * @param page (optional) 
+     * @param pageSize (optional) 
+     */
+    posts_ListReactions(id: string, type?: ReactionType | null | undefined, search?: string | null | undefined, page?: number | undefined, pageSize?: number | undefined, signal?: AbortSignal): Promise<PostReactionsDto> {
+        let url_ = this.baseUrl + "/api/posts/{id}/reactions?";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        if (type !== undefined && type !== null)
+            url_ += "type=" + encodeURIComponent("" + type) + "&";
+        if (search !== undefined && search !== null)
+            url_ += "search=" + encodeURIComponent("" + search) + "&";
+        if (page === null)
+            throw new globalThis.Error("The parameter 'page' cannot be null.");
+        else if (page !== undefined)
+            url_ += "page=" + encodeURIComponent("" + page) + "&";
+        if (pageSize === null)
+            throw new globalThis.Error("The parameter 'pageSize' cannot be null.");
+        else if (pageSize !== undefined)
+            url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPosts_ListReactions(_response);
+        });
+    }
+
+    protected processPosts_ListReactions(response: Response): Promise<PostReactionsDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PostReactionsDto;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PostReactionsDto>(null as any);
     }
 
     /**
@@ -5365,10 +7172,11 @@ export class ReelsClient {
      * A page of reels, best ranked first, with the caller's plays left today (playsRemainingToday, null for
     unlimited). When none are left: 403 with code = daily_limit and resetsAt.
      * @param cursor (optional) From the previous page's nextCursor.
-     * @param category (optional) Only this kind of incident.
+     * @param category (optional) Only this subcategory of bad driving.
      * @param pageSize (optional) Reels per page, up to 20 (and at most the plays left today).
+     * @param group (optional) Only this group of subcategories.
      */
-    reels_List(cursor?: string | null | undefined, category?: IncidentCategory | null | undefined, pageSize?: number | undefined, signal?: AbortSignal): Promise<ReelsPage> {
+    reels_List(cursor?: string | null | undefined, category?: IncidentCategory | null | undefined, pageSize?: number | undefined, group?: IncidentGroup | null | undefined, signal?: AbortSignal): Promise<ReelsPage> {
         let url_ = this.baseUrl + "/api/reels?";
         if (cursor !== undefined && cursor !== null)
             url_ += "cursor=" + encodeURIComponent("" + cursor) + "&";
@@ -5378,6 +7186,8 @@ export class ReelsClient {
             throw new globalThis.Error("The parameter 'pageSize' cannot be null.");
         else if (pageSize !== undefined)
             url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
+        if (group !== undefined && group !== null)
+            url_ += "group=" + encodeURIComponent("" + group) + "&";
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
@@ -6134,6 +7944,189 @@ export class VehiclesClient {
         }
         return Promise.resolve<VehicleCatalogueDto>(null as any);
     }
+
+    /**
+     * Your household cars, to choose the one you filmed from when posting. Private to you.
+     */
+    vehicles_MyCars(signal?: AbortSignal): Promise<HouseholdCarDto[]> {
+        let url_ = this.baseUrl + "/api/vehicles/mine";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processVehicles_MyCars(_response);
+        });
+    }
+
+    protected processVehicles_MyCars(response: Response): Promise<HouseholdCarDto[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as HouseholdCarDto[];
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<HouseholdCarDto[]>(null as any);
+    }
+
+    /**
+     * Add a household car: a make and model from the lists, a colour and a nickname (no registration).
+     */
+    vehicles_AddCar(request: HouseholdCarRequest, signal?: AbortSignal): Promise<HouseholdCarDto> {
+        let url_ = this.baseUrl + "/api/vehicles/mine";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processVehicles_AddCar(_response);
+        });
+    }
+
+    protected processVehicles_AddCar(response: Response): Promise<HouseholdCarDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as HouseholdCarDto;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<HouseholdCarDto>(null as any);
+    }
+
+    /**
+     * Change one of your cars. A new nickname shows on the posts filmed from it.
+     */
+    vehicles_UpdateCar(id: string, request: HouseholdCarRequest, signal?: AbortSignal): Promise<HouseholdCarDto> {
+        let url_ = this.baseUrl + "/api/vehicles/mine/{id}";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processVehicles_UpdateCar(_response);
+        });
+    }
+
+    protected processVehicles_UpdateCar(response: Response): Promise<HouseholdCarDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as HouseholdCarDto;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<HouseholdCarDto>(null as any);
+    }
+
+    /**
+     * Delete one of your cars. Posts filmed from it keep its nickname.
+     */
+    vehicles_DeleteCar(id: string, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/vehicles/mine/{id}";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            signal,
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processVehicles_DeleteCar(_response);
+        });
+    }
+
+    protected processVehicles_DeleteCar(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
 }
 
 export class AdminProfilesClient {
@@ -6889,6 +8882,53 @@ export class ProfilesClient {
     }
 
     /**
+     * People to tag as you type (passengers): handle or name starting with q, the people you're
+    connected to first (following each other, your followers, people you follow), then other adults. Never anyone
+    blocked either way.
+     * @param q (optional) 
+     * @param limit (optional) 
+     */
+    profiles_TagSuggestions(q?: string | null | undefined, limit?: number | undefined, signal?: AbortSignal): Promise<TagSuggestionDto[]> {
+        let url_ = this.baseUrl + "/api/profiles/me/tag-suggestions?";
+        if (q !== undefined && q !== null)
+            url_ += "q=" + encodeURIComponent("" + q) + "&";
+        if (limit === null)
+            throw new globalThis.Error("The parameter 'limit' cannot be null.");
+        else if (limit !== undefined)
+            url_ += "limit=" + encodeURIComponent("" + limit) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processProfiles_TagSuggestions(_response);
+        });
+    }
+
+    protected processProfiles_TagSuggestions(response: Response): Promise<TagSuggestionDto[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as TagSuggestionDto[];
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<TagSuggestionDto[]>(null as any);
+    }
+
+    /**
      * Someone's followers, most recent first. Anyone can call this.
      * @param page (optional) 
      * @param pageSize (optional) 
@@ -7348,9 +9388,14 @@ export interface SignedUpload {
 }
 
 export interface RequestUploadRequest {
+    /** The name on the device. */
     fileName: string;
+    /** The file's type. */
     contentType: string;
+    /** Its size. */
     sizeBytes: number;
+    /** When posting a clip from your vault: the clip (see /api/vault). */
+    vaultClipId: string | null;
 }
 
 export interface PagedResultOfMediaDto {
@@ -7358,6 +9403,90 @@ export interface PagedResultOfMediaDto {
     page: number;
     pageSize: number;
     totalCount: number;
+}
+
+/** A video's vertical copy for TikTok, Reels, Shorts and X. */
+export interface ShareCopyDto {
+    /** Where it is. */
+    state: ShareCopyState;
+    /** When Ready: a short-lived link that downloads it as bad-jockeys-clip.mp4. */
+    downloadUrl: string | null;
+    /** When the link stops working (ask again for a fresh one). */
+    linkExpiresAt: string | null;
+}
+
+/** Where a video's share copy is, from its owner's point of view. */
+export type ShareCopyState = "None" | "Rendering" | "Ready" | "Failed";
+
+/** Your vault: your plan's limits, the space used, and a page of your clips (newest first). */
+export interface VaultDto {
+    /** Your plan. */
+    plan: SubscriptionPlan;
+    /** Space used. */
+    usedBytes: number;
+    /** Your plan's space. */
+    limitBytes: number;
+    /** How long your plan keeps clips. */
+    retentionDays: number;
+    /** The largest file you can upload straight to the vault. */
+    maxFileBytes: number;
+    /** The clips. */
+    clips: PagedResultOfVaultClipDto;
+}
+
+/** The caller's subscription plan. Logged-out callers have no plan (modules treat them separately). Billing isn't built yet: the identity server will issue the access-token claim plan (free, premium or premium_plus) once it is; until then every signed-in user is Free unless listed in Plans:Overrides. */
+export type SubscriptionPlan = "Free" | "Premium" | "PremiumPlus";
+
+export interface PagedResultOfVaultClipDto {
+    items: VaultClipDto[];
+    page: number;
+    pageSize: number;
+    totalCount: number;
+}
+
+/** One clip in your vault. */
+export interface VaultClipDto {
+    /** The clip. */
+    id: string;
+    /** Its name on your device. */
+    fileName: string;
+    /** Video or Image. */
+    mediaType: MediaType;
+    /** Its type. */
+    contentType: string;
+    /** Its size. */
+    sizeBytes: number;
+    /** From a post, or uploaded straight to the vault. */
+    source: VaultClipSource;
+    /** For clips from a post: the post, if known. */
+    postId: string | null;
+    /** When it went into the vault. */
+    createdAt: string;
+    /** When it's deleted automatically (it follows your plan). */
+    expiresAt: string;
+}
+
+/** How a clip got into the vault. */
+export type VaultClipSource = "Post" | "Upload";
+
+export interface VaultUploadResult {
+    /** The new clip. */
+    clipId: string;
+    /** PUT the file here, then call POST /api/vault/{id}/complete. */
+    upload: SignedUpload;
+}
+
+export interface VaultUploadRequest {
+    fileName: string;
+    contentType: string;
+    sizeBytes: number;
+}
+
+export interface VaultDownloadDto {
+    /** Downloads the original (as bad-jockeys-original-….ext). */
+    url: string;
+    /** When the link stops working. */
+    expiresAt: string;
 }
 
 /** Your home area and area alerts. PlaceName and the position (to about 1 km) are null until you choose a home area. CanUseAlerts is true on Premium and Premium +. Quiet hours are 22:00 to 07:00 UK time; Instant alerts are capped at InstantDailyCap a day; summaries go at 08:00. */
@@ -7411,7 +9540,7 @@ export interface PagedResultOfNotificationDto {
     totalCount: number;
 }
 
-/** One notification for the bell. Text is ready to show ("Sam J commented on your post “...”"); At is when it last changed (a grouped reaction); PostId is where tapping it goes. */
+/** One notification for the bell. Text is ready to show ("Sam J commented on your post “...”"); At is when it last changed (a grouped reaction); Path is where tapping it goes in the web app (the post, or a community page for community notifications). */
 export interface NotificationDto {
     id: string;
     type: NotificationType;
@@ -7423,10 +9552,11 @@ export interface NotificationDto {
     text: string;
     at: string;
     isRead: boolean;
+    path: string;
 }
 
 /** What happened, for a notification. Stored by name: add new types at the end. */
-export type NotificationType = "PassengerTagged" | "PassengerAccepted" | "CommentOnPost" | "ReplyToComment" | "ReactionOnPost" | "AreaPost" | "NewFollower" | "CommentOnFollowedPost" | "VoteClosed";
+export type NotificationType = "PassengerTagged" | "PassengerAccepted" | "CommentOnPost" | "ReplyToComment" | "ReactionOnPost" | "AreaPost" | "NewFollower" | "CommentOnFollowedPost" | "VoteClosed" | "CommunityJoinRequest" | "CommunityRequestApproved" | "CommunityInvite" | "CommunityReply";
 
 /** Who did it. Handle is null if their profile has gone ("Former member"). */
 export interface NotificationActorDto {
@@ -7517,7 +9647,7 @@ export interface ReportDto {
     outcomeNotifiedAt: string | null;
 }
 
-export type ReportTargetType = "Post" | "Comment" | "Profile";
+export type ReportTargetType = "Post" | "Comment" | "Profile" | "Community" | "CommunityDiscussion" | "CommunityReply";
 
 export type ReportReason = "DangerousOrIllegal" | "PersonalInformation" | "HarassmentOrHate" | "Spam" | "NotADrivingIncident" | "Other" | "IllegalContent" | "Threat" | "InThisClip" | "Copyright" | "Impersonation" | "UnderThirteen";
 
@@ -7586,7 +9716,7 @@ export interface ScreenedPostDto {
     screeningLabels: string | null;
 }
 
-/** A post. IsSensitive posts (graphic injuries, serious crashes) go to everyone, but unless the viewer is an age-verified adult (token claim age_verified = "true"), the author or a moderator, their media come blurred and RequiresAgeVerification is true: show a "Sensitive" label over the blurred previews and offer the age check (or sign-in first, for logged-out viewers). SensitiveSource says who tagged it (Author, Moderator or Automatic detection). CommentsRequireSignIn is true for logged-out viewers: comments aren't shown to them (the count still is), so the app shows "Sign in to see comments". Status is HeldForReview or Hidden only for the author (and moderators). MediaState is Pending while the photos or video are still processing (show a "processing" badge; Media lists only the ready ones) and Failed, with MediaFailureReason, if the post can't be published; others only ever see Ready posts. Types are every type of bad driving on the post, shown as tags, the main one (Category) first. Passengers are the people tagged as being in the author's vehicle (see PassengerDto). Vote is the post's "Who's at fault?" or "How bad was it?" vote (see VoteSummaryDto). IsFollowing and IsSaved: whether the signed-in viewer follows the post and has bookmarked it. */
+/** A post. IsSensitive posts (graphic injuries, serious crashes) go to everyone, but unless the viewer is an age-verified adult (token claim age_verified = "true"), the author or a moderator, their media come blurred and RequiresAgeVerification is true: show a "Sensitive" label over the blurred previews and offer the age check (or sign-in first, for logged-out viewers). SensitiveSource says who tagged it (Author, Moderator or Automatic detection). CommentsRequireSignIn is true for logged-out viewers: comments aren't shown to them (the count still is), so the app shows "Sign in to see comments". Status is HeldForReview or Hidden only for the author (and moderators). MediaState is Pending while the photos or video are still processing (show a "processing" badge; Media lists only the ready ones) and Failed, with MediaFailureReason, if the post can't be published; others only ever see Ready posts. Types are every type of bad driving on the post, shown as tags, the main one (Category) first. Passengers are the people tagged as being in the author's vehicle (see PassengerDto). Vote is the post's "Who's at fault?" or "How bad was it?" vote (see VoteSummaryDto). IsFollowing and IsSaved: whether the signed-in viewer follows the post and has bookmarked it. ShareCount: how many times it was shared (once per viewer per UK day), shown under the post like Facebook. FilmedFrom: the author's household car it was filmed from ("Filmed from: Dave's Golf"). */
 export interface PostDto {
     id: string;
     author: AuthorDto;
@@ -7617,8 +9747,12 @@ export interface PostDto {
     vote: VoteSummaryDto | null;
     isFollowing: boolean;
     isSaved: boolean;
+    shareCount: number;
+    filmedFrom: FilmedFromDto | null;
     /** True while the post waits for its photos or video: the app shows a "processing" indicator. */
     isProcessing: boolean;
+    /** The group the main subcategory is listed under. */
+    group: IncidentGroup;
 }
 
 /** Who wrote a post or comment. Handle is null if the author's profile no longer exists. */
@@ -7629,8 +9763,8 @@ export interface AuthorDto {
     avatarUrl: string | null;
 }
 
-/** What kind of bad driving a post shows. Stored by name, so new values can be added safely. */
-export type IncidentCategory = "RoadRage" | "DangerousOvertaking" | "Tailgating" | "MobilePhoneUse" | "Speeding" | "RedLightRunning" | "CuttingUp" | "Undertaking" | "LaneHogging" | "ClosePass" | "BadParking" | "Other";
+/** What kind of bad driving a post shows: one of the subcategories in IncidentTaxonomy, each in an IncidentGroup, every group with its own "Other". Stored by name. Values are bit positions in TypeFlags / TypeFlagsHigh (see IncidentTypeFlags): add new ones at the end, never reorder. */
+export type IncidentCategory = "DisabledBay" | "PavementParking" | "DoubleYellows" | "SchoolZigZags" | "BlockingDriveway" | "BusStopOrLane" | "ParentAndChildBay" | "AcrossTwoBays" | "EvChargingBay" | "ParkingOther" | "SpeedingInTown" | "SpeedingFastRoad" | "SpeedingSchool" | "StreetRacing" | "SpeedingOther" | "OvertakeIntoOncoming" | "OvertakeOnBend" | "OvertakeSolidWhite" | "OvertakeAtJunction" | "Undertaking" | "OvertakingOther" | "PulledOut" | "WrongLaneRoundabout" | "RanStopOrGiveWay" | "BlockingYellowBox" | "CuttingCorner" | "NoSignal" | "JunctionsOther" | "MiddleLaneHogging" | "Weaving" | "PushingInAtMerge" | "StraddlingLanes" | "BusOrCycleLane" | "LaneDisciplineOther" | "Tailgating" | "BrakeTesting" | "FollowingOther" | "PhoneInHand" | "EatingSmokingScreen" | "NotLooking" | "DistractionOther" | "RanRedLight" | "RanPedestrianCrossing" | "LevelCrossing" | "WrongWayOneWay" | "RedLightsOther" | "ClosePassCyclist" | "ClosePassHorse" | "IgnoredPedestrian" | "DoorOpened" | "CyclistRidingDangerously" | "PedestrianSteppedOut" | "VulnerableOther" | "ShoutingOrGestures" | "FollowingOrChasing" | "GotOutOfVehicle" | "DeliberatelyBlocking" | "RoadRageOther" | "Collision" | "NearMiss" | "FailedToStop" | "LostControl" | "CollisionsOther" | "NoLightsAtNight" | "UnsafeLoad" | "UnroadworthyVehicle" | "LearnerMistake" | "LorryOrBusDriving" | "VehiclesOther" | "ClosedLaneRedX" | "HardShoulderMisuse" | "StoppingOnMotorway" | "WrongWayDriver" | "MotorwaysOther";
 
 /** Where it happened: the map pin, rounded to about 500 m when the post was saved, and the place name. */
 export interface LocationDto {
@@ -7656,7 +9790,8 @@ export interface PostMediaDto {
     feedUrl: string | null;
 }
 
-export type ReactionType = "Like" | "Angry" | "Shocked" | "Laugh";
+/** The reactions, stored by name. Heart replaced Laugh on 22 Oct 2026 (existing Laugh reactions became Like). */
+export type ReactionType = "Like" | "Heart" | "Angry" | "Shocked";
 
 /** Whether a post's photos and video are ready to show. A post can be created while its media are still being processed (or waiting for a moderator to check the blurring); it's then Pending, seen only by its author and moderators, and is published automatically once every item is Ready. Separate from PostStatus, which is about moderation: a post is visible to others only when it's Published and its media are Ready. */
 export type PostMediaState = "Ready" | "Pending" | "Failed";
@@ -7690,10 +9825,10 @@ export type VehicleColour = "Black" | "White" | "Silver" | "Grey" | "Blue" | "Re
 /** Who can comment on a post, chosen by its author. Stored by name. */
 export type CommentSetting = "Everyone" | "Off" | "Following";
 
-/** A post's vote as the viewer may see it. Kind says which question it asks and Choices the answers in order. Results (votes per answer) is null while hidden: until the viewer votes, for everyone except the author; for signed-out visitors until there are PublicResultsAfter votes. Closed votes show results to everyone. ClosesAt is null when the vote never closes. */
+/** A post's vote as the viewer may see it. Question and Answers (in order) come from its main subcategory (owner, 23 Oct 2026: votes fit the category). Results (votes per answer) is null while hidden: until the viewer votes, for everyone except the author; for signed-out visitors until there are PublicResultsAfter votes. Closed votes show results to everyone. ClosesAt is null when the vote never closes. */
 export interface VoteSummaryDto {
-    kind: VoteKind;
-    choices: VoteChoice[];
+    question: string;
+    answers: VoteAnswerDto[];
     total: number;
     results: { [key in VoteChoice]?: number; } | null;
     myChoice: VoteChoice | null;
@@ -7702,11 +9837,23 @@ export interface VoteSummaryDto {
     canVote: boolean;
 }
 
-/** Which question a post's vote asks (owner, 21 Oct 2026). Incidents between road users ask "Who's at fault?"; posts about one driver (bad parking, phone use, speeding, red lights, lane hogging, other) ask "How bad was it?". */
-export type VoteKind = "Fault" | "Severity";
+/** One answer a vote offers, and its wording for that vote. */
+export interface VoteAnswerDto {
+    choice: VoteChoice;
+    label: string;
+}
 
-/** An answer to a post's vote. The first four answer Fault, the rest Severity. */
-export type VoteChoice = "FilmingDriver" | "OtherRoadUser" | "Both" | "Nobody" | "Minor" | "Careless" | "Dangerous" | "Shocking";
+/** An answer to a post's vote. Which answers a vote offers, and their wording, come from its main subcategory (VoteFor). Stored by name: add new ones at the end. */
+export type VoteChoice = "FilmingDriver" | "OtherRoadUser" | "Both" | "Nobody" | "Minor" | "Careless" | "Dangerous" | "Shocking" | "No" | "Maybe" | "Yes" | "Blocked" | "PartlyBlocked" | "RoomToPass" | "BadParking" | "FairEnough" | "CantTell" | "Safe" | "Risky" | "Unclear" | "BadDriving" | "FarTooClose" | "TooClose" | "Fine" | "Clearly" | "Probably" | "NotReally" | "ClearlyRanIt" | "AmberGamble" | "HardToTell" | "GaveEnoughRoom" | "Heated" | "Aggressive" | "Threatening" | "Serious" | "VerySerious" | "FairMistake";
+
+/** The author's household car a post was filmed from: its nickname, and its id (for the author's edit form). */
+export interface FilmedFromDto {
+    carId: string | null;
+    label: string;
+}
+
+/** The 13 groups the types of bad driving are listed under (owner signed off the categories doc, 23 Oct 2026). Stored by name. */
+export type IncidentGroup = "Parking" | "Speeding" | "Overtaking" | "Junctions" | "LaneDiscipline" | "FollowingTooClose" | "Distraction" | "RedLightsAndCrossings" | "VulnerableRoadUsers" | "RoadRage" | "Collisions" | "VehiclesAndDrivers" | "Motorways";
 
 /** The content screening queues moderators work through. */
 export type ScreeningQueue = "Held" | "Flagged";
@@ -7850,6 +9997,179 @@ export interface AddBlockedUrlRequest {
     reason: string;
 }
 
+export interface PagedResultOfCommunitySummaryDto {
+    items: CommunitySummaryDto[];
+    page: number;
+    pageSize: number;
+    totalCount: number;
+}
+
+/** A community in a list. */
+export interface CommunitySummaryDto {
+    id: string;
+    slug: string;
+    name: string;
+    description: string;
+    visibility: CommunityVisibility;
+    placeName: string | null;
+    radiusKm: number | null;
+    memberCount: number;
+    standing: CommunityStanding;
+    role: CommunityRole | null;
+}
+
+/** Who can see inside a community. */
+export type CommunityVisibility = "Public" | "Private";
+
+/** What you are to a community. */
+export type CommunityStanding = "None" | "Requested" | "Member" | "Banned" | "Invited";
+
+/** What a member may do. Admins run the community; moderators help with requests and content. */
+export type CommunityRole = "Member" | "Moderator" | "Admin";
+
+/** Which communities to list. */
+export type CommunityListKind = "Near" | "Mine" | "Topics" | "Search";
+
+/** One community, with what you may do in it. CanSeeInside: public, or you're a member, so its posts, discussions and members can be shown. CanModerate: you're an admin or moderator (requests, removing members and content). IsAdmin: settings, roles, deleting it. CanJoin: you can join (public, or invited) or ask to (private: adults only). */
+export interface CommunityDto {
+    id: string;
+    slug: string;
+    name: string;
+    description: string;
+    rules: string | null;
+    visibility: CommunityVisibility;
+    placeName: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    radiusKm: number | null;
+    memberCount: number;
+    owner: AuthorDto;
+    createdAt: string;
+    standing: CommunityStanding;
+    role: CommunityRole | null;
+    canSeeInside: boolean;
+    canModerate: boolean;
+    isAdmin: boolean;
+    canJoin: boolean;
+}
+
+export interface CommunityRequest {
+    name: string;
+    description: string | null;
+    rules: string | null;
+    visibility: CommunityVisibility;
+    placeName: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    radiusKm: number | null;
+}
+
+/** One of your communities, offered when sharing a post. Recommended: its area covers where the incident happened. AlreadyShared: the post is in it already. */
+export interface CommunitySuggestionDto {
+    id: string;
+    slug: string;
+    name: string;
+    visibility: CommunityVisibility;
+    placeName: string | null;
+    recommended: boolean;
+    alreadyShared: boolean;
+}
+
+export interface PagedResultOfCommunityMemberDto {
+    items: CommunityMemberDto[];
+    page: number;
+    pageSize: number;
+    totalCount: number;
+}
+
+/** Someone in a community (or asking to join, or banned). */
+export interface CommunityMemberDto {
+    person: AuthorDto;
+    role: CommunityRole;
+    status: CommunityMembershipStatus;
+    since: string | null;
+}
+
+export type CommunityMembershipStatus = "Requested" | "Member" | "Banned" | "Invited";
+
+export interface CommunityInviteRequest {
+    handle: string;
+}
+
+export interface CommunityRequestDecision {
+    approve: boolean;
+}
+
+export interface CommunityRoleRequest {
+    role: CommunityRole;
+}
+
+export interface PagedResultOfPostDto {
+    items: PostDto[];
+    page: number;
+    pageSize: number;
+    totalCount: number;
+}
+
+export interface PagedResultOfCommunityDiscussionDto {
+    items: CommunityDiscussionDto[];
+    page: number;
+    pageSize: number;
+    totalCount: number;
+}
+
+/** A discussion. CanRemove: you wrote it, or you moderate the community. */
+export interface CommunityDiscussionDto {
+    id: string;
+    title: string;
+    body: string;
+    author: AuthorDto;
+    createdAt: string;
+    lastActivityAt: string;
+    replyCount: number;
+    canRemove: boolean;
+}
+
+export interface DiscussionRequest {
+    title: string;
+    body: string | null;
+}
+
+/** A discussion and a page of its replies (oldest first). */
+export interface CommunityDiscussionDetailDto {
+    discussion: CommunityDiscussionDto;
+    replies: PagedResultOfCommunityReplyDto;
+}
+
+export interface PagedResultOfCommunityReplyDto {
+    items: CommunityReplyDto[];
+    page: number;
+    pageSize: number;
+    totalCount: number;
+}
+
+/** A reply to a discussion. */
+export interface CommunityReplyDto {
+    id: string;
+    body: string;
+    author: AuthorDto;
+    createdAt: string;
+    canRemove: boolean;
+}
+
+export interface DiscussionReplyRequest {
+    body: string;
+}
+
+export interface ReportRequest {
+    reason: ReportReason;
+    details: string | null;
+}
+
+export interface SharePostRequest {
+    communityIds: string[];
+}
+
 /** A saved draft, to reopen in the composer. */
 export interface DraftDto {
     /** The draft's id. */
@@ -7958,13 +10278,6 @@ export interface BookmarkStateDto {
     saved: boolean;
 }
 
-export interface PagedResultOfPostDto {
-    items: PostDto[];
-    page: number;
-    pageSize: number;
-    totalCount: number;
-}
-
 /** Posts the viewer saw (1 to 50). */
 export interface ViewsRequest {
     postIds: string[] | null;
@@ -7973,6 +10286,29 @@ export interface ViewsRequest {
 /** How far a post reached, for its author (and moderators): unique viewers, viewers whose home area is within LocalKm km of where it happened, reactions, visible comments and shares. Counts only. */
 export interface PostReachDto {
     postId: string;
+    views: number;
+    localViews: number;
+    reactions: number;
+    comments: number;
+    shares: number;
+}
+
+/** A post's analytics (owner, 22 Oct 2026), for its author: views, local views, reactions, comments and shares over time since it was posted, hourly for its first 48 hours, then daily, then weekly once it's over 90 days old. Premium and Premium + only: on Free, Locked is true and there are no points (the app shows the graphs blurred, with an upgrade prompt); Totals are always there, as on the reach panel. Moderators see everything. */
+export interface PostAnalyticsDto {
+    postId: string;
+    locked: boolean;
+    interval: AnalyticsInterval;
+    since: string;
+    points: AnalyticsPointDto[];
+    totals: PostReachDto;
+}
+
+/** How long each point of a post's analytics covers. */
+export type AnalyticsInterval = "Hour" | "Day" | "Week";
+
+/** One point of a post's analytics: what happened from Start until the next point. */
+export interface AnalyticsPointDto {
+    start: string;
     views: number;
     localViews: number;
     reactions: number;
@@ -8034,9 +10370,6 @@ export interface HeatmapAccessDto {
     modelFilterIgnored: boolean;
 }
 
-/** The caller's subscription plan. Logged-out callers have no plan (modules treat them separately). Billing isn't built yet: the identity server will issue the access-token claim plan (free, premium or premium_plus) once it is; until then every signed-in user is Free unless listed in Plans:Overrides. */
-export type SubscriptionPlan = "Free" | "Premium" | "PremiumPlus";
-
 /** Which days of the week the heat map counts. */
 export type HeatmapDays = "All" | "Weekdays" | "Weekends";
 
@@ -8062,6 +10395,8 @@ export interface CategoryShareDto {
     category: IncidentCategory;
     count: number;
     percent: number;
+    /** The group the subcategory is listed under. */
+    group: IncidentGroup;
 }
 
 /** A place name (usually a road and town, e.g. "A57 Warrington Road, Prescot") and its incidents. */
@@ -8102,7 +10437,7 @@ export interface ReplyPostDto {
     author: AuthorDto;
 }
 
-/** Creates a post with 1 to 10 photos or one video, uploaded through /api/media first. They don't have to have finished processing: if any is still Processing (or waiting for a moderator's review), the post is saved as Pending, seen only by its author (in "my posts") and moderators, and is published automatically once they're all Ready, or marked Failed (and the author emailed) if one fails. If they're all Ready already, it's visible to everyone straight away. Either way content screening can hold it for review. The author needs a confirmed email and a profile (and a passed age check if Safety:RequireAgeVerification is on). IsSensitive marks graphic content: the post shows to everyone, its media blurred except for age-verified adults, and the media are kept privately. If automatic detection already flagged any of the media, the post is tagged sensitive automatically (and queued for a moderator) whatever IsSensitive says. Types are the types of bad driving (at least one; the first is the main one); older clients can send one Category instead. Passengers are @handles of people in the author's vehicle (driving incidents only, up to 4, adults only): each is asked to accept before their name shows on the post. DraftId publishes one of the author's drafts: the draft is deleted once the post is saved (its photos and videos stay, in the post). */
+/** Creates a post with 1 to 10 photos or one video, uploaded through /api/media first. They don't have to have finished processing: if any is still Processing (or waiting for a moderator's review), the post is saved as Pending, seen only by its author (in "my posts") and moderators, and is published automatically once they're all Ready, or marked Failed (and the author emailed) if one fails. If they're all Ready already, it's visible to everyone straight away. Either way content screening can hold it for review. The author needs a confirmed email and a profile (and a passed age check if Safety:RequireAgeVerification is on). IsSensitive marks graphic content: the post shows to everyone, its media blurred except for age-verified adults, and the media are kept privately. If automatic detection already flagged any of the media, the post is tagged sensitive automatically (and queued for a moderator) whatever IsSensitive says. Types are the types of bad driving (at least one; the first is the main one); older clients can send one Category instead. Passengers are @handles of people in the author's vehicle (driving incidents only, up to 4, adults only): each is asked to accept before their name shows on the post. DraftId publishes one of the author's drafts: the draft is deleted once the post is saved (its photos and videos stay, in the post). FilmedFromCarId is one of the author's household cars (GET /api/vehicles/mine): the post shows "Filmed from: its nickname". */
 export interface CreatePostCommand {
     title: string;
     description: string | null;
@@ -8121,6 +10456,7 @@ export interface CreatePostCommand {
     vehicleColour: VehicleColour | null;
     reportedToPolice: boolean | null;
     draftId: string | null;
+    filmedFromCarId: string | null;
 }
 
 /** A post's new details. Send Types (the first is the main one), or one Category. Passengers (@handles) replaces the tagged passengers; leave it out to keep them. */
@@ -8140,9 +10476,34 @@ export interface UpdatePostRequest {
     vehicleModel: string | null;
     vehicleColour: VehicleColour | null;
     reportedToPolice: boolean | null;
+    filmedFromCarId: string | null;
 }
 
 export interface ReactRequest {
+    type: ReactionType;
+}
+
+/** The people who reacted (newest first) and the totals per reaction. UnnamedCount is how many reactions in the current filter come from people who aren't listed (under-18s, or no profile), shown as "and N others". */
+export interface PostReactionsDto {
+    people: PagedResultOfReactorDto;
+    counts: { [key in ReactionType]?: number; };
+    total: number;
+    unnamedCount: number;
+}
+
+export interface PagedResultOfReactorDto {
+    items: ReactorDto[];
+    page: number;
+    pageSize: number;
+    totalCount: number;
+}
+
+/** One person who reacted. */
+export interface ReactorDto {
+    userId: string;
+    handle: string;
+    displayName: string;
+    avatarUrl: string | null;
     type: ReactionType;
 }
 
@@ -8175,11 +10536,6 @@ export interface HideCommentRequest {
 /** Who can comment on your post. */
 export interface CommentSettingRequest {
     setting: CommentSetting;
-}
-
-export interface ReportRequest {
-    reason: ReportReason;
-    details: string | null;
 }
 
 export interface AppealRequest {
@@ -8306,6 +10662,8 @@ export interface CategoryTrendDto {
     previousTotal: number | null;
     changePercent: number | null;
     points: number[];
+    /** The group the subcategory is listed under. */
+    group: IncidentGroup;
 }
 
 /** How the trend lines are bucketed: days up to 92 days, weeks (from Monday) up to two years, then months. */
@@ -8322,6 +10680,23 @@ export interface VehicleCatalogueDto {
 export interface VehicleMakeDto {
     name: string;
     models: string[];
+}
+
+/** One of your household cars. No registration is ever stored. */
+export interface HouseholdCarDto {
+    id: string;
+    make: string;
+    model: string | null;
+    colour: VehicleColour | null;
+    nickname: string;
+}
+
+/** A household car: a make (and model) from GET /api/vehicles, a colour, and a nickname. */
+export interface HouseholdCarRequest {
+    make: string;
+    model: string | null;
+    colour: VehicleColour | null;
+    nickname: string | null;
 }
 
 /** A profile as moderators see it. */
@@ -8409,6 +10784,18 @@ export interface FollowProfileDto {
     bio: string | null;
     isFollowing: boolean | null;
 }
+
+/** Someone to tag, with how they're connected to you. */
+export interface TagSuggestionDto {
+    id: string;
+    handle: string;
+    displayName: string;
+    avatarUrl: string | null;
+    connection: TagConnection;
+}
+
+/** How someone suggested for tagging is connected to you. */
+export type TagConnection = "None" | "Mutual" | "FollowsYou" | "YouFollow";
 
 export interface PagedResultOfFollowProfileDto {
     items: FollowProfileDto[];

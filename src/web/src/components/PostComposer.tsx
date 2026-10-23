@@ -1,27 +1,42 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 
 import { deleteDraft, listDrafts, saveDraft } from "@/actions/drafts";
 import { discardMedia, getMedia } from "@/actions/media";
+import { getVaultDownload } from "@/actions/vault";
 import { findPassenger } from "@/actions/passengers";
-import { getVehicleCatalogue } from "@/actions/vehicles";
+import { getMyCars, getVehicleCatalogue } from "@/actions/vehicles";
+import { shareToCommunities } from "@/actions/communities";
 import { createPost } from "@/actions/posts";
 import { followBlocker } from "@/lib/blockers";
-import { categoryLabel, CATEGORY_CHOICES, DESCRIPTION_MAX } from "@/lib/categories";
+import {
+  type CategoryInfo,
+  categoriesIn,
+  categoryLabel,
+  DESCRIPTION_MAX,
+  GROUPS,
+  groupLabel,
+  groupOf,
+  MAX_TYPES,
+  searchCategories,
+} from "@/lib/categories";
 import { duration, plural, timeAgo, ukDateAndTime, ukLocalToIso, whenLabel } from "@/lib/format";
 import { shrinkPhoto } from "@/lib/image-resize";
 import type {
   AuthorDto,
   DraftDto,
+  HouseholdCarDto,
   IncidentCategory,
   SaveDraftRequest,
   VehicleCatalogue,
   VehicleDto,
 } from "@/lib/types";
 import { COLOUR_SWATCHES, describeVehicle, vehicleTypeLabel } from "@/lib/vehicles";
+import { containsWebAddress, LINK_MESSAGE } from "@/lib/web-addresses";
 import {
   contentTypeOf,
   kindOf,
@@ -53,6 +68,8 @@ import {
 } from "./icons";
 import { useHashtagSuggest } from "./HashtagSuggest";
 import type { Pin } from "./MapPicker";
+import { CommunityShareField } from "./communities/CommunityShareField";
+import { PassengerPicker } from "./PassengerPicker";
 import { PlaceSearch } from "./PlaceSearch";
 import { TrimVideo, type TrimmedClip } from "./TrimVideo";
 
@@ -145,6 +162,8 @@ export interface PostComposerProps {
   tileUrl: string;
   attribution: string;
   emailVerified: boolean;
+  /** Posting a clip from your vault (`/post/new?vault=…`): it's fetched and added as if you'd chosen the file. */
+  vaultClipId?: string;
   author: { name: string; avatarUrl: string | null };
   /** Dialog only: the composer was closed (cancelled, discarded or kept as a draft). */
   onClose?: () => void;
@@ -173,6 +192,7 @@ export function PostComposer({
   tileUrl,
   attribution,
   emailVerified,
+  vaultClipId,
   author,
   onClose,
   onPosted,
@@ -199,6 +219,20 @@ export function PostComposer({
     reportedToPolice: null,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  /** Communities to share the post into once it's up (owner, 23 Oct 2026). */
+  const [shareTo, setShareTo] = useState<string[]>([]);
+  /** Your household cars, and the one this was filmed from (owner, 22 Oct 2026). */
+  const [cars, setCars] = useState<HouseholdCarDto[] | null>(null);
+  const [carId, setCarId] = useState<string>("");
+  useEffect(() => {
+    let live = true;
+    void getMyCars().then((result) => {
+      if (live && result.ok) setCars(result.data);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -230,8 +264,12 @@ export function PostComposer({
       uploads.current.add(async () => {
         try {
           const file = await prepare();
-          const uploaded = await uploadFile(file.blob, file.name, file.type, (p) =>
-            patch(key, { progress: p }),
+          const uploaded = await uploadFile(
+            file.blob,
+            file.name,
+            file.type,
+            (p) => patch(key, { progress: p }),
+            vaultClipId ?? null,
           );
           patch(key, { progress: 1, status: "processing", mediaId: uploaded.mediaId });
         } catch (error) {
@@ -245,7 +283,7 @@ export function PostComposer({
         }
       });
     },
-    [patch],
+    [patch, vaultClipId],
   );
 
   // Keep an eye on processing so a file the server rejects (e.g. a video over 30 seconds) shows up straight away.
@@ -357,7 +395,7 @@ export function PostComposer({
     startUpload(key, async () => ({ blob: clip.blob, name: clip.fileName, type: clip.contentType }));
   };
 
-  const onFiles = (list: FileList | null) => {
+  const onFiles = (list: FileList | File[] | null) => {
     const files = Array.from(list ?? []);
     if (files.length === 0) {
       return;
@@ -373,6 +411,45 @@ export function PostComposer({
       addPhotos(files);
     }
   };
+
+  // Posting a clip from your vault: fetch the original once and add it as if it had been chosen (videos are trimmed
+  // as usual). The upload says which clip it is, so it isn't kept in the vault twice.
+  const addFiles = useRef(onFiles);
+  useEffect(() => {
+    addFiles.current = onFiles;
+  });
+  const [vaultLoading, setVaultLoading] = useState(false);
+  const vaultFetched = useRef(false);
+  useEffect(() => {
+    if (!vaultClipId || vaultFetched.current) {
+      return;
+    }
+    vaultFetched.current = true;
+    const timer = setTimeout(async () => {
+      setVaultLoading(true);
+      try {
+        const link = await getVaultDownload(vaultClipId);
+        if (!link.ok) {
+          setMediaError(link.error);
+          return;
+        }
+        const response = await fetch(link.data.url);
+        if (!response.ok) {
+          setMediaError("We couldn't get that clip from your vault. Please try again.");
+          return;
+        }
+        const blob = await response.blob();
+        const type = blob.type || "video/mp4";
+        const extension = type.split("/")[1]?.replace("quicktime", "mov") ?? "mp4";
+        addFiles.current([new File([blob], `vault-clip.${extension}`, { type })]);
+      } catch {
+        setMediaError("We couldn't get that clip from your vault. Please try again.");
+      } finally {
+        setVaultLoading(false);
+      }
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [vaultClipId]);
 
   const remove = (item: Item) => {
     setItems((current) => current.filter((i) => i.key !== item.key));
@@ -595,7 +672,9 @@ export function PostComposer({
   const toggleType = (type: IncidentCategory, on: boolean) => {
     set(
       "types",
-      on ? [...fields.types.filter((t) => t !== type), type] : fields.types.filter((t) => t !== type),
+      on
+        ? [...fields.types.filter((t) => t !== type), type].slice(0, MAX_TYPES)
+        : fields.types.filter((t) => t !== type),
     );
   };
 
@@ -604,6 +683,8 @@ export function PostComposer({
     if (items.length === 0) problems.media = "Add photos or a video.";
     else if (failed > 0) problems.media = "Remove the files that didn't work.";
     if (!fields.title.trim()) problems.title = "Give your post a title.";
+    else if (containsWebAddress(fields.title)) problems.title = LINK_MESSAGE;
+    if (containsWebAddress(fields.description)) problems.description = LINK_MESSAGE;
     if (fields.types.length === 0) problems.types = "Choose at least one type of bad driving.";
     if (!fields.placeName.trim()) problems.placeName = "Add a place name, such as a road and town.";
     if (!fields.pin) problems.pin = "Put a pin on the map where it happened.";
@@ -632,6 +713,7 @@ export function PostComposer({
         category: null,
         types: fields.types,
         passengers: onTheRoad ? fields.passengers.map((p) => p.handle!) : [],
+        filmedFromCarId: carId || null,
         vehicleType: fields.vehicle?.type ?? null,
         vehicleMake: fields.vehicle?.make ?? null,
         vehicleModel: fields.vehicle?.model ?? null,
@@ -660,6 +742,10 @@ export function PostComposer({
         result = await createPost(request);
       }
       setStatus(null);
+      if (result.ok && shareTo.length > 0) {
+        // The post is up whatever happens here; a community that refuses it is simply left out.
+        await shareToCommunities(result.data.id, shareTo);
+      }
       if (!result.ok) {
         if (followBlocker(result.blocker)) {
           return;
@@ -688,7 +774,7 @@ export function PostComposer({
     });
   };
 
-  const onTheRoad = fields.types.some((t) => t !== "BadParking");
+  const onTheRoad = fields.types.some((t) => groupOf(t) !== "Parking");
   const needed = stillNeeded(fields, items.length, failed > 0);
   const canPost = needed.length === 0 && uploading === 0 && !pending;
   const when = whenLabel(fields.date, fields.time, defaultDate);
@@ -927,6 +1013,7 @@ export function PostComposer({
           <span className={errors.media || mediaError ? "error" : "help"} aria-live="polite">
             {errors.media ||
               mediaError ||
+              (vaultLoading ? "Getting your clip from your vault…" : "") ||
               (uploading > 0
                 ? `Uploading ${plural(uploading, kind === "Video" ? "video" : "photo")}…`
                 : items.some((i) => i.status === "processing")
@@ -959,7 +1046,7 @@ export function PostComposer({
                   <TagIcon />
                   What kind of bad driving?
                 </button>
-              ) : (
+              ) : fields.types.length >= MAX_TYPES ? null : (
                 <button
                   type="button"
                   className="cmp-chip"
@@ -1040,6 +1127,34 @@ export function PostComposer({
             />
           ) : null}
 
+          {cars ? (
+            <div className="cmp-row">
+              <label className="cmp-row-label" htmlFor="filmed-from">
+                Filmed from <span className="small">(optional)</span>
+              </label>
+              {cars.length > 0 ? (
+                <select
+                  id="filmed-from"
+                  className="input"
+                  style={{ width: "auto" }}
+                  value={carId}
+                  onChange={(e) => setCarId(e.target.value)}
+                >
+                  <option value="">Not one of my cars</option>
+                  {cars.map((car) => (
+                    <option key={car.id} value={car.id}>
+                      {car.nickname}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <Link href="/account/cars" className="link small">
+                  Add your car
+                </Link>
+              )}
+            </div>
+          ) : null}
+
           <div className="cmp-row">
             <span className="cmp-row-label">Sensitive</span>
             <label className="check">
@@ -1052,6 +1167,13 @@ export function PostComposer({
             </label>
           </div>
         </div>
+
+        <CommunityShareField
+          latitude={fields.pin?.lat ?? null}
+          longitude={fields.pin?.lng ?? null}
+          selected={shareTo}
+          onChange={setShareTo}
+        />
 
         <div className="notice">
           <ShieldIcon />
@@ -1379,7 +1501,10 @@ function VehiclePanel({
   );
 }
 
-/** Tag up to four people who were in your vehicle. Each is asked to accept before their name shows. */
+/**
+ * Tag up to four people who were in your vehicle, picked from the list that drops down as you type
+ * (PassengerPicker). Each is asked to accept before their name shows.
+ */
 function PassengersRow({
   passengers,
   error,
@@ -1390,11 +1515,11 @@ function PassengersRow({
   onChange: (passengers: AuthorDto[]) => void;
 }) {
   const [adding, setAdding] = useState(false);
-  const [handle, setHandle] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
   const [looking, startLooking] = useTransition();
 
-  const add = () =>
+  // Enter or Add without picking from the list: look up exactly what was typed.
+  const add = (handle: string) =>
     startLooking(async () => {
       setProblem(null);
       const found = await findPassenger(handle);
@@ -1407,7 +1532,6 @@ function PassengersRow({
         return;
       }
       onChange([...passengers, found.data]);
-      setHandle("");
       setAdding(false);
     });
 
@@ -1442,33 +1566,17 @@ function PassengersRow({
           ) : null}
         </div>
         {adding ? (
-          <div className="row" style={{ gap: 8 }}>
-            <label className="sr-only" htmlFor="passenger-handle">
-              Passenger&apos;s username
-            </label>
-            <input
-              id="passenger-handle"
-              className="input"
-              type="text"
-              placeholder="@username"
-              autoComplete="off"
-              autoCapitalize="none"
-              value={handle}
-              onChange={(e) => setHandle(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  add();
-                }
-              }}
-            />
-            <button type="button" className="btn btn-sm" disabled={looking || !handle.trim()} onClick={add}>
-              Add
-            </button>
-            <button type="button" className="link" onClick={() => setAdding(false)}>
-              Cancel
-            </button>
-          </div>
+          <PassengerPicker
+            taken={passengers.map((p) => p.id)}
+            busy={looking}
+            onPick={(person) => {
+              setProblem(null);
+              onChange([...passengers, person]);
+              setAdding(false);
+            }}
+            onExact={add}
+            onCancel={() => setAdding(false)}
+          />
         ) : null}
         <span className={problem || error ? "error" : "help"}>
           {problem || error || "They'll be asked to confirm before their name shows on the post."}
@@ -1655,7 +1763,10 @@ function PanelHead({ title, onBack }: { title: string; onBack: () => void }) {
   );
 }
 
-/** Choose every type of bad driving that applies. The first one chosen is the main type. */
+/**
+ * Choose up to three subcategories of bad driving: search the whole list, or open a group. The first one chosen is the
+ * main one, and its vote is the post's.
+ */
 function TypesPanel({
   chosen,
   onToggle,
@@ -1665,23 +1776,71 @@ function TypesPanel({
   onToggle: (type: IncidentCategory, on: boolean) => void;
   onDone: () => void;
 }) {
+  const [query, setQuery] = useState("");
+  const full = chosen.length >= MAX_TYPES;
+  const results = searchCategories(query, 12);
+  const box = (info: CategoryInfo, showGroup: boolean) => {
+    const on = chosen.includes(info.value);
+    return (
+      <label key={info.value} className={`cmp-type${on ? " cmp-type-on" : ""}`}>
+        <input
+          type="checkbox"
+          checked={on}
+          disabled={!on && full}
+          onChange={(e) => onToggle(info.value, e.target.checked)}
+        />
+        <span>
+          {info.label}
+          {showGroup ? <span className="cmp-type-group"> · {groupLabel(info.group)}</span> : null}
+        </span>
+      </label>
+    );
+  };
   return (
     <div className="cmp-panel">
       <PanelHead title="What kind of bad driving?" onBack={onDone} />
       <div className="cmp-scroll cmp-panel-body">
-        <p className="small muted">Choose all that apply. Each one shows as a tag on your post.</p>
-        <fieldset className="cmp-types">
-          <legend className="sr-only">Types of bad driving</legend>
-          {CATEGORY_CHOICES.map((type) => {
-            const on = chosen.includes(type);
+        <input
+          type="search"
+          className="cmp-type-search"
+          placeholder="Search, e.g. pavement or phone"
+          aria-label="Search the types of bad driving"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <p className="small muted" aria-live="polite">
+          {full
+            ? `That's the most: ${MAX_TYPES}. Untick one to choose another.`
+            : `Choose up to ${MAX_TYPES}. The first is the main one, and its vote goes on your post.`}
+        </p>
+        {query.trim() ? (
+          <fieldset className="cmp-types">
+            <legend className="sr-only">Matches</legend>
+            {results.length > 0 ? (
+              results.map((info) => box(info, true))
+            ) : (
+              <p className="small muted">
+                Nothing matches. Try another word, or pick an Other below a group.
+              </p>
+            )}
+          </fieldset>
+        ) : (
+          GROUPS.map((group) => {
+            const picked = chosen.filter((t) => groupOf(t) === group.value).length;
             return (
-              <label key={type} className={`cmp-type${on ? " cmp-type-on" : ""}`}>
-                <input type="checkbox" checked={on} onChange={(e) => onToggle(type, e.target.checked)} />
-                {categoryLabel(type)}
-              </label>
+              <details key={group.value} className="cmp-type-group-box" open={picked > 0}>
+                <summary>
+                  {group.label}
+                  {picked > 0 ? <span className="cmp-type-count"> · {picked} chosen</span> : null}
+                </summary>
+                <fieldset className="cmp-types">
+                  <legend className="sr-only">{group.label}</legend>
+                  {categoriesIn(group.value).map((info) => box(info, false))}
+                </fieldset>
+              </details>
             );
-          })}
-        </fieldset>
+          })
+        )}
       </div>
       <div className="cmp-panel-foot">
         <button type="button" className="btn btn-primary btn-block" onClick={onDone}>

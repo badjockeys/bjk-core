@@ -2,11 +2,11 @@ import "server-only";
 
 import { api, ApiError } from "./api";
 import { getAccessToken } from "./auth";
-import type { IncidentCategory, PagedResult, PostDto, TimelinesDto } from "./types";
+import type { IncidentCategory, IncidentGroup, PagedResult, PostDto, TimelinesDto } from "./types";
 
 /** One page of the public feed as the viewer sees it, or null if the API couldn't be reached. */
 export async function feedPage(
-  query: { category?: IncidentCategory; author?: string; hashtag?: string },
+  query: { category?: IncidentCategory; group?: IncidentGroup; author?: string; hashtag?: string },
   page: number,
 ): Promise<PagedResult<PostDto> | null> {
   const token = await getAccessToken();

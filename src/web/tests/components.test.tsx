@@ -14,6 +14,7 @@ const actions = vi.hoisted(() => ({
   castVote: vi.fn(),
   savePost: vi.fn(),
   followPost: vi.fn(),
+  listReactions: vi.fn(),
 }));
 
 vi.mock("@/actions/posts", () => ({
@@ -21,6 +22,7 @@ vi.mock("@/actions/posts", () => ({
   reportPost: actions.reportPost,
   deletePost: actions.deletePost,
   loadPosts: actions.loadPosts,
+  listReactions: actions.listReactions,
 }));
 vi.mock("@/actions/profiles", () => ({ blockUser: actions.blockUser }));
 vi.mock("@/actions/engagement", () => ({
@@ -33,7 +35,7 @@ vi.mock("@/actions/engagement", () => ({
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn(), back: vi.fn() }) }));
 
 import { PostCard } from "@/components/PostCard";
-import { ReactionBar } from "@/components/ReactionBar";
+import { PostFooter } from "@/components/PostFooter";
 import { ReportDialog } from "@/components/ReportDialog";
 import { SaveButton } from "@/components/SaveButton";
 import { VotePanel } from "@/components/VotePanel";
@@ -64,7 +66,8 @@ const post: PostDto = {
   },
   title: "Parked across two disabled bays, again",
   description: "Third time this week.",
-  category: "BadParking",
+  category: "DisabledBay",
+  group: "Parking",
   incidentAt: "2026-10-18T07:05:00Z",
   location: { latitude: 53.81, longitude: -1.6, placeName: "Asda, Kirkstall, Leeds" },
   status: "Published",
@@ -74,7 +77,7 @@ const post: PostDto = {
     photo("m2", "/2.webp", "/2t.webp"),
     photo("m3", "/3.webp", "/3t.webp"),
   ],
-  reactions: { Like: 9, Angry: 17, Shocked: 4, Laugh: 1 },
+  reactions: { Like: 9, Angry: 17, Shocked: 4, Heart: 1 },
   myReaction: null,
   commentCount: 7,
   createdAt: "2026-10-18T07:14:00Z",
@@ -93,7 +96,9 @@ const post: PostDto = {
   vote: null,
   isFollowing: false,
   isSaved: false,
+  shareCount: 0,
   isProcessing: false,
+  filmedFrom: null,
 };
 
 const member: Viewer = {
@@ -118,19 +123,22 @@ describe("PostCard", () => {
     expect(screen.getByRole("link", { name: "Dashcam Dave" })).toHaveAttribute("href", "/@dashcam_dave");
     expect(screen.getByText("Parked across two disabled bays, again")).toBeInTheDocument();
     expect(screen.getByText("Asda, Kirkstall, Leeds")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Bad parking" })).toHaveAttribute("href", "/c/bad-parking");
+    expect(screen.getByRole("link", { name: "Disabled bay, no badge showing" })).toHaveAttribute(
+      "href",
+      "/c/disabled-bay-no-badge-showing",
+    );
     expect(screen.getByRole("link", { name: "3 photos" })).toHaveAttribute("href", `/p/${post.id}`);
     expect(screen.getByRole("link", { name: "7 comments" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^31 reactions/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "31 reactions. See who reacted" })).toBeInTheDocument();
   });
 
   it("shows every type of bad driving as a tag, main first", () => {
-    const tagged: PostDto = { ...post, category: "Tailgating", types: ["Tailgating", "RoadRage"] };
+    const tagged: PostDto = { ...post, category: "Tailgating", types: ["Tailgating", "ShoutingOrGestures"] };
     render(<PostCard post={tagged} viewer={ANONYMOUS} />);
 
     const tags = within(screen.getByRole("list", { name: "Types of bad driving" })).getAllByRole("link");
-    expect(tags.map((t) => t.textContent)).toEqual(["Tailgating", "Road rage"]);
-    expect(tags[1]).toHaveAttribute("href", "/c/road-rage");
+    expect(tags.map((t) => t.textContent)).toEqual(["Tailgating", "Shouting or gestures"]);
+    expect(tags[1]).toHaveAttribute("href", "/c/shouting-or-gestures");
   });
 
   it("shows the author a processing badge while the media are being processed", () => {
@@ -144,14 +152,18 @@ describe("PostCard", () => {
     expect(screen.getByRole("button", { name: "Edit or delete your post" })).toBeInTheDocument();
   });
 
-  it("likes the post from the reactions count", async () => {
+  it("likes the post from the Like button", async () => {
     actions.reactToPost.mockResolvedValue({ ok: true, data: undefined });
     render(<PostCard post={post} viewer={member} />);
 
-    await userEvent.click(screen.getByRole("button", { name: /^31 reactions/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Like" }));
 
     expect(actions.reactToPost).toHaveBeenCalledWith(post.id, "Like");
-    expect(screen.getByRole("button", { name: /^32 reactions/ })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "32 reactions. See who reacted" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Like: tap to remove your reaction" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 
   it("offers report and block to members, in the ⋯ menu", async () => {
@@ -217,30 +229,63 @@ describe("sensitive posts", () => {
   });
 });
 
-describe("ReactionBar", () => {
-  it("switches the reaction and puts it back if the server refuses", async () => {
+describe("PostFooter", () => {
+  const footer = (mine: "Like" | "Angry" | null = null) => (
+    <PostFooter
+      postId="p1"
+      title="Parked across two bays"
+      href="/p/p1"
+      counts={{ Like: 9, Angry: 17 }}
+      mine={mine}
+      commentCount={3}
+      shareCount={2}
+      saved={false}
+      signedIn
+    />
+  );
+
+  it("shows the reactions used, the total, and the comment and share counts", () => {
+    render(footer());
+    expect(screen.getByRole("button", { name: "26 reactions. See who reacted" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "3 comments" })).toHaveAttribute("href", "/p/p1#comments");
+    expect(screen.getByText("2 shares")).toBeInTheDocument();
+  });
+
+  it("likes with a tap, picks another reaction from the picker, and puts it back if the server refuses", async () => {
     actions.reactToPost.mockResolvedValueOnce({ ok: true, data: undefined });
     actions.reactToPost.mockResolvedValueOnce({ ok: false, error: "Nope" });
-    render(<ReactionBar postId="p1" counts={{ Like: 9, Angry: 17 }} mine={null} signedIn />);
+    render(footer());
 
-    await userEvent.click(screen.getByRole("button", { name: "Angry 17" }));
-    expect(screen.getByRole("button", { name: "Angry 18" })).toHaveAttribute("aria-pressed", "true");
-    expect(actions.reactToPost).toHaveBeenLastCalledWith("p1", "Angry");
-    await waitFor(() => expect(screen.getByRole("button", { name: "Like 9" })).toBeEnabled());
-
-    await userEvent.click(screen.getByRole("button", { name: "Like 9" }));
+    await userEvent.click(screen.getByRole("button", { name: "Like" }));
     expect(actions.reactToPost).toHaveBeenLastCalledWith("p1", "Like");
+    expect(screen.getByRole("button", { name: "27 reactions. See who reacted" })).toBeInTheDocument();
+    const mine = screen.getByRole("button", { name: "Like: tap to remove your reaction" });
+    await waitFor(() => expect(mine).toBeEnabled());
+
+    // Arrow up opens the picker from the keyboard.
+    mine.focus();
+    await userEvent.keyboard("{ArrowUp}");
+    const picker = screen.getByRole("group", { name: "Choose a reaction" });
+    await userEvent.click(within(picker).getByRole("button", { name: "Angry" }));
+    expect(actions.reactToPost).toHaveBeenLastCalledWith("p1", "Angry");
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Angry 18" })).toHaveAttribute("aria-pressed", "true"),
+      expect(screen.getByRole("button", { name: "Like: tap to remove your reaction" })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      ),
     );
-    expect(screen.getByRole("button", { name: "Like 9" })).toHaveAttribute("aria-pressed", "false");
   });
 });
 
 describe("VotePanel", () => {
   const vote: VoteSummaryDto = {
-    kind: "Fault",
-    choices: ["FilmingDriver", "OtherRoadUser", "Both", "Nobody"],
+    question: "Who's at fault?",
+    answers: [
+      { choice: "OtherRoadUser", label: "The undertaker" },
+      { choice: "FilmingDriver", label: "The filming driver" },
+      { choice: "Both", label: "Both" },
+      { choice: "Nobody", label: "Nobody" },
+    ],
     total: 3,
     results: null,
     myChoice: null,
@@ -265,7 +310,7 @@ describe("VotePanel", () => {
     expect(screen.queryByText("75%")).toBeNull();
     expect(screen.getByText(/Vote to see what others said/)).toBeVisible();
 
-    await userEvent.click(screen.getByRole("button", { name: "The other road user" }));
+    await userEvent.click(screen.getByRole("button", { name: "The undertaker" }));
     expect(actions.castVote).toHaveBeenCalledWith("p1", "OtherRoadUser");
     expect(await screen.findByText("75%")).toBeVisible();
     expect(screen.getByText("25%")).toBeVisible();
@@ -294,7 +339,7 @@ describe("ReportDialog", () => {
     const onClose = vi.fn();
     render(<ReportDialog open onClose={onClose} what="post" submit={submit} />);
 
-    await userEvent.click(screen.getByLabelText("Spam"));
+    await userEvent.click(screen.getByLabelText("Spam or advertising"));
     await userEvent.type(screen.getByLabelText(/Anything else/), "Same advert every day");
     await userEvent.click(screen.getByRole("button", { name: "Send report" }));
 

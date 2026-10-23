@@ -319,6 +319,17 @@ p {
   background: #ffffff;
 }
 
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+a.chip {
+  color: var(--ink);
+  text-decoration: none;
+}
+
 .chip-on {
   background: var(--brand);
   border-color: var(--brand);
@@ -433,12 +444,6 @@ p {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.reacts {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
 }
 
 .react {
@@ -1076,14 +1081,6 @@ p {
   align-items: center;
   justify-content: center;
   gap: 8px;
-}
-
-.tw-actions {
-  display: flex;
-  justify-content: space-between;
-  max-width: 440px;
-  margin-top: 6px;
-  margin-left: -8px;
 }
 
 .tw-act {
@@ -2570,6 +2567,40 @@ dialog.composer-modal::backdrop {
   font-weight: 600;
 }
 
+.cmp-type:has(input:disabled) {
+  cursor: default;
+  color: var(--muted);
+}
+
+.cmp-type-group,
+.cmp-type-count {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.cmp-type-search {
+  width: 100%;
+  min-height: 44px;
+  margin-bottom: 8px;
+}
+
+.cmp-type-group-box {
+  border-bottom: 1px solid var(--line);
+}
+
+.cmp-type-group-box > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cmp-type-group-box > .cmp-types {
+  padding-bottom: 8px;
+}
+
 .d-only-inline {
   display: none;
 }
@@ -2638,6 +2669,43 @@ dialog.composer-modal::backdrop {
 .pill-choice:focus-within {
   outline: 2px solid var(--brand);
   outline-offset: 2px;
+}
+
+.cat-filter {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.cat-filter-group {
+  border-bottom: 1px solid var(--line);
+}
+
+.cat-filter-head {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cat-filter-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+
+.cat-filter-all input {
+  accent-color: var(--brand);
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
+.cat-filter-types {
+  gap: 6px;
+  padding: 0 0 12px 28px;
 }
 
 .pill-on {
@@ -3865,4 +3933,824 @@ dialog.composer-modal::backdrop {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+/* Under a post, like Facebook (owner, 22 Oct 2026): a summary line, then Like, Comment, Share. */
+.pf {
+  margin-top: 8px;
+}
+
+.pf-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.pf-who {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: 500 13px var(--font);
+  cursor: pointer;
+}
+
+.pf-who:hover span:last-child {
+  text-decoration: underline;
+}
+
+.pf-bubbles {
+  display: inline-flex;
+}
+
+.pf-bubble {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: -4px;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  background: var(--brand-tint);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.pf-bubble:first-child {
+  margin-left: 0;
+}
+
+.pf-bubble-heart {
+  background: #fde8ec;
+}
+
+.pf-bubble-angry {
+  background: #fdeee2;
+}
+
+.pf-bubble-shocked {
+  background: #fff6db;
+}
+
+.pf-counts {
+  display: inline-flex;
+  gap: 12px;
+}
+
+.pf-count {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+a.pf-count:hover {
+  text-decoration: underline;
+}
+
+.pf-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-top: 1px solid var(--line);
+  padding-top: 4px;
+}
+
+.pf-actions > .pf-react,
+.pf-actions > .pf-btn {
+  flex: 1;
+}
+
+.pf-actions > .tw-act {
+  flex: 0 0 auto;
+}
+
+.pf-react {
+  position: relative;
+  display: flex;
+}
+
+.pf-btn {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
+  font: 600 14px var(--font);
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.pf-btn:hover {
+  background: var(--soft);
+}
+
+.pf-btn-on {
+  color: var(--brand-tint-text);
+}
+
+.pf-btn-on svg path {
+  fill: var(--brand);
+  stroke: var(--brand);
+}
+
+.pf-on-heart {
+  color: #c8143c;
+}
+
+.pf-on-angry {
+  color: #b5480b;
+}
+
+.pf-on-shocked {
+  color: #8a6400;
+}
+
+.pf-picker {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  background: #ffffff;
+  box-shadow: 0 6px 20px rgba(17, 17, 17, 0.16);
+}
+
+.pf-pick {
+  display: inline-flex;
+}
+
+/*
+ * Communities (owner, 23 Oct 2026; approved mock-ups). Badges are initials on cyan; a cover band sits above the
+ * community's header.
+ */
+.badge-premium {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.community-badge {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 0.12s ease;
+}
+
+.pf-pick:hover,
+.pf-pick:focus-visible {
+  transform: scale(1.2);
+}
+
+.pf-pick-on {
+  background: var(--brand-tint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pf-pick {
+    transition: none;
+  }
+
+  .pf-pick:hover,
+  .pf-pick:focus-visible {
+    transform: none;
+  }
+}
+
+/* Who reacted. */
+.rx-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--line);
+  scrollbar-width: none;
+}
+
+.rx-tab {
+  flex: 0 0 auto;
+  height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: none;
+  color: var(--muted);
+  font: 600 14px var(--font);
+  cursor: pointer;
+}
+
+.rx-tab-on {
+  border-bottom-color: var(--brand);
+  color: var(--ink);
+}
+
+.rx-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 50vh;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.rx-person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.rx-avatar {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.rx-badge {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.rx-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.rx-name:hover strong {
+  text-decoration: underline;
+}
+
+/* "Download for TikTok, Reels and Shorts" (owner, 23 Oct 2026). */
+.share-making {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.share-caption {
+  margin-top: 16px;
+  gap: 8px;
+}
+
+.share-caption .btn {
+  align-self: flex-start;
+}
+
+/* The vault on your own profile (owner, 23 Oct 2026). */
+.vault {
+}
+
+/* Post analytics (owner, 22 Oct 2026): small multiples, one chart per measure, thin marks, recessive grid. */
+.an {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.an-charts {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.vault-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.vault-space {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vault-meter {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--fill);
+  overflow: hidden;
+}
+
+.vault-meter span {
+  display: block;
+  height: 100%;
+  background: var(--brand);
+}
+
+.vault-meter .vault-meter-full {
+  background: #c0392b;
+}
+
+.vault-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.vault-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+
+.vault-kind {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--soft);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.vault-info {
+  flex: 1;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.vault-name {
+  overflow-wrap: anywhere;
+}
+
+.vault-soon {
+  color: #a3341f;
+  font-weight: 600;
+}
+
+.vault-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.vault-actions .btn svg {
+  margin-right: 4px;
+}
+
+.vault-empty {
+  padding: 32px 16px;
+}
+
+.vault-pages {
+  gap: 16px;
+  justify-content: center;
+  border-radius: 12px;
+  background: var(--brand);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.community-badge-sm {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  font-size: 12px;
+}
+
+.community-badge-lg {
+  width: 72px;
+  height: 72px;
+  border-radius: 18px;
+  font-size: 24px;
+  border: 4px solid #ffffff;
+  margin-top: -44px;
+}
+
+.community-joined {
+  background: var(--brand-tint);
+  color: var(--brand-tint-text);
+  border-color: transparent;
+}
+
+.community-list,
+.community-discussions,
+.community-replies,
+.community-people {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.community-item,
+.community-discussion,
+.community-person {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.community-discussion {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.community-item-text {
+  display: flex;
+  flex: 1;
+}
+
+/* People to tag as you type (owner, 23 Oct 2026): avatar, name, then @handle and how you're connected. */
+.tag-picker {
+  position: relative;
+}
+
+.tag-people {
+  max-width: 360px;
+  margin-top: 6px;
+}
+
+.tag-people li {
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.tag-person {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.community-item-name,
+.community-person-name {
+  font-weight: 600;
+}
+
+.tag-person b,
+.tag-person span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.community-person-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.community-item-desc {
+  color: var(--muted);
+  font-size: 13px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.community-search {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+}
+
+.community-search input {
+  flex: 1;
+  min-width: 0;
+}
+
+.community-start-card {
+  margin: 12px 16px;
+}
+
+.community-cover {
+  height: 96px;
+  background: linear-gradient(135deg, var(--brand) 0%, #0089ad 100%);
+}
+
+.community-head {
+  border-bottom: 1px solid var(--line);
+}
+
+.community-locked {
+  margin: 24px 16px;
+  padding: 24px 16px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.community-discussion-body,
+.community-reply-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.community-discussion-body {
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 4px 0 0;
+}
+
+.community-thread .community-discussion-body {
+  color: var(--ink);
+  display: block;
+  -webkit-line-clamp: unset;
+}
+
+.community-reply {
+  display: flex;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.community-reply-form,
+.community-start,
+.community-start-form,
+.community-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 16px;
+}
+
+.community-rules {
+  white-space: pre-wrap;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--soft);
+}
+
+.community-visibility {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.community-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.community-choice input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.community-choice:focus-within {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.community-choice-on {
+  border-color: var(--brand);
+  background: var(--brand-tint);
+}
+
+.community-share {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.community-share-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.community-share-recommended {
+  border-color: var(--brand);
+}
+
+.community-share-why {
+  color: var(--brand-tint-text);
+}
+
+.community-invite {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-bottom: 1px solid var(--line);
+}
+
+.community-invite input {
+  flex: 1;
+  min-width: 0;
+}
+
+.an-chart {
+  margin: 0;
+}
+
+.an-chart-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.an-chart-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.an-legend {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.an-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.an-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex: none;
+}
+
+.an-plot {
+  position: relative;
+}
+
+.an-plot svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  touch-action: pan-y;
+}
+
+.an-grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.an-crosshair {
+  stroke: var(--muted);
+  stroke-width: 1;
+}
+
+.an-dot {
+  stroke: #ffffff;
+  stroke-width: 2;
+}
+
+.an-tick {
+  fill: var(--muted);
+  font-size: 11px;
+  font-family: var(--font);
+}
+
+.an-tip {
+  position: absolute;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 4px 14px rgba(17, 17, 17, 0.12);
+  font-size: 12px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.an-locked {
+  position: relative;
+}
+
+.an-locked .an-charts {
+  filter: blur(6px);
+  opacity: 0.6;
+  user-select: none;
+}
+
+.an-upgrade {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  padding: 16px;
+}
+
+.an-table-wrap {
+  max-height: 360px;
+  overflow: auto;
+}
+
+.an-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.an-table th,
+.an-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+}
+
+.an-table th[scope="row"],
+.an-table thead th:first-child {
+  text-align: left;
+  font-weight: 500;
+}
+/* Household cars (owner, 22 Oct 2026). */
+.cars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.car {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.car-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  flex: none;
 }

@@ -5,12 +5,12 @@ import { useState, useTransition } from "react";
 import { castVote } from "@/actions/engagement";
 import { followBlocker } from "@/lib/blockers";
 import type { VoteChoice, VoteSummaryDto } from "@/lib/types";
-import { VOTE_CHOICE_LABEL, VOTE_QUESTION, voteClosingText, voteCount, votePercentages } from "@/lib/votes";
+import { voteClosingText, voteCount, votePercentages } from "@/lib/votes";
 
 import { toast } from "./toast";
 
 /**
- * A post's vote: "Who's at fault?" or "How bad was it?". Answers are buttons until you vote; then (and for the author,
+ * A post's vote, worded for its main subcategory (e.g. "Was the pavement blocked?"). Answers are buttons until you vote; then (and for the author,
  * and once voting has closed) the results show as bars, with your answer marked. You can change your vote until it
  * closes. Signed-out visitors are sent to sign in; they see results once there are 10 votes.
  */
@@ -28,7 +28,9 @@ export function VotePanel({
   const [vote, setVote] = useState(initial);
   const [changing, setChanging] = useState(false);
   const [pending, startTransition] = useTransition();
-  const question = VOTE_QUESTION[vote.kind];
+  const question = vote.question;
+  const choices = vote.answers.map((a) => a.choice);
+  const label = (choice: VoteChoice) => vote.answers.find((a) => a.choice === choice)?.label ?? choice;
   const closing = voteClosingText(vote);
   const showResults = vote.results !== null && !changing;
 
@@ -50,7 +52,7 @@ export function VotePanel({
     });
   };
 
-  const percentages = votePercentages(vote.results ?? {}, vote.choices);
+  const percentages = votePercentages(vote.results ?? {}, choices);
 
   return (
     <section className="vote" aria-labelledby={`vote-${postId}`}>
@@ -62,13 +64,13 @@ export function VotePanel({
       </div>
       {showResults ? (
         <ul className="vote-results">
-          {vote.choices.map((choice) => {
+          {choices.map((choice) => {
             const mine = vote.myChoice === choice;
             return (
               <li key={choice} className={`vote-result${mine ? " vote-mine" : ""}`}>
                 <span className="vote-bar" style={{ width: `${percentages[choice]}%` }} aria-hidden="true" />
                 <span className="vote-label">
-                  {VOTE_CHOICE_LABEL[choice]}
+                  {label(choice)}
                   {mine ? <span className="vote-you"> · Your vote</span> : null}
                 </span>
                 <span className="vote-pct">{percentages[choice]}%</span>
@@ -78,7 +80,7 @@ export function VotePanel({
         </ul>
       ) : (
         <div className="vote-choices" role="group" aria-label={question}>
-          {vote.choices.map((choice) => (
+          {choices.map((choice) => (
             <button
               key={choice}
               type="button"
@@ -87,7 +89,7 @@ export function VotePanel({
               disabled={pending || (signedIn && !vote.canVote)}
               onClick={() => choose(choice)}
             >
-              {VOTE_CHOICE_LABEL[choice]}
+              {label(choice)}
             </button>
           ))}
         </div>

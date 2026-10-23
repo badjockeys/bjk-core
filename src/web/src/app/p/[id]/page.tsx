@@ -13,16 +13,15 @@ import { HashtagText } from "@/components/HashtagText";
 import { ClockIcon, SpinnerIcon } from "@/components/icons";
 import { LinkExpiryRefresh } from "@/components/LinkExpiryRefresh";
 import { PostMoreMenu } from "@/components/PostMoreMenu";
+import { shareVideoFor } from "@/lib/share-video";
 import { WithPassengers } from "@/components/PostPeople";
 import { ProcessingWatcher } from "@/components/ProcessingWatcher";
 import { isBlurred } from "@/components/PostMedia";
 import { FollowPostButton } from "@/components/FollowPostButton";
 import { SilentVideo } from "@/components/SilentVideo";
 import { ReachStats } from "@/components/ReachStats";
-import { ReactionBar } from "@/components/ReactionBar";
-import { SaveButton } from "@/components/SaveButton";
+import { PostFooter } from "@/components/PostFooter";
 import { SeenMarker } from "@/components/SeenMarker";
-import { ShareButton } from "@/components/ShareButton";
 import { VotePanel } from "@/components/VotePanel";
 import { SensitiveCover } from "@/components/SensitiveCover";
 import { TagRequest } from "@/components/TagRequest";
@@ -61,19 +60,33 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       ? (first.previewUrl ?? null)
       : (first.thumbnailUrl ?? (first.mediaType === "Image" ? (first.feedUrl ?? first.playbackUrl) : null));
   const visible = post.status === "Published" && (post.mediaState ?? "Ready") === "Ready";
+  // Video posts also share the (blurred, silent) video, so Facebook, WhatsApp and others can play it in the preview.
+  // Never for sensitive posts, whose real files are behind short-lived links.
+  const video =
+    visible && !post.isSensitive && first?.mediaType === "Video" && first.playbackUrl
+      ? {
+          url: first.playbackUrl,
+          secureUrl: first.playbackUrl,
+          type: "video/mp4",
+          width: first.width ?? undefined,
+          height: first.height ?? undefined,
+        }
+      : null;
+  const og = {
+    title: post.title,
+    description,
+    url: postPath(post.id),
+    siteName: "Bad Jockeys",
+    images: image ? [{ url: image, alt: `${categoryLabel(post.category)}${where}` }] : undefined,
+  };
   return {
     title: post.title,
     description,
     alternates: { canonical: postPath(post.id) },
     robots: visible && !post.isSensitive ? undefined : { index: false, follow: false },
-    openGraph: {
-      type: "article",
-      title: post.title,
-      description,
-      url: postPath(post.id),
-      publishedTime: post.createdAt,
-      images: image ? [{ url: image, alt: `${categoryLabel(post.category)}${where}` }] : undefined,
-    },
+    openGraph: video
+      ? { ...og, type: "video.other", videos: [video] }
+      : { ...og, type: "article", publishedTime: post.createdAt },
     twitter: { card: image ? "summary_large_image" : "summary", title: post.title, description },
   };
 }
@@ -145,6 +158,7 @@ export default async function PostPage({ params, searchParams }: Props) {
             className="icon-btn"
             afterDelete="home"
             commentSetting={post.commentSetting}
+            shareVideo={shareVideoFor(post)}
           />
         </div>
         <WithPassengers passengers={post.passengers} showPending={isMine} />
@@ -183,6 +197,12 @@ export default async function PostPage({ params, searchParams }: Props) {
             <div className="fact">
               <span className="small muted">Vehicle</span>
               <span>{describeVehicle(post.vehicle)}</span>
+            </div>
+          ) : null}
+          {post.filmedFrom ? (
+            <div className="fact">
+              <span className="small muted">Filmed from</span>
+              <span>{post.filmedFrom.label}</span>
             </div>
           ) : null}
           {post.reportedToPolice !== null && post.reportedToPolice !== undefined ? (
@@ -224,27 +244,31 @@ export default async function PostPage({ params, searchParams }: Props) {
 
         {!processing && post.status === "Published" ? (
           <>
-            <ReactionBar
-              postId={post.id}
-              counts={post.reactions}
-              mine={post.myReaction}
-              signedIn={viewer.signedIn}
-            />
             {post.vote ? (
               <VotePanel postId={post.id} initial={post.vote} signedIn={viewer.signedIn} isMine={isMine} />
             ) : null}
-            <div className="row row-wrap post-tools">
-              {/* Authors always follow their own posts, so there's nothing to choose. */}
-              {isMine ? null : (
+            {/* Authors always follow their own posts, so there's nothing to choose. */}
+            {isMine ? null : (
+              <div className="row row-wrap post-tools">
                 <FollowPostButton
                   postId={post.id}
                   following={post.isFollowing ?? false}
                   signedIn={viewer.signedIn}
                 />
-              )}
-              <SaveButton postId={post.id} saved={post.isSaved ?? false} signedIn={viewer.signedIn} />
-              <ShareButton path={here} title={post.title} postId={post.id} />
-            </div>
+              </div>
+            )}
+            <PostFooter
+              postId={post.id}
+              title={post.title}
+              href={here}
+              counts={post.reactions}
+              mine={post.myReaction ?? null}
+              commentCount={post.commentCount}
+              shareCount={post.shareCount ?? 0}
+              saved={post.isSaved ?? false}
+              signedIn={viewer.signedIn}
+              commentHref="#comments"
+            />
             {isMine ? null : <SeenMarker postId={post.id} immediate />}
           </>
         ) : null}
@@ -379,7 +403,8 @@ function OwnerNotices({ post, kind }: { post: PostDto; kind: string | null }) {
         <div className="notice" role="status">
           <span>
             <strong>A moderator is checking your post.</strong> Others will see it once it&apos;s been
-            approved.
+            approved. Posts are checked when we can&apos;t see a vehicle in the photos or video, when members
+            report them as not about driving, or when the words need a second look.
           </span>
         </div>
       </div>

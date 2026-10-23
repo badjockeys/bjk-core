@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { shareVideoFor } from "@/lib/share-video";
 import { categoryHref, categoryLabel, postTypes } from "@/lib/categories";
 import { timeAgo } from "@/lib/format";
 import { postPath, profilePath } from "@/lib/paths";
@@ -9,14 +10,12 @@ import type { Viewer } from "@/lib/viewer";
 
 import { Avatar } from "./Avatar";
 import { HashtagText } from "./HashtagText";
-import { CommentIcon, PinIcon, TagIcon } from "./icons";
+import { PinIcon, TagIcon } from "./icons";
+import { PostFooter } from "./PostFooter";
 import { PostMedia } from "./PostMedia";
 import { PostMoreMenu } from "./PostMoreMenu";
 import { WithPassengers } from "./PostPeople";
-import { ReactionCount } from "./ReactionCount";
-import { SaveButton } from "./SaveButton";
 import { SeenMarker } from "./SeenMarker";
-import { ShareButton } from "./ShareButton";
 
 const FEED_TEXT_LIMIT = 280;
 
@@ -67,6 +66,7 @@ export function PostCard({ post, viewer }: { post: PostDto; viewer: Viewer }) {
             isMine={isMine}
             signedIn={viewer.signedIn}
             commentSetting={post.commentSetting}
+            shareVideo={shareVideoFor(post)}
           />
         </div>
         <WithPassengers passengers={post.passengers} showPending={isMine} />
@@ -89,6 +89,7 @@ export function PostCard({ post, viewer }: { post: PostDto; viewer: Viewer }) {
             </span>
           ) : null}
           {post.vehicle ? <span>{describeVehicle(post.vehicle)}</span> : null}
+          {post.filmedFrom ? <span>Filmed from: {post.filmedFrom.label}</span> : null}
           {post.reportedToPolice ? <span>Reported to police</span> : null}
           {post.isSensitive ? <span>Sensitive</span> : null}
         </div>
@@ -103,20 +104,17 @@ export function PostCard({ post, viewer }: { post: PostDto; viewer: Viewer }) {
           ))}
         </ul>
         <PostMedia post={post} signedIn={viewer.signedIn} />
-        <div className="tw-actions">
-          <Link href={`${href}#comments`} className="tw-act" aria-label={`${post.commentCount} comments`}>
-            <CommentIcon />
-            {post.commentCount}
-          </Link>
-          <ReactionCount
-            postId={post.id}
-            total={totalReactions(post)}
-            mine={post.myReaction}
-            signedIn={viewer.signedIn}
-          />
-          <SaveButton postId={post.id} saved={post.isSaved ?? false} signedIn={viewer.signedIn} />
-          <ShareButton path={href} title={post.title} postId={post.id} />
-        </div>
+        <PostFooter
+          postId={post.id}
+          title={post.title}
+          href={href}
+          counts={post.reactions}
+          mine={post.myReaction ?? null}
+          commentCount={post.commentCount}
+          shareCount={post.shareCount ?? 0}
+          saved={post.isSaved ?? false}
+          signedIn={viewer.signedIn}
+        />
       </div>
     </article>
   );

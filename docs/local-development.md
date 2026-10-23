@@ -454,6 +454,7 @@ On your machine nothing needs a supplier account: S3Mock stands in for R2, email
 | `Media:Storage:ServiceUrl` | `https://<account id>.r2.cloudflarestorage.com` | A Cloudflare account |
 | `Media:Storage:AccessKeyId`, `SecretAccessKey` (secrets) | An R2 token with Object Read & Write on the live buckets only | A Cloudflare account |
 | `Media:Storage:OriginalsBucket`, `PublicBucket`, `SensitiveBucket` | e.g. `bjk-live-originals` (CORS `PUT` from the web app, 90-day deletion rule), `bjk-live-public`, `bjk-live-sensitive` (private) | The buckets (Terraform) |
+| `Media:Storage:VaultBucket` | e.g. `bjk-live-vault`: private, CORS `PUT` and `GET` from the web app, **no** deletion rule | The vault: people's originals for up to 3 years. Optional: without it the vault uses the sensitive bucket, which then needs the same CORS rule |
 | `Media:Storage:PublicBaseUrl` | The public bucket's domain behind Cloudflare, e.g. `https://media.badjockeys.com/` | The domain |
 | `Media:Processing:FfmpegPath`, `FfprobePath` | Paths in the worker image, e.g. `/usr/bin/ffmpeg` | |
 | `Media:Redaction:FaceModelPath`, `PlateModelPath`, `PersonModelPath` | Paths to the three models in the worker image (set by its Dockerfile) | The models in the image |
@@ -580,6 +581,16 @@ locally it uses the real head-turn check and stand-ins for Yoti that answer age 
   England and Wales, or call 101 in Scotland and Northern Ireland. It asks for the original, unedited file (ours is
   blurred and silent) within 7 to 14 days. Nothing is sent or recorded by us. The composer no longer asks whether it
   was reported; older posts still show their answer.
+- **Vault:** on your own profile, the **Vault** tab (`/u/{you}?tab=vault`, `GET /api/vault`) lists your original
+  clips: the originals of your posts, kept automatically while there's room, and clips you add (uploaded straight to
+  the vault bucket, `POST /api/vault/uploads`). Download, delete, or **Post it** (`/post/new?vault={id}`: the composer
+  fetches the clip and adds it as if you'd chosen it). Free keeps clips 30 days in 2 GB, Premium 12 months in 25 GB,
+  Premium + 3 years in 100 GB. Only you can see it; the originals aren't blurred.
+- **Sharing to other apps:** on your own video post, the ⋯ menu's **Download for TikTok, Reels and Shorts** asks the
+  API for a vertical copy (`POST`/`GET /api/media/{id}/share-copy`; the media worker makes it from the blurred, silent
+  video, with a watermark and end card), then offers the download and a caption to paste with the link back. Only the
+  poster can download it; photos and sensitive posts can't. Post links shared anywhere show the video in the preview
+  (`og:video`), except for sensitive posts.
 - **Hashtags** in posts' titles and descriptions link to the tag's page (`/tag/m62`, from
   `GET /api/posts?hashtag=`). Typing `#` in the composer suggests tags, most used first (`GET /api/hashtags`). The
   right panel's **Trending** card lists the hashtags and towns with the most posts today against their usual level
@@ -593,10 +604,23 @@ locally it uses the real head-turn check and stand-ins for Yoti that answer age 
   (`/following`) and your **custom timelines** (`/t/{id}`, made on `/timelines`: one or more types of bad driving,
   optionally near a place; Free 1, Premium 5, Premium + 10), as tabs at the top of Home. The old category tabs are
   gone; category pages (`/c/{slug}`) open from Category trends.
+- **Following:** Follow buttons on profiles and in the right panel's **Who to follow** (adults who posted most in the last 90 days near your home area, or where you post, else across the UK);
+- **Categories:** 13 groups (Parking, Speeding, Overtaking, ...) of 74 subcategories, each group with its own "Other"
+  (signed off 23 Oct 2026; the list is `src/web/src/lib/categories.ts`, a copy of `IncidentTaxonomy` in
+  BJK.Modules). A post has up to 3 subcategories, picked in the composer by searching ("pave" finds "Parked on the
+  pavement") or by opening a group; the first is the main one, and its own vote ("Was the pavement blocked?") goes
+  on the post. `/c/parking` is a whole group's feed and `/c/parked-on-the-pavement` one subcategory's. The heat map
+  and timelines filter by whole groups or single subcategories.
 - **Following:** Follow buttons on profiles and in the right panel's **Who to follow** (adults near your home area);
   profiles show follower and following counts, with lists at `/u/{handle}/followers` and `/following`. A post's ⋯
   menu can limit comments to people you follow. The optional mobile number lives on the identity server
   (Account → Mobile number).
+- **Post analytics:** under your own post, **Analytics** opens graphs of views (and local views), reactions, comments
+  and shares since posting: hour by hour for 48 hours, then day by day, then week by week after 90 days, with a table
+  view. Premium and Premium + only; on Free the graphs are blurred with a link to Premium (the API sends no points).
+- **Your cars:** Account → **Your cars** (`/account/cars`) keeps up to 5 household cars (make, model, colour and a
+  nickname; never a registration). The post form's **Filmed from** picks one, and the post shows "Filmed from:
+  Dave's Golf". Renaming a car renames it on its posts.
 - **Uploads** go straight from the browser to storage: the web server asks the API for a signed link
   (`POST /api/media/uploads`), the browser `PUT`s the file to S3Mock (or R2) with a progress bar, then the web server
   tells the API it's there. Photos are shrunk in the browser first; videos are trimmed to at most 30 seconds and
@@ -619,6 +643,20 @@ Ask for the API's scopes when you sign in with the identity server's local test 
 
 Posting and commenting also need a confirmed email address (confirm it from the link in the identity server's console).
 
+## Communities
+
+Communities (`/communities` in the web app; `api/communities` in the Posts module) are groups around a place or a topic. To try them locally:
+
+- **Start one** at `/communities/new`. Only Premium and Premium+ members can, up to 5 each. Your own account has Premium+ locally (see Example users and posts), or set a plan for another user through `Plans:Overrides`.
+- **Public or private.** Anyone can read a public community and join straight away. A private one is ask-to-join: an admin or moderator approves the request under **Manage community → Requests**. Under-18s can join public communities only and can't run one.
+- **Area.** An optional place and radius (5, 10, 15, 25 or 50 km). When a member posts something inside it, the post form recommends the community and ticks it; the post stays public either way.
+- **Inside:** posts shared into it, and text discussions with replies. Authors and the community's admins and moderators can remove them; anyone can report them.
+- **Invitations:** admins and moderators invite people by @handle under **Manage community → Invited**. The invitee gets a notification and accepts or declines on the community's page (a private one too, if they're an adult).
+- **Notifications:** a request to join goes to the community's admins and moderators, an approval to the person who asked, an invitation to the invitee, and a reply to the discussion's author. Each one opens the community page and can be turned off in the notification settings.
+- **Example data:** six communities (see Example users and posts).
+
+The e2e mock server (`src/web/e2e/mock-server.mjs`) seeds three communities, so the web tests cover joining, discussions and sharing from the post form.
+
 ## Online safety checks
 
 What runs on your machine, and what doesn't. The setup prints the same summary at the end.
@@ -632,6 +670,9 @@ What runs on your machine, and what doesn't. The setup prints the same summary a
 | Blocked web addresses | On, against **one test entry**: `blocked-url-test.example` | Moderators' entries; the **IWF URL List** once we're members |
 | Threats, slurs and abuse in text | Built-in keyword list (the Detoxify classifier isn't run locally) | Keyword list, plus Detoxify if `Screening:Endpoint` is set |
 | Personal details in text | On (plates, phone numbers, emails, street addresses, social handles) | On |
+| Links in posts | On: web addresses in a post's title, description or place name are refused | On |
+| No vehicle in the photos or video | On (the vehicle detector that blurs plate areas). A post where nothing shows a vehicle is held for a moderator | On |
+| "Not about driving" and spam reports | On: 3 established members, or 1 Trusted reporter, hold the post for a moderator; 2 removals in 30 days pause posting for 7 days (`Safety:OffTopic`) | On |
 
 **Nothing on your machine is ever checked against the real IWF lists**, and nothing needs to be kept up to date here: the lists live in SQL (`media.KnownImageHashes`, `posts.BlockedUrls`) and, when deployed, a sync job fetches each provider's list over its API every 6 hours. Locally the only entries are the `Test` rows the setup adds.
 
@@ -640,6 +681,8 @@ What runs on your machine, and what doesn't. The setup prints the same summary a
 - **Known image:** post `scripts/sql/safety-test/known-image-test.png` (a yellow and black "TEST IMAGE" card; it's harmless). The upload fails with "This file can't be posted.", nothing is published, and the match appears in `badjockeys.media.KnownImageMatches` (and `GET /api/admin/known-images/matches` as an admin). A resized or re-saved copy is caught too, by its perceptual hash. Uploads are checked by the media worker, so it must be running.
 - **Blocked address:** write a post or comment containing `blocked-url-test.example/anything`. It's held for review (only you see it) with the label `blocked_url`.
 - **Nudity and graphic content:** the scores of every upload are in `badjockeys.media.Media` (`NudityScore`, `SensitiveScore`). Don't test with real explicit or gory pictures; ordinary dashcam footage should score near 0.
+- **No vehicle:** post a photo with no vehicle in it (a picture of a room or a pet). Once it's processed, the post shows "A moderator is checking your post" and is in the held queue with the label `no_vehicle`. `VehicleFrames` in `badjockeys.media.Media` is 0 for it (null if vehicle detection was off).
+- **Links:** a post titled "Cheap dashcams at dashcams.shop" is refused with "Links can't be included in posts". The post form says so before sending.
 - **Re-add the test entries** (for example after resetting the database): `node scripts/sql/safety-test/seed.mjs`.
 
 **IWF test environment.** The IWF doesn't publish a public sandbox for its lists. When we join, ask them for test credentials and a test feed (or a set of test hashes and URLs) for DEV and QA, so the first real sync isn't in production. The code is ready for that: each list is a "source" with its own sync, and DEV and QA can point at the test feed while production uses the live one. Until then, DEV and QA use the same `Test` entries as your machine.
@@ -657,10 +700,14 @@ The setup fills a fresh install with example data, so the feed, map and notifica
 It adds 108 example members and 300 posts across the UK, mostly around Merseyside, Manchester, Leeds and London. It takes about a minute: the first run also makes six short placeholder clips with ffmpeg (kept in `.local/example-videos`).
 
 - **Posts:** every category, with vehicle details, and enough posts close together for the heat map. About half have photos (2 to 6 placeholder dashcam frames marked "Example clip") and the rest have one 8-second placeholder clip, so Reels has plenty in it. That follows the posting rule: up to 10 photos or one video.
-- **Activity:** reactions on posts and comments (Like, Angry, Shocked, Laugh), comments and replies (every member has written both), "Who's at fault?" and "How bad was it?" votes, followed posts, bookmarks, follows between members, views (some local, some from signed-out visitors) and shares.
+- **Activity:** reactions on posts and comments (Like, Heart, Angry, Shocked), comments and replies (every member has written both), "Who's at fault?" and "How bad was it?" votes, followed posts, bookmarks, follows between members, views (some local, some from signed-out visitors) and shares.
+- **Posts:** most subcategories (made from `taxonomy.mjs`, the same list as the app's), with vehicle details, and enough posts close together for the heat map. About half have photos (2 to 6 placeholder dashcam frames marked "Example clip") and the rest have one 8-second placeholder clip, so Reels has plenty in it. That follows the posting rule: up to 10 photos or one video.
+- **Activity:** reactions on posts and comments (Like, Angry, Shocked, Laugh), comments and replies (every member has written both), votes (each post's own question, from its main subcategory), followed posts, bookmarks, follows between members, views (some local, some from signed-out visitors) and shares.
 - **Members:** home areas (so local views and area alerts work), badges (all founding members, 8 trusted reporters, 18 local regulars), and a few with their own vote closing time. Some votes have closed, and the ones that closed in the last day get their results sent the first time the API's VoteResults job runs, so a few "Voting has closed" notifications turn up.
 - **Sign in as an example member:** for example `dave@example.test` (@dashcam_dave) or `priya@example.test` (@pedal_power_priya), password `BadJockeys!2026`. The generated members are `<handle>@example.test`; the seed prints the first few, and `SELECT Email FROM idsrv.auth.AspNetUsers WHERE Id LIKE 'e0000000%'` lists them all. They're all adults who have passed the age check, with confirmed emails.
 - **Your own account** (`aaron.greenhalgh@badjockey.com`; change `OWNER_EMAIL` in `scripts/sql/example-data/data.mjs`) gets Premium+ through `Plans:Overrides` in the API's user secrets. Once it has a profile, Dashcam Dave tags it as a passenger on one post (you'll see it under **Approve tags** and in the bell), it follows the hand-written members and a few more, and about 20 members follow it. If you sign up after the setup, run the setup again.
+- **Communities:** Knowsley Road Watch, Manchester Road Watch and London Riders (public, with an area), Leeds School Run (private, with requests waiting), Cyclists UK (a public topic) and HGV Drivers (a private topic), each run by a hand-written member, with members from inside their area, posts shared into them, discussions and replies. Your own account is a moderator of Leeds School Run, so **Manage community → Requests** has people waiting. If you've already made a community with one of those names locally, the example one's address gets `-example` on the end.
+- **Your own account** (`aaron.greenhalgh@badjockey.com`; change `OWNER_EMAIL` in `scripts/sql/example-data/data.mjs`) gets Premium+ through `Plans:Overrides` in the API's user secrets. Once it has a profile, Dashcam Dave tags it as a passenger on one post (you'll see it under **Approve tags** and in the bell), it follows the hand-written members and a few more, and about 20 members follow it, so tagging a passenger shows them first as you type (try `Da` for Dashcam Dave). If you sign up after the setup, run the setup again.
 - **What it touches:** only rows whose ids start `e0000000`, and what other people did to them.
 - **Changing it:** the hand-written members and posts are in `data.mjs`; `generate.mjs` grows them into the full set from a fixed random seed, so every run makes exactly the same data. `build-sql.mjs` turns that into SQL, which `seed.mjs` runs. To run the SQL by hand instead, write it to `seed.sql` (not committed) with `node scripts/sql/example-data/build-sql.mjs`.
 - **CI** applies the example data twice to its own database and checks the row counts (`pipelines/scripts/example-data-check.sh`), so a schema change that would break it fails there.

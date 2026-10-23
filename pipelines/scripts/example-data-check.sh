@@ -47,6 +47,10 @@ node --input-type=module -e '
     PostViews: sum((p) => p.views.length),
     Follows: d.follows.length, Bookmarks: d.bookmarks.length,
     VideoPosts: d.posts.filter((p) => p.video).length,
+    Communities: d.communities.length,
+    CommunityMembers: d.communities.reduce((n, c) => n + c.members.length, 0),
+    CommunityPosts: d.communities.reduce((n, c) => n + c.shares.length, 0),
+    CommunityReplies: d.communities.reduce((n, c) => n + c.discussions.reduce((m, x) => m + x.replies.length, 0), 0),
   }));
 ' "$RUNNER_TEMP/seed.sql" "$RUNNER_TEMP/expected.json"
 echo "SQL: $(wc -c < "$RUNNER_TEMP/seed.sql") bytes"
@@ -86,12 +90,16 @@ SELECT
   (SELECT COUNT(*) FROM badjockeys.posts.PostViews WHERE PostId LIKE 'e0000000%'),
   (SELECT COUNT(*) FROM badjockeys.profiles.Follows WHERE FollowerId LIKE 'e0000000%'),
   (SELECT COUNT(*) FROM badjockeys.posts.Bookmarks WHERE PostId LIKE 'e0000000%'),
-  (SELECT COUNT(*) FROM badjockeys.posts.Posts WHERE Id LIKE 'e0000000%' AND HasVideo = 1);
+  (SELECT COUNT(*) FROM badjockeys.posts.Posts WHERE Id LIKE 'e0000000%' AND HasVideo = 1),
+  (SELECT COUNT(*) FROM badjockeys.posts.Communities WHERE Id LIKE 'e0000000%'),
+  (SELECT COUNT(*) FROM badjockeys.posts.CommunityMembers WHERE CommunityId LIKE 'e0000000%'),
+  (SELECT COUNT(*) FROM badjockeys.posts.CommunityPosts WHERE CommunityId LIKE 'e0000000%'),
+  (SELECT COUNT(*) FROM badjockeys.posts.CommunityReplies WHERE Id LIKE 'e0000000%');
 SQL
 )
 actual=$(echo "$actual" | tr -d '[:space:]')
-expected=$(jq -r '[.Profiles, .Posts, .Comments, .Reactions, .PostVotes, .PostViews, .Follows, .Bookmarks, .VideoPosts] | map(tostring) | join("|")' "$RUNNER_TEMP/expected.json")
+expected=$(jq -r '[.Profiles, .Posts, .Comments, .Reactions, .PostVotes, .PostViews, .Follows, .Bookmarks, .VideoPosts, .Communities, .CommunityMembers, .CommunityPosts, .CommunityReplies] | map(tostring) | join("|")' "$RUNNER_TEMP/expected.json")
 echo "Expected $expected"
 echo "Actual   $actual"
-[ "$actual" = "$expected" ] || fail "Example data counts (profiles|posts|comments|reactions|votes|views|follows|bookmarks|videos): expected $expected, got $actual."
+[ "$actual" = "$expected" ] || fail "Example data counts (profiles|posts|comments|reactions|votes|views|follows|bookmarks|videos|communities|members|shared posts|replies): expected $expected, got $actual."
 echo "Example data OK."

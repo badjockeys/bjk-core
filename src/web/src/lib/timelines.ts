@@ -1,15 +1,14 @@
 // Helpers for custom timelines (UI step 6). No browser or server APIs, so they can be tested on their own.
 
-import { categoryLabel } from "./categories";
+import { describeTypes } from "./categories";
 import type { SubscriptionPlan, TimelineDto } from "./types";
 
 /** The radiuses a timeline's place can have, in km (the API's list). */
 export const TIMELINE_RADIUSES: readonly number[] = [2, 5, 10, 25, 50];
 
-/** "Bad parking, Speeding · within 10 km of Prescot", or "· anywhere". */
+/** "Parking and Tailgating · within 10 km of Prescot", or "· anywhere". */
 export function describeTimeline(t: Pick<TimelineDto, "types" | "placeName" | "radiusKm">): string {
-  const types =
-    t.types.length <= 3 ? t.types.map(categoryLabel).join(", ") : `${t.types.length} types of bad driving`;
+  const types = describeTypes(t.types);
   return t.placeName && t.radiusKm
     ? `${types} · within ${t.radiusKm} km of ${t.placeName}`
     : `${types} · anywhere`;

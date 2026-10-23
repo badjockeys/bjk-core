@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { getPost } from "@/actions/posts";
 import { loadMoreReels, recordReelPlay } from "@/actions/reels";
+import { shareVideoFor } from "@/lib/share-video";
 import { categoryLabel } from "@/lib/categories";
 import { duration, timeAgo } from "@/lib/format";
 import { earliestExpiry, refreshDelay } from "@/lib/links";
@@ -386,6 +387,7 @@ function ReelSlide({
             isMine={viewer.userId === post.author.id}
             signedIn={viewer.signedIn}
             className="icon-btn"
+            shareVideo={shareVideoFor(post)}
           />
         </div>
 

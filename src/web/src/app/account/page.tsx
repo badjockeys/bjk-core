@@ -76,10 +76,24 @@ export default async function AccountPage() {
           </span>
           <ChevronIcon />
         </Link>
+        <Link href="/communities" className="list-item">
+          <span className="col" style={{ gap: 0 }}>
+            <span>Communities</span>
+            <span className="small muted">People around a place or a topic: join, share and discuss</span>
+          </span>
+          <ChevronIcon />
+        </Link>
         <Link href="/bookmarks" className="list-item">
           <span className="col" style={{ gap: 0 }}>
             <span>Bookmarks</span>
             <span className="small muted">Posts you&apos;ve saved. Only you can see them</span>
+          </span>
+          <ChevronIcon />
+        </Link>
+        <Link href="/account/cars" className="list-item">
+          <span className="col" style={{ gap: 0 }}>
+            <span>Your cars</span>
+            <span className="small muted">The cars you film from, shown on your posts</span>
           </span>
           <ChevronIcon />
         </Link>

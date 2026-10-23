@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useId, useState, useTransition } from "react";
 
 import { loadCategoryTrends } from "@/actions/trends";
-import { categoryHref, categoryLabel } from "@/lib/categories";
+import { categoryHref, categoryLabel, groupLabel } from "@/lib/categories";
 import { plural } from "@/lib/format";
 import {
   TREND_RANGES,
@@ -220,7 +220,7 @@ function TrendRow({ trend, period }: { trend: CategoryTrendDto; period: string }
       <span className="trend-text">
         <b>{label}</b>
         <span className="small muted">
-          {plural(total, "incident")}
+          {groupLabel(trend.group)} · {plural(total, "incident")}
           {change ? (
             <>
               {" · "}

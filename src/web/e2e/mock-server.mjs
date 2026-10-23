@@ -5,6 +5,8 @@
 import { createHash, generateKeyPairSync, randomBytes, randomUUID, sign } from "node:crypto";
 import { createServer } from "node:http";
 
+import { BY_VALUE, GROUPS, MAX_PER_POST } from "../../../scripts/sql/example-data/taxonomy.mjs";
+
 const PORT = Number(process.env.PORT ?? 4010);
 const ORIGIN = `http://localhost:${PORT}`;
 const CLIENT_ID = "bjk-web";
@@ -99,6 +101,10 @@ function seed() {
   });
   const dave = USERS.dave.id;
   db = {
+    // Vault clips (bjk-modules media.VaultClips), with the file's bytes once uploaded.
+    vault: [],
+    // Vertical copies of videos for sharing, by media id.
+    shareCopies: new Map(),
     // Drafts of posts (bjk-modules DraftsController): up to 5 each.
     drafts: [],
     profiles: new Map([
@@ -145,7 +151,7 @@ function seed() {
         SEED.processingPost,
         USERS.roadhog.id,
         "Wrong way round the roundabout",
-        "Other",
+        "WrongLaneRoundabout",
         ["m-6"],
         ago(1),
         {
@@ -153,24 +159,24 @@ function seed() {
           mediaState: "Pending",
         },
       ),
-      post(SEED.sensitivePost, dave, "Serious crash on the A64", "RoadRage", ["m-5"], ago(30), {
+      post(SEED.sensitivePost, dave, "Serious crash on the A64", "Collision", ["m-5"], ago(30), {
         isSensitive: true,
       }),
       post(SEED.videoPost, dave, "Undertaking a lorry on the M62", "Undertaking", ["m-4"], ago(300), {
         description: "Straight up the inside at junction 26. #M62 #Undertaking",
         passengers: [{ userId: USERS.roadhog.id, status: "Pending" }],
       }),
-      post(SEED.secondVideo, dave, "Cutting up on the A64", "CuttingUp", ["m-7"], ago(400), {
+      post(SEED.secondVideo, dave, "Cutting up on the A64", "PushingInAtMerge", ["m-7"], ago(400), {
         placeName: "A64, York",
       }),
-      post(SEED.thirdVideo, dave, "Phone at the wheel in Leeds", "MobilePhoneUse", ["m-8"], ago(500), {
+      post(SEED.thirdVideo, dave, "Phone at the wheel in Leeds", "PhoneInHand", ["m-8"], ago(500), {
         placeName: "Kirkstall Road, Leeds",
       }),
       post(
         SEED.photoPost,
         dave,
         "Parked across two disabled bays, again",
-        "BadParking",
+        "DisabledBay",
         ["m-1", "m-2", "m-3"],
         ago(120),
         {
@@ -183,7 +189,7 @@ function seed() {
       [
         SEED.photoPost,
         new Map([
-          ["x1", "Like"],
+          [USERS.larry.id, "Like"],
           ["x2", "Angry"],
           ["x3", "Angry"],
         ]),
@@ -195,7 +201,8 @@ function seed() {
     publicReports: [],
     blocks: new Map(),
     // UI step 6: "follower>followee" pairs, and custom timelines.
-    follows: new Set(),
+    // Larry follows roadhog, so he's suggested first when roadhog tags a passenger.
+    follows: new Set([`${USERS.larry.id}>${USERS.roadhog.id}`]),
     timelines: [],
     appeals: [],
     reelPlays: new Map(),
@@ -239,6 +246,94 @@ function seed() {
     createdAt: ago(60 * 24 * 20),
     isMinor: false,
   });
+  // Communities: a local one roadhog is in (covers Manchester), a private one dave runs, a topic.
+  db.communities = [
+    {
+      id: "c0000000-0000-4000-8000-000000000001",
+      slug: "manchester-road-watch",
+      name: "Manchester Road Watch",
+      description: "Bad driving around Manchester and Salford.",
+      rules: "Blur plates. No doxxing.",
+      visibility: "Public",
+      placeName: "Manchester",
+      latitude: 53.4808,
+      longitude: -2.2426,
+      radiusKm: 25,
+      ownerId: USERS.dave.id,
+      createdAt: ago(60 * 24 * 30),
+    },
+    {
+      id: "c0000000-0000-4000-8000-000000000002",
+      slug: "didsbury-school-run",
+      name: "Didsbury School Run",
+      description: "Parents watching the school gates.",
+      rules: null,
+      visibility: "Private",
+      placeName: "Didsbury",
+      latitude: 53.4167,
+      longitude: -2.2333,
+      radiusKm: 5,
+      ownerId: USERS.dave.id,
+      createdAt: ago(60 * 24 * 10),
+    },
+    {
+      id: "c0000000-0000-4000-8000-000000000003",
+      slug: "cyclists",
+      name: "Cyclists",
+      description: "Close passes and dooring.",
+      rules: null,
+      visibility: "Public",
+      placeName: null,
+      latitude: null,
+      longitude: null,
+      radiusKm: null,
+      ownerId: USERS.dave.id,
+      createdAt: ago(60 * 24 * 5),
+    },
+  ];
+  db.communityMembers = [
+    ...db.communities.map((c) => ({
+      communityId: c.id,
+      userId: USERS.dave.id,
+      role: "Admin",
+      status: "Member",
+      since: c.createdAt,
+    })),
+    {
+      communityId: "c0000000-0000-4000-8000-000000000001",
+      userId: USERS.roadhog.id,
+      role: "Member",
+      status: "Member",
+      since: ago(60 * 24),
+    },
+    {
+      communityId: "c0000000-0000-4000-8000-000000000003",
+      userId: USERS.roadhog.id,
+      role: "Member",
+      status: "Member",
+      since: ago(60 * 24),
+    },
+  ];
+  db.communityPosts = [
+    {
+      communityId: "c0000000-0000-4000-8000-000000000001",
+      postId: SEED.photoPost,
+      sharedBy: USERS.roadhog.id,
+      sharedAt: ago(60),
+    },
+  ];
+  db.communityDiscussions = [
+    {
+      id: "d0000000-0000-4000-8000-000000000001",
+      communityId: "c0000000-0000-4000-8000-000000000001",
+      authorId: USERS.dave.id,
+      title: "Mancunian Way roadworks",
+      body: "Anyone else seeing people cut across at the last second?",
+      createdAt: ago(120),
+      lastActivityAt: ago(120),
+    },
+  ];
+  db.communityReplies = [];
   codes = new Map();
   refreshTokens = new Map();
   nextUser = "roadhog";
@@ -314,16 +409,6 @@ function counts(map) {
 let callerAgeVerified = false;
 
 // Engagement (bjk-modules EngagementController): votes, followed posts, bookmarks, views and shares.
-const INTERACTION_TYPES = new Set([
-  "RoadRage",
-  "DangerousOvertaking",
-  "Tailgating",
-  "CuttingUp",
-  "Undertaking",
-  "ClosePass",
-]);
-const FAULT_CHOICES = ["FilmingDriver", "OtherRoadUser", "Both", "Nobody"];
-const SEVERITY_CHOICES = ["Minor", "Careless", "Dangerous", "Shocking"];
 function engagement() {
   db.votes ??= new Map();
   db.postFollows ??= new Set();
@@ -335,17 +420,19 @@ function engagement() {
 }
 function voteDto(p, viewer) {
   const votes = engagement().votes.get(p.id) ?? new Map();
-  const kind = (p.types ?? [p.category]).some((t) => INTERACTION_TYPES.has(t)) ? "Fault" : "Severity";
-  const choices = kind === "Fault" ? FAULT_CHOICES : SEVERITY_CHOICES;
-  const mine = (viewer && votes.get(viewer)) ?? null;
-  const total = votes.size;
+  // The main subcategory's own question and answers; votes for other answers (an older question) don't count.
+  const { question, answers } = BY_VALUE.get(p.category);
+  const choices = answers.map((a) => a.choice);
+  const cast = (viewer && votes.get(viewer)) ?? null;
+  const mine = choices.includes(cast) ? cast : null;
+  const total = [...votes.values()].filter((v) => choices.includes(v)).length;
   const isAuthor = viewer === p.authorId;
   const show = isAuthor || mine !== null || (!viewer && total >= 10);
   const results = {};
   for (const c of choices) results[c] = [...votes.values()].filter((v) => v === c).length;
   return {
-    kind,
-    choices,
+    question,
+    answers,
     total,
     results: show ? results : null,
     myChoice: mine,
@@ -364,10 +451,12 @@ function postDto(p, viewer) {
     title: p.title,
     description: p.description,
     category: p.category,
+    group: BY_VALUE.get(p.category).group,
     types: p.types,
     passengers: passengersFor(p, viewer),
     vehicle: p.vehicle,
     reportedToPolice: p.reportedToPolice,
+    filmedFrom: p.filmedFrom ?? null,
     incidentAt: p.incidentAt,
     location: { latitude: p.latitude, longitude: p.longitude, placeName: p.placeName },
     status: p.status,
@@ -404,6 +493,7 @@ function postDto(p, viewer) {
     vote: voteDto(p, viewer),
     isFollowing: Boolean(viewer) && engagement().postFollows.has(`${p.id}:${viewer}`),
     isSaved: Boolean(viewer) && (engagement().bookmarks.get(viewer) ?? []).includes(p.id),
+    shareCount: engagement().shares.get(p.id) ?? 0,
   };
 }
 /** The commenter and the post's author see a comment the post's author hid; everyone else sees a placeholder. */
@@ -489,6 +579,17 @@ const problem = (res, status, detail, extra = {}) =>
     { status, title: detail, detail, ...extra },
     { "Content-Type": "application/problem+json" },
   );
+const vaultClipDto = (c) => ({
+  id: c.id,
+  fileName: c.fileName,
+  mediaType: c.mediaType,
+  contentType: c.contentType,
+  sizeBytes: c.sizeBytes,
+  source: c.source,
+  postId: c.postId,
+  createdAt: c.createdAt,
+  expiresAt: c.expiresAt,
+});
 const invalid = (res, field, message) =>
   send(res, 400, {
     status: 400,
@@ -676,21 +777,13 @@ async function identity(req, res, url) {
 }
 
 // --- API ---
-const CATEGORIES = new Set([
-  "RoadRage",
-  "DangerousOvertaking",
-  "Tailgating",
-  "MobilePhoneUse",
-  "Speeding",
-  "RedLightRunning",
-  "CuttingUp",
-  "Undertaking",
-  "LaneHogging",
-  "ClosePass",
-  "BadParking",
-  "Other",
-]);
-const REACTIONS = new Set(["Like", "Angry", "Shocked", "Laugh"]);
+const CATEGORIES = new Set(BY_VALUE.keys());
+const GROUP_NAMES = new Set(GROUPS.map((g) => g.value));
+/** A post is in a group when any of its subcategories is (no group: every post). */
+function inGroup(p, group) {
+  return !group || !GROUP_NAMES.has(group) || p.types.some((t) => BY_VALUE.get(t)?.group === group);
+}
+const REACTIONS = new Set(["Like", "Heart", "Angry", "Shocked"]);
 
 async function api(req, res, url) {
   const path = url.pathname;
@@ -739,7 +832,10 @@ async function api(req, res, url) {
     const a = reelAllowance();
     if (a.remaining === 0) return dailyLimit(a);
     const category = url.searchParams.get("category");
-    const all = db.posts.filter((p) => isReel(p) && (!category || p.types.includes(category)));
+    const group = url.searchParams.get("group");
+    const all = db.posts.filter(
+      (p) => isReel(p) && (!category || p.types.includes(category)) && inGroup(p, group),
+    );
     const start = Number(url.searchParams.get("cursor") ?? 0);
     const size = Math.min(Number(url.searchParams.get("pageSize") ?? 10), a.remaining ?? 10);
     const items = all.slice(start, start + size);
@@ -833,6 +929,7 @@ async function api(req, res, url) {
       const total = p.reduce((a, b) => a + b, 0);
       return {
         category,
+        group: BY_VALUE.get(category).group,
         suppressed: false,
         total,
         previousTotal: previous,
@@ -840,9 +937,10 @@ async function api(req, res, url) {
         points: p,
       };
     };
-    const shown = [trend("BadParking", 6, 30), trend("Tailgating", 4, 40), trend("Speeding", 2, null)];
-    const suppressed = ["RoadRage", "ClosePass"].map((category) => ({
+    const shown = [trend("DisabledBay", 6, 30), trend("Tailgating", 4, 40), trend("SpeedingInTown", 2, null)];
+    const suppressed = ["ShoutingOrGestures", "ClosePassCyclist"].map((category) => ({
       category,
+      group: BY_VALUE.get(category).group,
       suppressed: true,
       total: null,
       previousTotal: null,
@@ -916,8 +1014,8 @@ async function api(req, res, url) {
       changePercent: 12,
       busiestHour: 8,
       topCategories: [
-        { category: "BadParking", count: 5, percent: 36 },
-        { category: "Tailgating", count: 4, percent: 29 },
+        { category: "DoubleYellows", group: "Parking", count: 5, percent: 36 },
+        { category: "Tailgating", group: "FollowingTooClose", count: 4, percent: 29 },
       ],
       topPlaces: [{ name: "Kirkstall Road, Leeds", count: 6 }],
       placeName: "Kirkstall Road, Leeds",
@@ -929,6 +1027,397 @@ async function api(req, res, url) {
 
   // Home timelines (UI step 6). For you is the public feed, newest first here.
   const visibleTo = (p) => isPublic(p) && canSee(p, me);
+
+  // Communities (owner, 23 Oct 2026). Same rules as bjk-modules, simplified: Premium to create, private ones are
+  // ask-to-join (adults), the post stays public, recommended = its area covers the place.
+  const cm = (c) => db.communityMembers.find((x) => x.communityId === c.id && x.userId === me) ?? null;
+  const standing = (mem) =>
+    mem?.status === "Member"
+      ? "Member"
+      : mem?.status === "Requested"
+        ? "Requested"
+        : mem?.status === "Banned"
+          ? "Banned"
+          : mem?.status === "Invited"
+            ? "Invited"
+            : "None";
+  const isMod = (mem) => mem?.status === "Member" && (mem.role === "Admin" || mem.role === "Moderator");
+  const seesInside = (c, mem) =>
+    c.visibility === "Public" ? mem?.status !== "Banned" : mem?.status === "Member";
+  const memberCount = (c) =>
+    db.communityMembers.filter((x) => x.communityId === c.id && x.status === "Member").length;
+  const kmBetween = (a, b, c, d) => {
+    const r = (x) => (x * Math.PI) / 180;
+    const h = Math.sin(r(c - a) / 2) ** 2 + Math.cos(r(a)) * Math.cos(r(c)) * Math.sin(r(d - b) / 2) ** 2;
+    return 12742 * Math.asin(Math.sqrt(h));
+  };
+  const covers = (c, lat, lng) =>
+    c.latitude != null && lat != null && kmBetween(c.latitude, c.longitude, lat, lng) <= c.radiusKm;
+  const summaryDto = (c) => {
+    const mem = cm(c);
+    return {
+      id: c.id,
+      slug: c.slug,
+      name: c.name,
+      description: c.description,
+      visibility: c.visibility,
+      placeName: c.placeName,
+      radiusKm: c.radiusKm,
+      memberCount: memberCount(c),
+      standing: standing(mem),
+      role: mem?.status === "Member" ? mem.role : null,
+    };
+  };
+  const communityDto = (c) => {
+    const mem = cm(c);
+    const s = standing(mem);
+    const joinable = s === "None" || s === "Invited";
+    return {
+      ...summaryDto(c),
+      rules: c.rules,
+      latitude: c.latitude,
+      longitude: c.longitude,
+      owner: author(c.ownerId),
+      createdAt: c.createdAt,
+      canSeeInside: seesInside(c, mem),
+      canModerate: isMod(mem),
+      isAdmin: mem?.status === "Member" && mem.role === "Admin",
+      canJoin: Boolean(me) && joinable && (c.visibility === "Public" || viewer.ageVerified),
+    };
+  };
+  const discussionDto = (d, c) => ({
+    id: d.id,
+    title: d.title,
+    body: d.body ?? "",
+    author: author(d.authorId),
+    createdAt: d.createdAt,
+    lastActivityAt: d.lastActivityAt,
+    replyCount: db.communityReplies.filter((r) => r.discussionId === d.id).length,
+    canRemove: d.authorId === me || isMod(cm(c)),
+  });
+  const liveCommunity = (slug) => db.communities.find((c) => c.slug === slug.toLowerCase());
+  const notify = (userId, n) => {
+    if (userId === n.actorId) return;
+    const list = db.notifications.get(userId) ?? [];
+    list.push({
+      id: randomUUID(),
+      postId: null,
+      commentId: null,
+      count: 1,
+      at: new Date().toISOString(),
+      isRead: false,
+      ...n,
+    });
+    db.notifications.set(userId, list);
+  };
+  if (path === "/api/communities" && method === "GET") {
+    const kind = url.searchParams.get("kind") ?? "Near";
+    const search = (url.searchParams.get("search") ?? "").trim().toLowerCase();
+    let items = db.communities;
+    if (search) items = items.filter((c) => c.name.toLowerCase().includes(search));
+    else if (kind === "Mine") items = items.filter((c) => cm(c)?.status === "Member");
+    else if (kind === "Topics") items = items.filter((c) => c.latitude == null);
+    else items = items.filter((c) => c.latitude != null);
+    return send(res, 200, page(items, url, summaryDto));
+  }
+  if (path === "/api/communities" && method === "POST") {
+    if (!requireUser()) return;
+    if (viewer.plan !== "premium" && viewer.plan !== "premium_plus")
+      return problem(res, 403, "Starting a community needs Premium.");
+    const body = await json();
+    if (!body.name?.trim()) return invalid(res, "Name", "Give the community a name.");
+    const slug = body.name
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+    if (db.communities.some((c) => c.slug === slug)) return invalid(res, "Name", "That name is taken.");
+    const c = {
+      id: randomUUID(),
+      slug,
+      name: body.name.trim(),
+      description: body.description ?? "",
+      rules: body.rules ?? null,
+      visibility: body.visibility ?? "Public",
+      placeName: body.placeName ?? null,
+      latitude: body.latitude ?? null,
+      longitude: body.longitude ?? null,
+      radiusKm: body.radiusKm ?? null,
+      ownerId: me,
+      createdAt: new Date().toISOString(),
+    };
+    db.communities.push(c);
+    db.communityMembers.push({
+      communityId: c.id,
+      userId: me,
+      role: "Admin",
+      status: "Member",
+      since: c.createdAt,
+    });
+    return send(res, 201, communityDto(c));
+  }
+  if (path === "/api/communities/suggestions" && method === "GET") {
+    if (!requireUser()) return;
+    const lat = url.searchParams.get("latitude");
+    const lng = url.searchParams.get("longitude");
+    const postId = url.searchParams.get("postId");
+    const items = db.communities
+      .filter((c) => cm(c)?.status === "Member")
+      .map((c) => ({
+        id: c.id,
+        slug: c.slug,
+        name: c.name,
+        visibility: c.visibility,
+        placeName: c.placeName,
+        recommended: lat != null && covers(c, Number(lat), Number(lng)),
+        alreadyShared:
+          Boolean(postId) && db.communityPosts.some((s) => s.communityId === c.id && s.postId === postId),
+      }))
+      .sort((a, b) => Number(b.recommended) - Number(a.recommended));
+    return send(res, 200, items);
+  }
+  if ((m = path.match(/^\/api\/posts\/([0-9a-f-]{36})\/communities$/)) && method === "POST") {
+    if (!requireUser()) return;
+    const { communityIds = [] } = await json();
+    for (const id of communityIds) {
+      const c = db.communities.find((x) => x.id === id);
+      if (!c || cm(c)?.status !== "Member") return problem(res, 403, "Join the community first.");
+      if (!db.communityPosts.some((s) => s.communityId === id && s.postId === m[1]))
+        db.communityPosts.push({
+          communityId: id,
+          postId: m[1],
+          sharedBy: me,
+          sharedAt: new Date().toISOString(),
+        });
+    }
+    return send(
+      res,
+      200,
+      db.communityPosts.filter((s) => s.postId === m[1]).map((s) => s.communityId),
+    );
+  }
+  if ((m = path.match(/^\/api\/communities\/([a-z0-9-]+)(\/.*)?$/))) {
+    const c = liveCommunity(m[1]);
+    if (!c) return problem(res, 404, "Community not found.");
+    const rest = m[2] ?? "";
+    const mem = cm(c);
+    if (rest === "" && method === "GET") return send(res, 200, communityDto(c));
+    if (!requireUser()) return;
+    if (rest === "/join" && method === "POST") {
+      if (mem?.status === "Invited") {
+        mem.status = "Member";
+        return send(res, 200, communityDto(c));
+      }
+      if (mem) return problem(res, 400, "You're already in this community.");
+      db.communityMembers.push({
+        communityId: c.id,
+        userId: me,
+        role: "Member",
+        status: c.visibility === "Public" ? "Member" : "Requested",
+        since: new Date().toISOString(),
+      });
+      if (c.visibility === "Private") {
+        for (const x of db.communityMembers.filter((x) => x.communityId === c.id && isMod(x)))
+          notify(x.userId, {
+            type: "CommunityJoinRequest",
+            actorId: me,
+            postTitle: c.name,
+            link: `/communities/${c.slug}/manage?tab=requests`,
+          });
+      }
+      return send(res, 200, communityDto(c));
+    }
+    if (rest === "/invites" && method === "POST") {
+      if (!isMod(mem)) return problem(res, 403, "Only the community's admins and moderators can do that.");
+      const handle = String((await json()).handle ?? "")
+        .replace(/^@/, "")
+        .toLowerCase();
+      const profile = [...db.profiles.values()].find((p) => p.handle === handle);
+      if (!profile || profile.id === me)
+        return invalid(res, "Handle", `There's nobody called @${handle} you can invite.`);
+      const existing = db.communityMembers.find((x) => x.communityId === c.id && x.userId === profile.id);
+      if (existing?.status === "Member") return invalid(res, "Handle", `@${handle} is already a member.`);
+      if (existing?.status === "Banned")
+        return invalid(res, "Handle", `@${handle} is banned. Unban them first.`);
+      let row = existing;
+      if (existing?.status === "Requested") {
+        existing.status = "Member";
+        notify(profile.id, {
+          type: "CommunityRequestApproved",
+          actorId: me,
+          postTitle: c.name,
+          link: `/communities/${c.slug}`,
+        });
+      } else if (!existing) {
+        row = {
+          communityId: c.id,
+          userId: profile.id,
+          role: "Member",
+          status: "Invited",
+          since: new Date().toISOString(),
+        };
+        db.communityMembers.push(row);
+        notify(profile.id, {
+          type: "CommunityInvite",
+          actorId: me,
+          postTitle: c.name,
+          link: `/communities/${c.slug}`,
+        });
+      }
+      return send(res, 200, {
+        person: author(row.userId),
+        role: row.role,
+        status: row.status,
+        since: row.since,
+      });
+    }
+    if (rest === "/membership" && method === "DELETE") {
+      db.communityMembers = db.communityMembers.filter((x) => x !== mem);
+      return send(res, 204);
+    }
+    if (rest === "/posts" && method === "GET") {
+      if (!seesInside(c, mem))
+        return problem(res, 403, "This community is private. Ask to join to see inside.");
+      const ids = db.communityPosts.filter((s) => s.communityId === c.id).map((s) => s.postId);
+      return send(
+        res,
+        200,
+        page(
+          db.posts.filter((p) => ids.includes(p.id) && visibleTo(p)),
+          url,
+          (p) => postDto(p, me),
+        ),
+      );
+    }
+    if (rest === "/discussions" && method === "GET") {
+      if (!seesInside(c, mem))
+        return problem(res, 403, "This community is private. Ask to join to see inside.");
+      const items = db.communityDiscussions.filter((d) => d.communityId === c.id);
+      return send(
+        res,
+        200,
+        page(items, url, (d) => discussionDto(d, c)),
+      );
+    }
+    if (rest === "/discussions" && method === "POST") {
+      if (mem?.status !== "Member") return problem(res, 403, "Join the community first.");
+      const body = await json();
+      if (!body.title?.trim()) return invalid(res, "Title", "Give the discussion a title.");
+      const now = new Date().toISOString();
+      const d = {
+        id: randomUUID(),
+        communityId: c.id,
+        authorId: me,
+        title: body.title.trim(),
+        body: body.body ?? "",
+        createdAt: now,
+        lastActivityAt: now,
+      };
+      db.communityDiscussions.unshift(d);
+      return send(res, 201, discussionDto(d, c));
+    }
+    let d;
+    if ((d = rest.match(/^\/discussions\/([0-9a-f-]{36})(\/replies)?$/))) {
+      const disc = db.communityDiscussions.find((x) => x.id === d[1] && x.communityId === c.id);
+      if (!disc) return problem(res, 404, "Discussion not found.");
+      if (!d[2] && method === "GET") {
+        if (!seesInside(c, mem))
+          return problem(res, 403, "This community is private. Ask to join to see inside.");
+        const replies = db.communityReplies.filter((r) => r.discussionId === disc.id);
+        return send(res, 200, {
+          discussion: discussionDto(disc, c),
+          replies: page(replies, url, (r) => ({
+            id: r.id,
+            body: r.body,
+            author: author(r.authorId),
+            createdAt: r.createdAt,
+            canRemove: r.authorId === me || isMod(mem),
+          })),
+        });
+      }
+      if (!d[2] && method === "DELETE") {
+        if (disc.authorId !== me && !isMod(mem))
+          return problem(res, 403, "Only the community's admins and moderators can do that.");
+        db.communityDiscussions = db.communityDiscussions.filter((x) => x !== disc);
+        return send(res, 204);
+      }
+      if (d[2] && method === "POST") {
+        if (mem?.status !== "Member") return problem(res, 403, "Join the community first.");
+        const body = await json();
+        if (!body.body?.trim()) return invalid(res, "Body", "Write a reply.");
+        const r = {
+          id: randomUUID(),
+          discussionId: disc.id,
+          authorId: me,
+          body: body.body.trim(),
+          createdAt: new Date().toISOString(),
+        };
+        db.communityReplies.push(r);
+        disc.lastActivityAt = r.createdAt;
+        notify(disc.authorId, {
+          type: "CommunityReply",
+          actorId: me,
+          postTitle: disc.title,
+          detail: c.name,
+          link: `/communities/${c.slug}/d/${disc.id}`,
+        });
+        return send(res, 201, {
+          id: r.id,
+          body: r.body,
+          author: author(me),
+          createdAt: r.createdAt,
+          canRemove: true,
+        });
+      }
+    }
+    if (rest === "/members" && method === "GET") {
+      const status = url.searchParams.get("status") ?? "Member";
+      if (status !== "Member" && !isMod(mem))
+        return problem(res, 403, "Only the community's admins and moderators can do that.");
+      if (!seesInside(c, mem))
+        return problem(res, 403, "This community is private. Ask to join to see inside.");
+      const items = db.communityMembers.filter((x) => x.communityId === c.id && x.status === status);
+      return send(
+        res,
+        200,
+        page(items, url, (x) => ({
+          person: author(x.userId),
+          role: x.role,
+          status: x.status,
+          since: x.since,
+        })),
+      );
+    }
+    let r;
+    if ((r = rest.match(/^\/requests\/([0-9a-f-]{36})$/)) && method === "POST") {
+      if (!isMod(mem)) return problem(res, 403, "Only the community's admins and moderators can do that.");
+      const req2 = db.communityMembers.find(
+        (x) => x.communityId === c.id && x.userId === r[1] && x.status === "Requested",
+      );
+      if (!req2) return problem(res, 404, "Request not found.");
+      const { approve } = await json();
+      if (approve) {
+        req2.status = "Member";
+        notify(req2.userId, {
+          type: "CommunityRequestApproved",
+          actorId: me,
+          postTitle: c.name,
+          link: `/communities/${c.slug}`,
+        });
+      } else db.communityMembers = db.communityMembers.filter((x) => x !== req2);
+      return send(res, 204);
+    }
+    if ((r = rest.match(/^\/members\/([0-9a-f-]{36})$/)) && method === "DELETE") {
+      if (!isMod(mem)) return problem(res, 403, "Only the community's admins and moderators can do that.");
+      const who = db.communityMembers.find((x) => x.communityId === c.id && x.userId === r[1]);
+      if (who && url.searchParams.get("ban") === "true") who.status = "Banned";
+      else db.communityMembers = db.communityMembers.filter((x) => x !== who);
+      return send(res, 204);
+    }
+    if (rest === "/report" && method === "POST") return send(res, 204);
+    return problem(res, 404, "Not found.");
+  }
+
   const planLimit = () => (viewer.plan === "premium_plus" ? 10 : viewer.plan === "premium" ? 5 : 1);
   const planName = () =>
     viewer.plan === "premium_plus" ? "PremiumPlus" : viewer.plan === "premium" ? "Premium" : "Free";
@@ -1012,6 +1501,7 @@ async function api(req, res, url) {
   // Posts
   if (path === "/api/posts" && method === "GET") {
     const category = url.searchParams.get("type") ?? url.searchParams.get("category");
+    const group = url.searchParams.get("group");
     const handle = url.searchParams.get("author");
     const hashtag = url.searchParams.get("hashtag")?.toLowerCase();
     const authorId = handle ? [...db.profiles.values()].find((p) => p.handle === handle)?.id : null;
@@ -1020,6 +1510,7 @@ async function api(req, res, url) {
         isPublic(p) &&
         canSee(p, me) &&
         (!category || p.types.includes(category)) &&
+        inGroup(p, group) &&
         (!handle || p.authorId === authorId) &&
         (!hashtag || tagsOf(p).some((t) => t.toLowerCase() === hashtag)),
     );
@@ -1032,6 +1523,44 @@ async function api(req, res, url) {
   // Vehicle lists
   if (path === "/api/vehicles" && method === "GET") {
     return send(res, 200, VEHICLES);
+  }
+  // Household cars (owner, 22 Oct 2026): make, model, colour and nickname; never a registration.
+  if (path.startsWith("/api/vehicles/mine")) {
+    if (!requireUser()) return;
+    db.cars ??= [];
+    const carDto = (c) => ({
+      id: c.id,
+      make: c.make,
+      model: c.model,
+      colour: c.colour,
+      nickname: c.nickname,
+    });
+    const id = path.split("/")[4];
+    if (!id && method === "GET") return send(res, 200, db.cars.filter((c) => c.userId === me).map(carDto));
+    if (method === "POST" || method === "PUT") {
+      const body = await json();
+      if (!body.make) return invalid(res, "Make", "Choose the make.");
+      const nickname = (body.nickname?.trim() || `${body.make} ${body.model ?? ""}`).trim();
+      let car = db.cars.find((c) => c.id === id && c.userId === me);
+      if (method === "PUT" && !car) return problem(res, 404, "Car not found.");
+      if (!car) {
+        if (db.cars.filter((c) => c.userId === me).length >= 5)
+          return invalid(res, "Cars", "You can add up to 5 cars. Delete one first.");
+        car = { id: randomUUID(), userId: me };
+        db.cars.push(car);
+      }
+      Object.assign(car, {
+        make: body.make,
+        model: body.model ?? null,
+        colour: body.colour ?? null,
+        nickname,
+      });
+      return send(res, 200, carDto(car));
+    }
+    if (method === "DELETE") {
+      db.cars = db.cars.filter((c) => !(c.id === id && c.userId === me));
+      return send(res, 204);
+    }
   }
   // Places and home areas
   if (path === "/api/places" && method === "GET") {
@@ -1201,8 +1730,9 @@ async function api(req, res, url) {
     const types = [...new Set(sent.filter(Boolean))];
     if (types.length === 0) return invalid(res, "Types", "Choose at least one type of bad driving.");
     if (!types.every((t) => CATEGORIES.has(t))) return invalid(res, "Types", "Choose a type from the list.");
+    if (types.length > MAX_PER_POST) return invalid(res, "Types", "Choose up to 3 types of bad driving.");
     const handles = [...new Set((body.passengers ?? []).map((h) => h.replace(/^@/, "").toLowerCase()))];
-    if (handles.length > 0 && types.every((t) => t === "BadParking"))
+    if (handles.length > 0 && types.every((t) => BY_VALUE.get(t).group === "Parking"))
       return invalid(
         res,
         "Passengers",
@@ -1249,6 +1779,10 @@ async function api(req, res, url) {
             }
           : null,
         reportedToPolice: body.reportedToPolice ?? null,
+        filmedFrom: (() => {
+          const car = (db.cars ?? []).find((c) => c.id === body.filmedFromCarId && c.userId === me);
+          return car ? { carId: car.id, label: car.nickname } : null;
+        })(),
         placeName: body.placeName,
         isSensitive: body.isSensitive,
         mediaState: pending ? "Pending" : "Ready",
@@ -1351,7 +1885,7 @@ async function api(req, res, url) {
       const { choice } = await json();
       const dto = voteDto(p, me);
       if (!dto.canVote) return invalid(res, "Choice", "You can't vote on your own post.");
-      if (!dto.choices.includes(choice))
+      if (!dto.answers.some((a) => a.choice === choice))
         return invalid(res, "Choice", "That answer doesn't fit this post's vote.");
       const votes = engagement().votes.get(p.id) ?? new Map();
       votes.set(me, choice);
@@ -1374,6 +1908,35 @@ async function api(req, res, url) {
     if (rest === "share" && method === "POST") {
       engagement().shares.set(p.id, (engagement().shares.get(p.id) ?? 0) + 1);
       return send(res, 204);
+    }
+    if (rest === "analytics" && method === "GET") {
+      if (p.authorId !== me) return problem(res, 403, "Only the post's author can see its analytics.");
+      // Hourly for 48 hours, then daily, then weekly, as the real API does; every view in the first point here.
+      const age = Date.now() - Date.parse(p.createdAt);
+      const interval = age <= 48 * 3_600_000 ? "Hour" : age <= 90 * 86_400_000 ? "Day" : "Week";
+      const length = { Hour: 3_600_000, Day: 86_400_000, Week: 7 * 86_400_000 }[interval];
+      const count = Math.max(1, Math.ceil(age / length));
+      const views = engagement().views.get(p.id)?.size ?? 0;
+      const reactions = db.reactions.get(p.id)?.size ?? 0;
+      const comments = db.comments.filter((c) => c.postId === p.id && c.status === "Visible").length;
+      const shares = engagement().shares.get(p.id) ?? 0;
+      const premium = viewer.plan === "premium" || viewer.plan === "premium_plus";
+      const points = Array.from({ length: count }, (_, i) => ({
+        start: new Date(Date.parse(p.createdAt) + i * length).toISOString(),
+        views: i === 0 ? views : 0,
+        localViews: 0,
+        reactions: i === 0 ? reactions : 0,
+        comments: i === 0 ? comments : 0,
+        shares: i === 0 ? shares : 0,
+      }));
+      return send(res, 200, {
+        postId: p.id,
+        locked: !premium,
+        interval,
+        since: p.createdAt,
+        points: premium ? points : [],
+        totals: { postId: p.id, views, localViews: 0, reactions, comments, shares },
+      });
     }
     if (rest === "reach" && method === "GET") {
       if (p.authorId !== me) return problem(res, 403, "Only the post's author can see its reach.");
@@ -1398,6 +1961,40 @@ async function api(req, res, url) {
       if (tag.status === "Declined" && accept) return invalid(res, "Accept", "You declined this tag.");
       tag.status = accept ? "Accepted" : "Declined";
       return send(res, 200, postDto(p, me));
+    }
+    if (rest === "reactions" && method === "GET") {
+      // Who reacted: under-18s and people without a profile are counted but not named.
+      const map = db.reactions.get(p.id) ?? new Map();
+      const type = url.searchParams.get("type");
+      const search = (url.searchParams.get("search") ?? "").trim().replace(/^@/, "").toLowerCase();
+      const all = [...map.entries()];
+      const filtered = type ? all.filter(([, t]) => t === type) : all;
+      const named = filtered.filter(([id]) => {
+        const profile = db.profiles.get(id);
+        return profile && !profile.isMinor;
+      });
+      const unnamed = filtered.length - named.length;
+      const matches = search
+        ? named.filter(([id]) => {
+            const profile = db.profiles.get(id);
+            return profile.displayName.toLowerCase().includes(search) || profile.handle.includes(search);
+          })
+        : named;
+      return send(res, 200, {
+        people: page(matches, url, ([id, t]) => {
+          const profile = db.profiles.get(id);
+          return {
+            userId: id,
+            handle: profile.handle,
+            displayName: profile.displayName,
+            avatarUrl: avatarUrl(profile),
+            type: t,
+          };
+        }),
+        counts: counts(map),
+        total: all.length,
+        unnamedCount: search ? 0 : unnamed,
+      });
     }
     if (rest === "reaction") {
       const map = db.reactions.get(p.id) ?? new Map();
@@ -1684,12 +2281,45 @@ async function api(req, res, url) {
   }
   if (path === "/api/profiles/me/suggestions" && method === "GET") {
     if (!requireUser()) return;
-    // Everyone with a profile you don't follow stands in for "people near your home area".
+    // Everyone with a profile you don't follow stands in for "the most active posters near you".
     const people = [...db.profiles.values()]
       .filter((p) => p.id !== me && !follows(me, p.id))
       .slice(0, Number(url.searchParams.get("limit") ?? 3))
       .map(followProfile);
     return send(res, 200, { people, hasHomeArea: true });
+  }
+  if (path === "/api/profiles/me/tag-suggestions" && method === "GET") {
+    if (!requireUser()) return;
+    // Handle or any word of the name starting with what's typed: connections first, as the real API does.
+    const q = (url.searchParams.get("q") ?? "").replace(/^@/, "").toLowerCase();
+    const blocked = db.blocks.get(me) ?? new Set();
+    const rank = { Mutual: 0, FollowsYou: 1, YouFollow: 2, None: 3 };
+    const people = [...db.profiles.values()]
+      .filter((p) => q && p.id !== me && !blocked.has(p.id))
+      .filter(
+        (p) =>
+          p.handle.startsWith(q) ||
+          p.displayName
+            .toLowerCase()
+            .split(/\s+/)
+            .some((w) => w.startsWith(q)),
+      )
+      .map((p) => {
+        const theyFollow = follows(p.id, me);
+        const iFollow = follows(me, p.id);
+        const connection =
+          theyFollow && iFollow ? "Mutual" : theyFollow ? "FollowsYou" : iFollow ? "YouFollow" : "None";
+        return {
+          id: p.id,
+          handle: p.handle,
+          displayName: p.displayName,
+          avatarUrl: avatarUrl(p),
+          connection,
+        };
+      })
+      .sort((a, b) => rank[a.connection] - rank[b.connection] || a.displayName.localeCompare(b.displayName))
+      .slice(0, Number(url.searchParams.get("limit") ?? 8));
+    return send(res, 200, people);
   }
   if ((m = path.match(/^\/api\/profiles\/([A-Za-z0-9_]+)\/(followers|following)$/)) && method === "GET") {
     const owner = byHandle(m[1]);
@@ -1740,6 +2370,7 @@ async function api(req, res, url) {
       createdAt: new Date().toISOString(),
       contentType: body.contentType,
       stored: false,
+      vaultClipId: body.vaultClipId ?? null,
     });
     return send(res, 201, {
       mediaId: id,
@@ -1751,6 +2382,97 @@ async function api(req, res, url) {
         expiresAt: new Date(Date.now() + 900_000).toISOString(),
       },
     });
+  }
+  // The vault (bjk-modules VaultController): Free keeps clips 30 days in 2 GB.
+  if (path === "/api/vault" && method === "GET") {
+    if (!requireUser()) return;
+    const mine = db.vault.filter((c) => c.userId === me && c.status === "Stored");
+    return send(res, 200, {
+      plan: "Free",
+      usedBytes: mine.reduce((sum, c) => sum + c.sizeBytes, 0),
+      limitBytes: 2 * 1024 ** 3,
+      retentionDays: 30,
+      maxFileBytes: 2 * 1024 ** 3,
+      clips: { items: mine.map(vaultClipDto), page: 1, pageSize: 20, totalCount: mine.length },
+    });
+  }
+  if (path === "/api/vault/uploads" && method === "POST") {
+    if (!requireUser()) return;
+    const body = await json();
+    const type = body.contentType?.startsWith("video/")
+      ? "Video"
+      : body.contentType?.startsWith("image/")
+        ? "Image"
+        : null;
+    if (!type) return invalid(res, "ContentType", "Add a video or a photo.");
+    const id = randomUUID();
+    const now = new Date();
+    db.vault.push({
+      id,
+      userId: me,
+      status: "Uploading",
+      fileName: body.fileName,
+      mediaType: type,
+      contentType: body.contentType,
+      sizeBytes: body.sizeBytes,
+      source: "Upload",
+      postId: null,
+      createdAt: now.toISOString(),
+      expiresAt: new Date(now.getTime() + 30 * 86_400_000).toISOString(),
+      body: null,
+    });
+    return send(res, 201, {
+      clipId: id,
+      upload: {
+        url: `${ORIGIN}/vault-storage/${id}`,
+        method: "PUT",
+        headers: { "Content-Type": body.contentType },
+        expiresAt: new Date(Date.now() + 900_000).toISOString(),
+      },
+    });
+  }
+  if ((m = path.match(/^\/api\/vault\/([0-9a-f-]{36})(\/complete|\/download)?$/))) {
+    if (!requireUser()) return;
+    const clip = db.vault.find((c) => c.id === m[1] && c.userId === me);
+    if (!clip) return problem(res, 404, "Vault clip not found.");
+    if (m[2] === "/complete" && method === "POST") {
+      if (!clip.body) return invalid(res, "ClipId", "The file hasn't arrived yet. Try uploading it again.");
+      clip.status = "Stored";
+      clip.sizeBytes = clip.body.length;
+      return send(res, 200, vaultClipDto(clip));
+    }
+    if (m[2] === "/download" && method === "GET")
+      return send(res, 200, {
+        url: `${ORIGIN}/vault-storage/${clip.id}`,
+        expiresAt: new Date(Date.now() + 900_000).toISOString(),
+      });
+    if (!m[2] && method === "DELETE") {
+      db.vault = db.vault.filter((c) => c !== clip);
+      return send(res, 204);
+    }
+  }
+  // A video's vertical copy for sharing (bjk-modules MediaController): owner only; "made" after a moment.
+  if ((m = path.match(/^\/api\/media\/([^/]+)\/share-copy$/))) {
+    if (!requireUser()) return;
+    const media = db.media.get(m[1]);
+    if (!media || media.userId !== me) return problem(res, 404, "Media not found.");
+    const describe = () => {
+      const copy = db.shareCopies.get(media.id);
+      if (!copy) return { state: "None", downloadUrl: null, linkExpiresAt: null };
+      if (Date.now() - copy.at < 1_500) return { state: "Rendering", downloadUrl: null, linkExpiresAt: null };
+      return {
+        state: "Ready",
+        downloadUrl: `${ORIGIN}/media/share/${media.id}/vertical.mp4`,
+        linkExpiresAt: new Date(Date.now() + 900_000).toISOString(),
+      };
+    };
+    if (method === "POST") {
+      if (media.mediaType !== "Video")
+        return invalid(res, "MediaId", "Only videos can be downloaded for sharing.");
+      if (!db.shareCopies.has(media.id)) db.shareCopies.set(media.id, { at: Date.now() });
+      return send(res, 202, describe());
+    }
+    if (method === "GET") return send(res, 200, describe());
   }
   if ((m = path.match(/^\/api\/media\/([0-9a-f-]{36})(\/complete)?$/))) {
     if (!requireUser()) return;
@@ -1812,6 +2534,10 @@ const NOTIFICATION_TYPES = [
   ["ReactionOnPost", "Reactions to your posts", true, false],
   ["CommentOnFollowedPost", "Comments on posts you follow", true, false],
   ["VoteClosed", "Vote results", true, false],
+  ["CommunityJoinRequest", "Requests to join communities you run", true, false],
+  ["CommunityRequestApproved", "Your requests to join are approved", true, false],
+  ["CommunityInvite", "Invitations to communities", true, false],
+  ["CommunityReply", "Replies to your community discussions", true, false],
 ];
 function notificationDto(n) {
   const actor = n.actorId ? author(n.actorId) : null;
@@ -1819,8 +2545,20 @@ function notificationDto(n) {
   const text =
     n.type === "PassengerTagged"
       ? `${who} tagged you as a passenger on \u201c${n.postTitle}\u201d. Accept to show your name.`
-      : `${who} commented on your post \u201c${n.postTitle}\u201d.`;
-  return { ...n, actor, text };
+      : n.type === "CommunityJoinRequest"
+        ? `${who} asked to join ${n.postTitle}.`
+        : n.type === "CommunityRequestApproved"
+          ? `You're in: your request to join ${n.postTitle} was approved.`
+          : n.type === "CommunityInvite"
+            ? `${who} invited you to join ${n.postTitle}.`
+            : n.type === "CommunityReply"
+              ? `${who} replied to your discussion \u201c${n.postTitle}\u201d in ${n.detail}.`
+              : `${who} commented on your post \u201c${n.postTitle}\u201d.`;
+  const path = n.link ?? (n.postId ? `/p/${n.postId}` : "/notifications");
+  const rest = { ...n };
+  delete rest.link;
+  delete rest.detail;
+  return { postId: null, commentId: null, ...rest, actor, text, path };
 }
 function profileDto(p) {
   return {
@@ -1855,6 +2593,25 @@ const server = createServer(async (req, res) => {
   const url = new URL(req.url, ORIGIN);
   try {
     // Storage: the browser PUTs straight here, cross-origin, like S3Mock or R2.
+    if (url.pathname.startsWith("/vault-storage/")) {
+      const cors = {
+        "Access-Control-Allow-Origin": WEB_ORIGIN,
+        "Access-Control-Allow-Methods": "GET, PUT, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Max-Age": "600",
+      };
+      if (req.method === "OPTIONS") return send(res, 204, undefined, cors);
+      const clip = db.vault.find((c) => c.id === url.pathname.slice("/vault-storage/".length));
+      if (!clip) return send(res, 404, "Not found", cors);
+      if (req.method === "GET") {
+        res.writeHead(200, { "Content-Type": clip.contentType, ...cors });
+        return res.end(clip.body ?? PNG);
+      }
+      const body = await readBody(req);
+      if (req.method !== "PUT" || body.length === 0) return send(res, 400, "Bad upload", cors);
+      clip.body = body;
+      return send(res, 200, "", cors);
+    }
     if (url.pathname.startsWith("/storage/")) {
       const cors = {
         "Access-Control-Allow-Origin": WEB_ORIGIN,
@@ -1898,6 +2655,7 @@ const server = createServer(async (req, res) => {
         reports: db.reports,
         publicReports: db.publicReports,
         posts: db.posts.map((p) => ({ id: p.id, title: p.title, mediaState: p.mediaState })),
+        communityPosts: db.communityPosts,
       });
     }
     // Someone else posts while a test is reading the feed: a copy of a ready, public post, posted now.

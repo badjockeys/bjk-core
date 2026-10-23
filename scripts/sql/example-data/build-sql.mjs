@@ -9,23 +9,25 @@ import { fileURLToPath } from "node:url";
 
 import { ids, OWNER_EMAIL, PASSWORD } from "./data.mjs";
 import { buildExampleData } from "./generate.mjs";
+import { BY_VALUE, TAXONOMY } from "./taxonomy.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-const CATEGORIES = [
-  "RoadRage",
-  "DangerousOvertaking",
-  "Tailgating",
-  "MobilePhoneUse",
-  "Speeding",
-  "RedLightRunning",
-  "CuttingUp",
-  "Undertaking",
-  "LaneHogging",
-  "ClosePass",
-  "BadParking",
-  "Other",
-];
+/**
+ * A post's subcategories as the two flag columns (TypeFlags holds bits 0 to 63, TypeFlagsHigh 64 to 127): bit n is the
+ * subcategory at position n of the list, which is the order of IncidentCategory in BJK.Modules.
+ */
+function typeFlags(types) {
+  let low = 0n;
+  let high = 0n;
+  for (const type of types) {
+    const n = TAXONOMY.findIndex((t) => t.value === type);
+    if (n < 0) throw new Error(`Unknown subcategory ${type}`);
+    if (n < 64) low |= 1n << BigInt(n);
+    else high |= 1n << BigInt(n - 64);
+  }
+  return [BigInt.asIntN(64, low), BigInt.asIntN(64, high)];
+}
 
 const q = (value) => (value === null || value === undefined ? "NULL" : `N'${String(value).replace(/'/g, "''")}'`);
 const bit = (value) => (value === null || value === undefined ? "NULL" : value ? "1" : "0");
@@ -76,6 +78,22 @@ DELETE FROM badjockeys.notifications.NotificationContacts WHERE UserId IN (SELEC
 DELETE FROM badjockeys.notifications.AreaSubscriptions WHERE UserId IN (SELECT Id FROM @Example);
 DELETE FROM badjockeys.notifications.PushSubscriptions WHERE UserId IN (SELECT Id FROM @Example);
 
+-- Communities: the example ones, and example members' places, posts and words in anyone's.
+DECLARE @ExampleCommunities TABLE (Id uniqueidentifier PRIMARY KEY);
+INSERT @ExampleCommunities SELECT Id FROM badjockeys.posts.Communities WHERE LEFT(CONVERT(char(36), Id), 8) = 'E0000000';
+DELETE FROM badjockeys.posts.Reports
+WHERE TargetId IN (SELECT Id FROM @ExampleCommunities)
+   OR TargetId IN (SELECT Id FROM badjockeys.posts.CommunityDiscussions WHERE CommunityId IN (SELECT Id FROM @ExampleCommunities) OR AuthorId IN (SELECT Id FROM @Example))
+   OR TargetId IN (SELECT Id FROM badjockeys.posts.CommunityReplies WHERE CommunityId IN (SELECT Id FROM @ExampleCommunities) OR AuthorId IN (SELECT Id FROM @Example));
+DELETE FROM badjockeys.posts.CommunityReplies
+WHERE CommunityId IN (SELECT Id FROM @ExampleCommunities) OR AuthorId IN (SELECT Id FROM @Example)
+   OR DiscussionId IN (SELECT Id FROM badjockeys.posts.CommunityDiscussions WHERE AuthorId IN (SELECT Id FROM @Example));
+DELETE FROM badjockeys.posts.CommunityDiscussions WHERE CommunityId IN (SELECT Id FROM @ExampleCommunities) OR AuthorId IN (SELECT Id FROM @Example);
+DELETE FROM badjockeys.posts.CommunityPosts
+WHERE CommunityId IN (SELECT Id FROM @ExampleCommunities) OR PostId IN (SELECT Id FROM @ExamplePosts) OR SharedBy IN (SELECT Id FROM @Example);
+DELETE FROM badjockeys.posts.CommunityMembers WHERE CommunityId IN (SELECT Id FROM @ExampleCommunities) OR UserId IN (SELECT Id FROM @Example);
+DELETE FROM badjockeys.posts.Communities WHERE Id IN (SELECT Id FROM @ExampleCommunities);
+
 DELETE FROM badjockeys.posts.CommentReactions
 WHERE UserId IN (SELECT Id FROM @Example)
    OR CommentId IN (SELECT Id FROM badjockeys.posts.Comments WHERE PostId IN (SELECT Id FROM @ExamplePosts) OR AuthorId IN (SELECT Id FROM @Example));
@@ -120,6 +138,9 @@ function batched(add, prefix, rows, suffix = ";") {
   }
 }
 
+/** A community's address from its name, as Community.SlugFrom makes it (the example names are plain ASCII). */
+const slugOf = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
 /** Adult dates of birth, 1960 to 2004. */
 const dateOfBirth = (n) => `${1960 + ((n * 7) % 45)}-${String((n % 12) + 1).padStart(2, "0")}-${String((n % 27) + 1).padStart(2, "0")}`;
 
@@ -127,7 +148,7 @@ const VOTE_HOURS = { Hours48: 48, Days7: 168, Never: null };
 
 /** The whole script, as text. */
 export function buildSql() {
-  const { users, posts, homeAreas, follows, bookmarks, preferences, badges } = buildExampleData();
+  const { users, posts, homeAreas, follows, bookmarks, preferences, badges, communities } = buildExampleData();
   const lines = [];
   const add = (text) => lines.push(text);
   const videos = posts.filter((p) => p.video).length;
@@ -235,7 +256,7 @@ DECLARE @Posts TABLE (N int PRIMARY KEY, Id uniqueidentifier, At datetimeoffset)
     const id = ids.postId(p.n);
     const author = ids.userId(p.by);
     const [lat, lng, place] = p.at;
-    const flags = p.types.reduce((acc, t) => acc | (1 << CATEGORIES.indexOf(t)), 0);
+    const [flags, flagsHigh] = typeFlags(p.types);
     const [vType, vMake, vModel, vColour] = p.vehicle ?? [null, null, null, null];
     const uploaded = ukTime(p.ago, p.time, 20);
     const processed = ukTime(p.ago, p.time, 21);
@@ -259,7 +280,7 @@ DECLARE @Posts TABLE (N int PRIMARY KEY, Id uniqueidentifier, At datetimeoffset)
     const closesAt = hours === null ? "NULL" : ukTime(p.ago, p.time, 22 + hours * 60);
     const sentAt = hours !== null && p.ago * 24 - hours > 24 ? ukTime(p.ago, p.time, 30 + hours * 60) : "NULL";
     const reactionCount = Object.values(p.reactions).flat().length;
-    postRows.push(`('${id}', '${author}', ${q(p.title)}, ${q(p.text)}, ${q(p.types[0])}, ${flags}, ${ukTime(p.ago, p.time)}, ${lat}, ${lng}, ${q(place)},
+    postRows.push(`('${id}', '${author}', ${q(p.title)}, ${q(p.text)}, ${q(p.types[0])}, ${q(BY_VALUE.get(p.types[0]).group)}, ${flags}, ${flagsHigh}, ${ukTime(p.ago, p.time)}, ${lat}, ${lng}, ${q(place)},
   N'Published', N'Ready', ${ukTime(p.ago, p.time, 22)}, ${bit(Boolean(p.video))}, 0, 0, 0, ${p.video ? reactionCount + p.comments.length : 0}, N'None', N'None',
   ${bit(isDark(p.time))}, ${bit(p.reported)}, ${q(vType)}, ${q(vMake)}, ${q(vModel)}, ${q(vColour)}, ${closesAt}, ${sentAt}, ${ukTime(p.ago, p.time, 22)})`);
   }
@@ -271,7 +292,7 @@ DECLARE @Posts TABLE (N int PRIMARY KEY, Id uniqueidentifier, At datetimeoffset)
   );
   batched(
     add,
-    `INSERT badjockeys.posts.Posts (Id, AuthorId, Title, Description, Category, TypeFlags, IncidentAt, Latitude, Longitude, PlaceName,
+    `INSERT badjockeys.posts.Posts (Id, AuthorId, Title, Description, Category, [Group], TypeFlags, TypeFlagsHigh, IncidentAt, Latitude, Longitude, PlaceName,
   Status, MediaState, MediaReadyAt, HasVideo, IsAuthorDeactivated, IsFlagged, IsSensitive, ReelScore, SensitiveReview, SensitiveSource,
   IsDark, ReportedToPolice, VehicleType, VehicleMake, VehicleModel, VehicleColour, VoteClosesAt, VoteResultSentAt, CreatedAt) VALUES`,
     postRows,
@@ -345,6 +366,72 @@ DECLARE @Posts TABLE (N int PRIMARY KEY, Id uniqueidentifier, At datetimeoffset)
     bookmarks.map((b) => `(${b.post}, '${ids.userId(b.user)}', ${b.minute})`),
   );
 
+  // --- Communities ---
+  const ago = (minutes) => `DATEADD(minute, -${minutes}, @Now)`;
+  add(`\n-- Communities, their members, shared posts, discussions and replies.`);
+  batched(
+    add,
+    `INSERT badjockeys.posts.Communities (Id, Slug, Name, Description, Rules, Visibility, PlaceName, Latitude, Longitude, RadiusKm, OwnerId,
+  MemberCount, CreatedAt, UpdatedAt, RemovedAt, RemovedReason) VALUES`,
+    communities.map((c) => {
+      const [place, lat, lng, radius] = c.area ? [q(c.area.place), c.area.lat, c.area.lng, c.area.radiusKm] : ["NULL", "NULL", "NULL", "NULL"];
+      const count = c.members.filter((m) => m.status === "Member").length;
+      // A community someone made locally may already have the address: the example one then gets "-example".
+      const slug = q(slugOf(c.name));
+      const free = `CASE WHEN EXISTS (SELECT 1 FROM badjockeys.posts.Communities WHERE Slug = ${slug}) THEN ${q(`${slugOf(c.name)}-example`)} ELSE ${slug} END`;
+      return `('${ids.communityId(c.n)}', ${free}, ${q(c.name)}, ${q(c.description)}, ${q(c.rules ?? null)}, N'${c.visibility}', ${place}, ${lat}, ${lng}, ${radius},
+  '${ids.userId(c.owner)}', ${count}, ${ago(60 * 24 * 30)}, ${ago(60 * 24 * 30)}, NULL, NULL)`;
+    }),
+  );
+  batched(
+    add,
+    `INSERT badjockeys.posts.CommunityMembers (CommunityId, UserId, Status, Role, RequestedAt, JoinedAt, UpdatedAt) VALUES`,
+    communities.flatMap((c) =>
+      c.members.map((m) => {
+        const when = ago(m.minute);
+        return `('${ids.communityId(c.n)}', '${ids.userId(m.user)}', N'${m.status}', N'${m.role}', ${m.status === "Requested" ? when : "NULL"}, ${m.status === "Member" ? when : "NULL"}, ${when})`;
+      }),
+    ),
+  );
+  activity(
+    "Posts shared into communities (by their authors, half an hour after posting).",
+    `INSERT badjockeys.posts.CommunityPosts (CommunityId, PostId, SharedBy, SharedAt)`,
+    "N, C, U",
+    `v.C, p.Id, v.U, ${at("30")}`,
+    communities.flatMap((c) => c.shares.map((s) => `(${s.post}, '${ids.communityId(c.n)}', '${ids.userId(s.by)}')`)),
+  );
+  batched(
+    add,
+    `INSERT badjockeys.posts.CommunityDiscussions (Id, CommunityId, AuthorId, Title, Body, Status, IsFlagged, ReplyCount, CreatedAt, LastActivityAt, RemovedAt) VALUES`,
+    communities.flatMap((c) =>
+      c.discussions.map(
+        (d) =>
+          `('${ids.discussionId(d.n)}', '${ids.communityId(c.n)}', '${ids.userId(d.by)}', ${q(d.title)}, ${q(d.body)}, N'Visible', 0, ${d.replies.length}, ${ago(d.minute)}, ${ago(d.lastMinute)}, NULL)`,
+      ),
+    ),
+  );
+  batched(
+    add,
+    `INSERT badjockeys.posts.CommunityReplies (Id, DiscussionId, CommunityId, AuthorId, Body, Status, IsFlagged, CreatedAt, RemovedAt) VALUES`,
+    communities.flatMap((c) =>
+      c.discussions.flatMap((d) =>
+        d.replies.map(
+          (r) => `('${ids.replyId(r.n)}', '${ids.discussionId(d.n)}', '${ids.communityId(c.n)}', '${ids.userId(r.by)}', ${q(r.text)}, N'Visible', 0, ${ago(r.minute)}, NULL)`,
+        ),
+      ),
+    ),
+  );
+  const ownersCommunity = communities.find((c) => c.visibility === "Private" && c.area);
+  if (ownersCommunity) {
+    add(`IF @Owner IS NOT NULL
+BEGIN
+  -- The owner moderates ${ownersCommunity.name}, which has requests waiting.
+  INSERT badjockeys.posts.CommunityMembers (CommunityId, UserId, Status, Role, RequestedAt, JoinedAt, UpdatedAt)
+  VALUES ('${ids.communityId(ownersCommunity.n)}', @Owner, N'Member', N'Moderator', NULL, ${ago(60 * 24 * 7)}, ${ago(60 * 24 * 7)});
+  UPDATE badjockeys.posts.Communities SET MemberCount = MemberCount + 1 WHERE Id = '${ids.communityId(ownersCommunity.n)}';
+END`);
+  }
+
   const tagged = posts.find((p) => p.passengerOwner);
   if (tagged) {
     add(`IF @Owner IS NOT NULL
@@ -361,6 +448,7 @@ END`);
 COMMIT;
 PRINT 'Added ${users.length} example users and ${posts.length} posts (${videos} with a clip): ${total(reactions)} reactions, ${total(comments)} comments and replies,';
 PRINT '${total(commentReactions)} reactions on comments, ${total(votes)} votes, ${total(follows)} follows, ${total(views)} views, ${total(shares)} shares and ${total(bookmarks)} bookmarks.';
+PRINT '${communities.length} communities with ${total(communities.flatMap((c) => c.members))} members and requests, ${total(communities.flatMap((c) => c.discussions))} discussions and ${total(communities.flatMap((c) => c.discussions.flatMap((d) => d.replies)))} replies.';
 PRINT 'Sign in as any of them with ${PASSWORD}, for example:';
 ${users
   .slice(0, 10)

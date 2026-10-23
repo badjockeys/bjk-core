@@ -7,6 +7,7 @@
 
 import {
   AreaClient,
+  CommunitiesClient,
   DraftsClient,
   EngagementClient,
   HashtagsClient,
@@ -20,13 +21,20 @@ import {
   ReportsClient,
   TimelinesClient,
   TrendsClient,
+  VaultClient,
   VehiclesClient,
 } from "./generated/api";
 import type {
   AreaAlertMode,
+  CommunityListKind,
+  CommunityMembershipStatus,
+  CommunityRequest,
+  CommunityRole,
   CommentSetting,
   HeatmapQuery,
+  HouseholdCarRequest,
   IncidentCategory,
+  IncidentGroup,
   NotificationSettingDto,
   PassengerTagStatus,
   ProblemDetails,
@@ -178,6 +186,8 @@ type ClientType<T> = new (baseUrl?: string, http?: Http) => T;
 
 export interface FeedQuery {
   category?: IncidentCategory;
+  /** Only posts with a subcategory in this group. */
+  group?: IncidentGroup;
   author?: string;
   /** Only posts with this hashtag (without the #). */
   hashtag?: string;
@@ -206,6 +216,7 @@ export function endpoints(api: ApiClient) {
           q.page ?? 1,
           q.pageSize ?? 20,
           q.hashtag,
+          q.group,
         ),
       mine: (token: string, page = 1, pageSize = 20) => posts(token).posts_ListMine(page, pageSize),
       /** One person's comments and replies, with the post each is on (their profile's Replies tab). */
@@ -217,6 +228,12 @@ export function endpoints(api: ApiClient) {
       react: (token: string, postId: string, type: ReactionType) =>
         posts(token).posts_React(postId, { type }),
       unreact: (token: string, postId: string) => posts(token).posts_RemoveReaction(postId),
+      /** Who reacted to a post (signed-in members only; under-18s counted but not named). */
+      reactions: (
+        token: string,
+        postId: string,
+        q: { type?: ReactionType; search?: string; page?: number; pageSize?: number } = {},
+      ) => posts(token).posts_ListReactions(postId, q.type, q.search, q.page ?? 1, q.pageSize ?? 30),
       report: (token: string, postId: string, reason: ReportReason, details: string | null) =>
         posts(token).posts_ReportPost(postId, { reason, details }),
       appeal: (token: string, postId: string, statement: string) =>
@@ -251,6 +268,9 @@ export function endpoints(api: ApiClient) {
         client(EngagementClient, { token, headers: viewer(viewerId) }).engagement_RecordShare(postId),
       /** Views, local views, reactions, comments and shares: the author only. */
       reach: (token: string, postId: string) => client(EngagementClient, { token }).engagement_Reach(postId),
+      /** Views, reactions, comments and shares over time; locked (no points) on Free. */
+      analytics: (token: string, postId: string) =>
+        client(EngagementClient, { token }).engagement_Analytics(postId),
       preferences: (token: string) => client(EngagementClient, { token }).engagement_GetPreferences(),
       setVoteDuration: (token: string, voteDuration: VoteDuration) =>
         client(EngagementClient, { token }).engagement_SetPreferences({ voteDuration }),
@@ -323,6 +343,9 @@ export function endpoints(api: ApiClient) {
       unfollow: (token: string, user: string) => profiles(token).profiles_Unfollow(user),
       /** Who to follow: adults whose home area is near yours. */
       suggestions: (token: string, limit = 3) => profiles(token).profiles_Suggestions(limit),
+      /** People to tag as you type: your connections first, then other adults. */
+      tagSuggestions: (token: string, q: string, limit = 8) =>
+        profiles(token).profiles_TagSuggestions(q, limit),
       followers: (token: string | null, handle: string, page = 1) =>
         profiles(token).profiles_Followers(handle, page, 20),
       following: (token: string | null, handle: string, page = 1) =>
@@ -345,24 +368,109 @@ export function endpoints(api: ApiClient) {
       posts: (token: string, id: string, page = 1) =>
         client(TimelinesClient, { token }).timelines_Posts(id, page, 20),
     },
-    media: {
+    /** Your vault: your original clips, kept privately for you (owner, 23 Oct 2026). */
+    vault: {
+      get: (token: string, page = 1) => client(VaultClient, { token }).vault_Get(page, 20),
       requestUpload: (token: string, body: { fileName: string; contentType: string; sizeBytes: number }) =>
-        client(MediaClient, { token }).media_RequestUpload(body),
+        client(VaultClient, { token }).vault_RequestUpload(body),
+      complete: (token: string, clipId: string) => client(VaultClient, { token }).vault_Complete(clipId),
+      download: (token: string, clipId: string) => client(VaultClient, { token }).vault_Download(clipId),
+      remove: (token: string, clipId: string) => client(VaultClient, { token }).vault_Delete(clipId),
+    },
+    /** Communities (owner, 23 Oct 2026): forums around a place or a topic. Signed-in members only. */
+    communities: {
+      list: (token: string, kind: CommunityListKind, search: string | null, page = 1) =>
+        client(CommunitiesClient, { token }).communities_List(kind, search, page, 20),
+      create: (token: string, body: CommunityRequest) =>
+        client(CommunitiesClient, { token }).communities_Create(body),
+      suggestions: (
+        token: string,
+        q: { latitude?: number | null; longitude?: number | null; postId?: string | null },
+      ) =>
+        client(CommunitiesClient, { token }).communities_Suggestions(
+          q.latitude ?? null,
+          q.longitude ?? null,
+          q.postId ?? null,
+        ),
+      get: (token: string, slug: string) => client(CommunitiesClient, { token }).communities_Get(slug),
+      update: (token: string, slug: string, body: CommunityRequest) =>
+        client(CommunitiesClient, { token }).communities_Update(slug, body),
+      remove: (token: string, slug: string) => client(CommunitiesClient, { token }).communities_Delete(slug),
+      join: (token: string, slug: string) => client(CommunitiesClient, { token }).communities_Join(slug),
+      leave: (token: string, slug: string) => client(CommunitiesClient, { token }).communities_Leave(slug),
+      members: (token: string, slug: string, status: CommunityMembershipStatus, page = 1) =>
+        client(CommunitiesClient, { token }).communities_Members(slug, status, page, 30),
+      invite: (token: string, slug: string, handle: string) =>
+        client(CommunitiesClient, { token }).communities_Invite(slug, { handle }),
+      decide: (token: string, slug: string, userId: string, approve: boolean) =>
+        client(CommunitiesClient, { token }).communities_DecideRequest(slug, userId, { approve }),
+      setRole: (token: string, slug: string, userId: string, role: CommunityRole) =>
+        client(CommunitiesClient, { token }).communities_SetRole(slug, userId, { role }),
+      removeMember: (token: string, slug: string, userId: string, ban: boolean) =>
+        client(CommunitiesClient, { token }).communities_RemoveMember(slug, userId, ban),
+      unban: (token: string, slug: string, userId: string) =>
+        client(CommunitiesClient, { token }).communities_Unban(slug, userId),
+      posts: (token: string, slug: string, page = 1) =>
+        client(CommunitiesClient, { token }).communities_Posts(slug, page, 20),
+      unshare: (token: string, slug: string, postId: string) =>
+        client(CommunitiesClient, { token }).communities_Unshare(slug, postId),
+      discussions: (token: string, slug: string, page = 1) =>
+        client(CommunitiesClient, { token }).communities_Discussions(slug, page, 20),
+      startDiscussion: (token: string, slug: string, body: { title: string; body: string | null }) =>
+        client(CommunitiesClient, { token }).communities_StartDiscussion(slug, body),
+      discussion: (token: string, slug: string, id: string, page = 1) =>
+        client(CommunitiesClient, { token }).communities_Discussion(slug, id, page, 50),
+      removeDiscussion: (token: string, slug: string, id: string) =>
+        client(CommunitiesClient, { token }).communities_RemoveDiscussion(slug, id),
+      reply: (token: string, slug: string, id: string, body: string) =>
+        client(CommunitiesClient, { token }).communities_Reply(slug, id, { body }),
+      removeReply: (token: string, slug: string, id: string, replyId: string) =>
+        client(CommunitiesClient, { token }).communities_RemoveReply(slug, id, replyId),
+      report: (token: string, slug: string, reason: ReportReason, details: string | null) =>
+        client(CommunitiesClient, { token }).communities_Report(slug, { reason, details }),
+      reportDiscussion: (token: string, id: string, reason: ReportReason, details: string | null) =>
+        client(CommunitiesClient, { token }).communities_ReportDiscussion(id, { reason, details }),
+      reportReply: (token: string, id: string, reason: ReportReason, details: string | null) =>
+        client(CommunitiesClient, { token }).communities_ReportReply(id, { reason, details }),
+      share: (token: string, postId: string, communityIds: string[]) =>
+        client(CommunitiesClient, { token }).communities_SharePost(postId, { communityIds }),
+    },
+    media: {
+      requestUpload: (
+        token: string,
+        body: { fileName: string; contentType: string; sizeBytes: number; vaultClipId?: string | null },
+      ) =>
+        client(MediaClient, { token }).media_RequestUpload({
+          ...body,
+          vaultClipId: body.vaultClipId ?? null,
+        }),
       complete: (token: string, mediaId: string) => client(MediaClient, { token }).media_Complete(mediaId),
       get: (token: string, mediaId: string) => client(MediaClient, { token }).media_Get(mediaId),
       remove: (token: string, mediaId: string) => client(MediaClient, { token }).media_Delete(mediaId),
+      /** Your video's vertical copy for TikTok, Reels, Shorts and X: its state, and a download link once made. */
+      shareCopy: (token: string, mediaId: string) =>
+        client(MediaClient, { token }).media_GetShareCopy(mediaId),
+      /** Ask for your video's vertical copy (made by the media worker); poll `shareCopy` until it's Ready. */
+      requestShareCopy: (token: string, mediaId: string) =>
+        client(MediaClient, { token }).media_RequestShareCopy(mediaId),
     },
     reels: {
       /** A page of reels. Logged-out viewers are counted by their viewer id. */
       list: (
         token: string | null,
         viewerId: string | null,
-        q: { cursor?: string | null; category?: IncidentCategory; pageSize?: number } = {},
+        q: {
+          cursor?: string | null;
+          category?: IncidentCategory;
+          group?: IncidentGroup;
+          pageSize?: number;
+        } = {},
       ) =>
         client(ReelsClient, { token, headers: viewer(viewerId) }).reels_List(
           q.cursor,
           q.category,
           q.pageSize,
+          q.group,
         ),
       /** Report that a reel has been watched for 3 seconds. Idempotent per viewer, reel and day. */
       play: (token: string | null, viewerId: string | null, postId: string) =>
@@ -434,6 +542,13 @@ export function endpoints(api: ApiClient) {
     },
     vehicles: {
       catalogue: () => client(VehiclesClient, { revalidate: 86_400 }).vehicles_Get(),
+      /** Your household cars (private to you). */
+      mine: (token: string) => client(VehiclesClient, { token }).vehicles_MyCars(),
+      addCar: (token: string, body: HouseholdCarRequest) =>
+        client(VehiclesClient, { token }).vehicles_AddCar(body),
+      updateCar: (token: string, id: string, body: HouseholdCarRequest) =>
+        client(VehiclesClient, { token }).vehicles_UpdateCar(id, body),
+      deleteCar: (token: string, id: string) => client(VehiclesClient, { token }).vehicles_DeleteCar(id),
     },
     places: {
       search: (token: string, q: string) => client(PlacesClient, { token }).places_Search(q),

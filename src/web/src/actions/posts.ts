@@ -2,31 +2,33 @@
 
 import { api } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
-import { CATEGORIES } from "@/lib/categories";
+import { CATEGORIES, GROUPS } from "@/lib/categories";
 import type { ActionResult } from "@/lib/action-result";
 import type {
   CommentSetting,
   CreatePostRequest,
   IncidentCategory,
+  IncidentGroup,
   PagedResult,
   PostDto,
+  PostReactionsDto,
   ReactionType,
   ReportReason,
 } from "@/lib/types";
 import { tagFromPath } from "@/lib/hashtags";
+import { REACTION_TYPES } from "@/lib/reactions";
 import { IN_APP_REASONS, isReason } from "@/lib/reasons";
 
 import { asUser, run } from "./run";
 
-const REACTIONS: readonly ReactionType[] = ["Like", "Angry", "Shocked", "Laugh"];
-
 export type FeedSource =
-  | { kind: "feed"; category?: IncidentCategory }
+  | { kind: "feed"; category?: IncidentCategory; group?: IncidentGroup }
   | { kind: "author"; handle: string }
   | { kind: "hashtag"; tag: string }
   | { kind: "for-you" }
   | { kind: "following" }
   | { kind: "timeline"; id: string }
+  | { kind: "community"; slug: string }
   | { kind: "mine" }
   | { kind: "bookmarks" };
 
@@ -52,6 +54,12 @@ export async function loadPosts(
   if (source.kind === "following") {
     return asUser((t) => api().timelines.following(t, safePage));
   }
+  if (source.kind === "community") {
+    if (!/^[a-z0-9-]{1,70}$/.test(source.slug)) {
+      return { ok: false, error: "That community doesn't exist." };
+    }
+    return asUser((t) => api().communities.posts(t, source.slug, safePage));
+  }
   if (source.kind === "timeline") {
     if (!/^[0-9a-f-]{36}$/i.test(source.id)) {
       return { ok: false, error: "That timeline doesn't exist." };
@@ -66,15 +74,28 @@ export async function loadPosts(
     return run(() => api().posts.list(token, { hashtag: tag, page: safePage }));
   }
   const category = CATEGORIES.some((c) => c.value === source.category) ? source.category : undefined;
-  return run(() => api().posts.list(token, { category, page: safePage }));
+  const group = GROUPS.some((g) => g.value === source.group) ? source.group : undefined;
+  return run(() => api().posts.list(token, { category, group, page: safePage }));
 }
 
 /** Set (or with null, remove) your reaction to a post. */
 export async function reactToPost(postId: string, type: ReactionType | null): Promise<ActionResult> {
-  if (type !== null && !REACTIONS.includes(type)) {
+  if (type !== null && !REACTION_TYPES.includes(type)) {
     return { ok: false, error: "Choose a reaction." };
   }
   return asUser((t) => (type ? api().posts.react(t, postId, type) : api().posts.unreact(t, postId)));
+}
+
+/** Who reacted to a post (signed-in members only), filtered by reaction and searched by name. */
+export async function listReactions(
+  postId: string,
+  q: { type: ReactionType | null; search: string; page: number; pageSize: number },
+): Promise<ActionResult<PostReactionsDto>> {
+  const type = q.type && REACTION_TYPES.includes(q.type) ? q.type : undefined;
+  const search = q.search.trim().slice(0, 50) || undefined;
+  return asUser((t) =>
+    api().posts.reactions(t, postId, { type, search, page: Math.max(1, q.page), pageSize: q.pageSize }),
+  );
 }
 
 export async function reportPost(
