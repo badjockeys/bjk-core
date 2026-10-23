@@ -1,7 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError } from "@/lib/api-client";
-
 // One request: React's cache memoises for the request, so each test gets fresh modules (and a fresh "request").
 vi.mock("react", async (original) => {
   const actual = await original<typeof import("react")>();
@@ -39,8 +37,12 @@ vi.mock("@/lib/session", () => ({
 vi.mock("@/lib/refresh", () => ({ refreshOnce: vi.fn() }));
 vi.mock("@/lib/api", async () => ({ ApiError: (await import("@/lib/api-client")).ApiError, api: () => api }));
 
+/** Built from the module copy the code under test sees (each test resets the modules). */
+const apiError = async (...args: ConstructorParameters<typeof import("@/lib/api-client").ApiError>) =>
+  new (await import("@/lib/api-client")).ApiError(...args);
+
 const refused = () =>
-  new ApiError(
+  apiError(
     401,
     undefined,
     "/api/profiles/me",
@@ -56,7 +58,7 @@ describe("a session the API refuses (e.g. after the local database was reset)", 
   });
 
   it("shows the page signed out, and stops using the token for the rest of the request", async () => {
-    api.profiles.me.mockRejectedValue(refused());
+    api.profiles.me.mockRejectedValue(await refused());
     const { getAccessToken, getViewer } = await import("@/lib/auth");
 
     const viewer = await getViewer();
@@ -67,7 +69,7 @@ describe("a session the API refuses (e.g. after the local database was reset)", 
   });
 
   it("loads For you as a visitor", async () => {
-    api.profiles.me.mockRejectedValue(refused());
+    api.profiles.me.mockRejectedValue(await refused());
     api.timelines.forYou.mockResolvedValue({ items: [], page: 1, pageSize: 20, totalCount: 0 });
     const { getViewer } = await import("@/lib/auth");
     const { homePage } = await import("@/lib/feed");
@@ -82,8 +84,8 @@ describe("a session the API refuses (e.g. after the local database was reset)", 
   it("shows an empty feed rather than an error page if even the visitor's view fails", async () => {
     api.profiles.me.mockResolvedValue({ handle: "aaron" });
     api.timelines.forYou
-      .mockRejectedValueOnce(new ApiError(401, undefined, "/api/timelines/for-you"))
-      .mockRejectedValueOnce(new ApiError(401, undefined, "/api/timelines/for-you"));
+      .mockRejectedValueOnce(await apiError(401, undefined, "/api/timelines/for-you"))
+      .mockRejectedValueOnce(await apiError(401, undefined, "/api/timelines/for-you"));
     const { homePage } = await import("@/lib/feed");
 
     await expect(homePage({ kind: "for-you" }, 1)).resolves.toBeNull();
