@@ -514,3 +514,17 @@ test("other people's profiles have no vault", async ({ page }) => {
   await expect(page.getByRole("link", { name: "Posts", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Vault", exact: true })).toHaveCount(0);
 });
+
+test("a Premium author opens their post's analytics, as charts or a table", async ({ page, request }) => {
+  await request.post("http://localhost:4010/__next-user", { data: "dave" });
+  await signIn(page, `/p/${SEED.photoPost}`);
+  await page.getByRole("button", { name: "Analytics" }).click();
+  const dialog = page.getByRole("dialog", { name: "Post analytics" });
+  await expect(dialog.getByText(/since it was posted\. Only you can see this\./)).toBeVisible();
+  await expect(dialog.getByRole("img", { name: /^Views:/ })).toBeVisible();
+  await expect(dialog.getByRole("img", { name: /^Reactions:/ })).toBeVisible();
+  await expect(dialog.getByText("See Premium")).toHaveCount(0);
+
+  await dialog.getByRole("button", { name: "Show as a table" }).click();
+  await expect(dialog.getByRole("columnheader", { name: "Shares" })).toBeVisible();
+});

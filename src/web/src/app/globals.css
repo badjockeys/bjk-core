@@ -4155,6 +4155,16 @@ a.pf-count:hover {
 
 /* The vault on your own profile (owner, 23 Oct 2026). */
 .vault {
+}
+
+/* Post analytics (owner, 22 Oct 2026): small multiples, one chart per measure, thin marks, recessive grid. */
+.an {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.an-charts {
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -4508,4 +4518,135 @@ a.pf-count:hover {
 .community-invite input {
   flex: 1;
   min-width: 0;
+}
+
+.an-chart {
+  margin: 0;
+}
+
+.an-chart-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.an-chart-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.an-legend {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.an-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.an-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex: none;
+}
+
+.an-plot {
+  position: relative;
+}
+
+.an-plot svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  touch-action: pan-y;
+}
+
+.an-grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.an-crosshair {
+  stroke: var(--muted);
+  stroke-width: 1;
+}
+
+.an-dot {
+  stroke: #ffffff;
+  stroke-width: 2;
+}
+
+.an-tick {
+  fill: var(--muted);
+  font-size: 11px;
+  font-family: var(--font);
+}
+
+.an-tip {
+  position: absolute;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 4px 14px rgba(17, 17, 17, 0.12);
+  font-size: 12px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.an-locked {
+  position: relative;
+}
+
+.an-locked .an-charts {
+  filter: blur(6px);
+  opacity: 0.6;
+  user-select: none;
+}
+
+.an-upgrade {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  padding: 16px;
+}
+
+.an-table-wrap {
+  max-height: 360px;
+  overflow: auto;
+}
+
+.an-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.an-table th,
+.an-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+}
+
+.an-table th[scope="row"],
+.an-table thead th:first-child {
+  text-align: left;
+  font-weight: 500;
 }
