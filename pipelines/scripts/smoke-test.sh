@@ -435,7 +435,7 @@ pass "Premium (plan claim) is unlimited"
 BBOX="-2.0,53.0,-0.5,54.5"
 request GET "/api/heatmap?bbox=$BBOX&zoom=8"
 expect 401 "the heat map needs signing in"
-request GET "/api/heatmap?bbox=$BBOX&zoom=8&categories=ClosePass" "" "$TOKEN_B"
+request GET "/api/heatmap?bbox=$BBOX&zoom=8&categories=ClosePassCyclist" "" "$TOKEN_B"
 expect 200 "a Free member gets the heat map"
 [ "$(json .access.plan)" = "Free" ] && [ "$(json .access.filtersIgnored)" = "true" ] && [ "$(json .minCellCount)" = "3" ] \
   || fail "Expected the Free teaser with filters ignored: $RESPONSE"
@@ -452,7 +452,7 @@ request GET "/api/heatmap/export.csv?bbox=$BBOX&from=2024-01-01" "" "$TOKEN_PLUS
 expect 200 "Premium + (Plans:Overrides) exports CSV"
 head -1 response.json | grep -q '^from,to,centre_latitude' || fail "Expected the CSV header: $(head -c 200 response.json)"
 pass "the export is aggregated cells"
-request GET "/api/heatmap?bbox=$BBOX&zoom=14&from=2020-01-01&categories=ClosePass&hours=7-10&days=Weekdays" "" "$TOKEN_PLUS"
+request GET "/api/heatmap?bbox=$BBOX&zoom=14&from=2020-01-01&categories=ClosePassCyclist&hours=7-10&days=Weekdays" "" "$TOKEN_PLUS"
 [ "$(json .access.plan)" = "PremiumPlus" ] && [ "$(json .access.historyCapped)" = "true" ] && [ "$(json .access.filtersAllowed)" = "true" ] \
   || fail "Expected Premium + with 5 years of history and filters: $RESPONSE"
 pass "Premium + gets filters and 5 years of history"
