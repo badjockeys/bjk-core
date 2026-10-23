@@ -352,7 +352,7 @@ fi
 # ---------- posts ----------
 
 POST_BODY=$(body --arg m "$MEDIA_ID" --arg at "$(date -u -d '-2 hours' +%Y-%m-%dT%H:%M:%SZ)" \
-  '{title: "Undertaking on the M62", description: "Lorry undertakes at junction 26.", category: "DangerousOvertaking", incidentAt: $at, latitude: 53.7457, longitude: -1.7181, placeName: "M62 J26", mediaIds: [$m]}')
+  '{title: "Undertaking on the M62", description: "Lorry undertakes at junction 26.", category: "Undertaking", incidentAt: $at, latitude: 53.7457, longitude: -1.7181, placeName: "M62 J26", mediaIds: [$m]}')
 request POST /api/posts "$POST_BODY" "$(token "$(body --arg s "$USER_A" --argjson sc "$ALL_SCOPES" '{sub: $s, scope: $sc, email_verified: false}')")"
 expect 400 "posting needs a confirmed email"
 [ "$(json '.errors.Email[0]')" = "Confirm your email address before posting." ] || fail "Expected the confirm-email message: $RESPONSE"
@@ -394,7 +394,7 @@ expect 400 "or unfollow it"
 # ---------- reels and the incident heat map ----------
 
 VIDEO_POST_BODY=$(body --arg m "$VIDEO_ID" --arg at "$(date -u -d '-3 hours' +%Y-%m-%dT%H:%M:%SZ)" \
-  '{title: "Close pass on the A64", category: "ClosePass", incidentAt: $at, latitude: 53.9590, longitude: -1.0815, placeName: "A64, York", mediaIds: [$m]}')
+  '{title: "Close pass on the A64", category: "ClosePassCyclist", incidentAt: $at, latitude: 53.9590, longitude: -1.0815, placeName: "A64, York", mediaIds: [$m]}')
 request POST /api/posts "$VIDEO_POST_BODY" "$TOKEN_A"
 expect 201 "user A posts the video"
 VIDEO_POST_ID=$(json .id)
