@@ -47,7 +47,7 @@ Content-Type: application/json
 {
   "title": "Undertaking on the M62",
   "description": "Lorry undertakes at junction 26.",
-  "category": "DangerousOvertaking",
+  "category": "Undertaking",
   "incidentAt": "2026-10-18T08:30:00Z",
   "latitude": 53.7457,
   "longitude": -1.7181,
