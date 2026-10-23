@@ -70,14 +70,19 @@ describe("reels and heat map API calls", () => {
     const api = endpoints(createApiClient("https://api.example.com", fetchImpl as unknown as typeof fetch));
 
     await api.reels.play("t", null, "p1");
-    await api.heatmap.get("t", { bbox: "-2,53,-1,54", zoom: 9, categories: "ClosePass", days: "Weekdays" });
+    await api.heatmap.get("t", {
+      bbox: "-2,53,-1,54",
+      zoom: 9,
+      categories: "ClosePassCyclist",
+      days: "Weekdays",
+    });
     await api.heatmap.area("t", { bbox: "-2,53,-1,54", zoom: 9 });
 
     const calls = fetchImpl.mock.calls as unknown as [URL, RequestInit][];
     expect(calls[0]![0].pathname).toBe("/api/reels/p1/play");
     expect(calls[0]![1].method).toBe("POST");
     expect(calls[1]![0].toString()).toBe(
-      "https://api.example.com/api/heatmap?bbox=-2%2C53%2C-1%2C54&zoom=9&categories=ClosePass&days=Weekdays",
+      "https://api.example.com/api/heatmap?bbox=-2%2C53%2C-1%2C54&zoom=9&categories=ClosePassCyclist&days=Weekdays",
     );
     expect(calls[2]![0].searchParams.has("zoom")).toBe(false);
   });

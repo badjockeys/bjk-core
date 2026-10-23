@@ -1,22 +1,24 @@
 import { describe, expect, it } from "vitest";
 
+import { CATEGORIES } from "@/lib/categories";
 import { describeTimeline, moveItem, planName } from "@/lib/timelines";
 
 describe("custom timelines", () => {
   it("describes a timeline's types and place", () => {
-    expect(describeTimeline({ types: ["BadParking", "Speeding"], placeName: "Prescot", radiusKm: 10 })).toBe(
-      "Bad parking, Speeding · within 10 km of Prescot",
+    const parking = CATEGORIES.filter((c) => c.group === "Parking").map((c) => c.value);
+    expect(describeTimeline({ types: [...parking, "Tailgating"], placeName: "Prescot", radiusKm: 10 })).toBe(
+      "Parking and Tailgating · within 10 km of Prescot",
     );
     expect(describeTimeline({ types: ["Tailgating"], placeName: null, radiusKm: null })).toBe(
       "Tailgating · anywhere",
     );
     expect(
       describeTimeline({
-        types: ["BadParking", "Speeding", "Tailgating", "ClosePass"],
+        types: ["DoubleYellows", "SpeedingInTown", "Tailgating", "ClosePassCyclist"],
         placeName: null,
         radiusKm: null,
       }),
-    ).toBe("4 types of bad driving · anywhere");
+    ).toBe("4 types · anywhere");
   });
 
   it("moves items within the list and ignores moves off the ends", () => {

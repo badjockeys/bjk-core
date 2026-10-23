@@ -605,6 +605,13 @@ locally it uses the real head-turn check and stand-ins for Yoti that answer age 
   optionally near a place; Free 1, Premium 5, Premium + 10), as tabs at the top of Home. The old category tabs are
   gone; category pages (`/c/{slug}`) open from Category trends.
 - **Following:** Follow buttons on profiles and in the right panel's **Who to follow** (adults who posted most in the last 90 days near your home area, or where you post, else across the UK);
+- **Categories:** 13 groups (Parking, Speeding, Overtaking, ...) of 74 subcategories, each group with its own "Other"
+  (signed off 23 Oct 2026; the list is `src/web/src/lib/categories.ts`, a copy of `IncidentTaxonomy` in
+  BJK.Modules). A post has up to 3 subcategories, picked in the composer by searching ("pave" finds "Parked on the
+  pavement") or by opening a group; the first is the main one, and its own vote ("Was the pavement blocked?") goes
+  on the post. `/c/parking` is a whole group's feed and `/c/parked-on-the-pavement` one subcategory's. The heat map
+  and timelines filter by whole groups or single subcategories.
+- **Following:** Follow buttons on profiles and in the right panel's **Who to follow** (adults near your home area);
   profiles show follower and following counts, with lists at `/u/{handle}/followers` and `/following`. A post's ⋯
   menu can limit comments to people you follow. The optional mobile number lives on the identity server
   (Account → Mobile number).
@@ -694,6 +701,8 @@ It adds 108 example members and 300 posts across the UK, mostly around Merseysid
 
 - **Posts:** every category, with vehicle details, and enough posts close together for the heat map. About half have photos (2 to 6 placeholder dashcam frames marked "Example clip") and the rest have one 8-second placeholder clip, so Reels has plenty in it. That follows the posting rule: up to 10 photos or one video.
 - **Activity:** reactions on posts and comments (Like, Heart, Angry, Shocked), comments and replies (every member has written both), "Who's at fault?" and "How bad was it?" votes, followed posts, bookmarks, follows between members, views (some local, some from signed-out visitors) and shares.
+- **Posts:** most subcategories (made from `taxonomy.mjs`, the same list as the app's), with vehicle details, and enough posts close together for the heat map. About half have photos (2 to 6 placeholder dashcam frames marked "Example clip") and the rest have one 8-second placeholder clip, so Reels has plenty in it. That follows the posting rule: up to 10 photos or one video.
+- **Activity:** reactions on posts and comments (Like, Angry, Shocked, Laugh), comments and replies (every member has written both), votes (each post's own question, from its main subcategory), followed posts, bookmarks, follows between members, views (some local, some from signed-out visitors) and shares.
 - **Members:** home areas (so local views and area alerts work), badges (all founding members, 8 trusted reporters, 18 local regulars), and a few with their own vote closing time. Some votes have closed, and the ones that closed in the last day get their results sent the first time the API's VoteResults job runs, so a few "Voting has closed" notifications turn up.
 - **Sign in as an example member:** for example `dave@example.test` (@dashcam_dave) or `priya@example.test` (@pedal_power_priya), password `BadJockeys!2026`. The generated members are `<handle>@example.test`; the seed prints the first few, and `SELECT Email FROM idsrv.auth.AspNetUsers WHERE Id LIKE 'e0000000%'` lists them all. They're all adults who have passed the age check, with confirmed emails.
 - **Your own account** (`aaron.greenhalgh@badjockey.com`; change `OWNER_EMAIL` in `scripts/sql/example-data/data.mjs`) gets Premium+ through `Plans:Overrides` in the API's user secrets. Once it has a profile, Dashcam Dave tags it as a passenger on one post (you'll see it under **Approve tags** and in the bell), it follows the hand-written members and a few more, and about 20 members follow it. If you sign up after the setup, run the setup again.

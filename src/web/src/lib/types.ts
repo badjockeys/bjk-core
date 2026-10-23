@@ -48,6 +48,7 @@ export type {
   HouseholdCarRequest,
   HeatmapLight,
   IncidentCategory,
+  IncidentGroup,
   LocationDto,
   MediaDto,
   MediaStatus,
@@ -98,7 +99,6 @@ export type {
   VehicleType,
   VoteChoice,
   VoteDuration,
-  VoteKind,
   VoteSummaryDto,
   WhoToFollowDto,
 } from "./generated/api";

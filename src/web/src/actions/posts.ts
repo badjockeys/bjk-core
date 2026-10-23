@@ -2,12 +2,13 @@
 
 import { api } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
-import { CATEGORIES } from "@/lib/categories";
+import { CATEGORIES, GROUPS } from "@/lib/categories";
 import type { ActionResult } from "@/lib/action-result";
 import type {
   CommentSetting,
   CreatePostRequest,
   IncidentCategory,
+  IncidentGroup,
   PagedResult,
   PostDto,
   PostReactionsDto,
@@ -21,7 +22,7 @@ import { IN_APP_REASONS, isReason } from "@/lib/reasons";
 import { asUser, run } from "./run";
 
 export type FeedSource =
-  | { kind: "feed"; category?: IncidentCategory }
+  | { kind: "feed"; category?: IncidentCategory; group?: IncidentGroup }
   | { kind: "author"; handle: string }
   | { kind: "hashtag"; tag: string }
   | { kind: "for-you" }
@@ -73,7 +74,8 @@ export async function loadPosts(
     return run(() => api().posts.list(token, { hashtag: tag, page: safePage }));
   }
   const category = CATEGORIES.some((c) => c.value === source.category) ? source.category : undefined;
-  return run(() => api().posts.list(token, { category, page: safePage }));
+  const group = GROUPS.some((g) => g.value === source.group) ? source.group : undefined;
+  return run(() => api().posts.list(token, { category, group, page: safePage }));
 }
 
 /** Set (or with null, remove) your reaction to a post. */

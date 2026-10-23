@@ -5,6 +5,8 @@
 import { createHash, generateKeyPairSync, randomBytes, randomUUID, sign } from "node:crypto";
 import { createServer } from "node:http";
 
+import { BY_VALUE, GROUPS, MAX_PER_POST } from "../../../scripts/sql/example-data/taxonomy.mjs";
+
 const PORT = Number(process.env.PORT ?? 4010);
 const ORIGIN = `http://localhost:${PORT}`;
 const CLIENT_ID = "bjk-web";
@@ -149,7 +151,7 @@ function seed() {
         SEED.processingPost,
         USERS.roadhog.id,
         "Wrong way round the roundabout",
-        "Other",
+        "WrongLaneRoundabout",
         ["m-6"],
         ago(1),
         {
@@ -157,24 +159,24 @@ function seed() {
           mediaState: "Pending",
         },
       ),
-      post(SEED.sensitivePost, dave, "Serious crash on the A64", "RoadRage", ["m-5"], ago(30), {
+      post(SEED.sensitivePost, dave, "Serious crash on the A64", "Collision", ["m-5"], ago(30), {
         isSensitive: true,
       }),
       post(SEED.videoPost, dave, "Undertaking a lorry on the M62", "Undertaking", ["m-4"], ago(300), {
         description: "Straight up the inside at junction 26. #M62 #Undertaking",
         passengers: [{ userId: USERS.roadhog.id, status: "Pending" }],
       }),
-      post(SEED.secondVideo, dave, "Cutting up on the A64", "CuttingUp", ["m-7"], ago(400), {
+      post(SEED.secondVideo, dave, "Cutting up on the A64", "PushingInAtMerge", ["m-7"], ago(400), {
         placeName: "A64, York",
       }),
-      post(SEED.thirdVideo, dave, "Phone at the wheel in Leeds", "MobilePhoneUse", ["m-8"], ago(500), {
+      post(SEED.thirdVideo, dave, "Phone at the wheel in Leeds", "PhoneInHand", ["m-8"], ago(500), {
         placeName: "Kirkstall Road, Leeds",
       }),
       post(
         SEED.photoPost,
         dave,
         "Parked across two disabled bays, again",
-        "BadParking",
+        "DisabledBay",
         ["m-1", "m-2", "m-3"],
         ago(120),
         {
@@ -407,16 +409,6 @@ function counts(map) {
 let callerAgeVerified = false;
 
 // Engagement (bjk-modules EngagementController): votes, followed posts, bookmarks, views and shares.
-const INTERACTION_TYPES = new Set([
-  "RoadRage",
-  "DangerousOvertaking",
-  "Tailgating",
-  "CuttingUp",
-  "Undertaking",
-  "ClosePass",
-]);
-const FAULT_CHOICES = ["FilmingDriver", "OtherRoadUser", "Both", "Nobody"];
-const SEVERITY_CHOICES = ["Minor", "Careless", "Dangerous", "Shocking"];
 function engagement() {
   db.votes ??= new Map();
   db.postFollows ??= new Set();
@@ -428,17 +420,19 @@ function engagement() {
 }
 function voteDto(p, viewer) {
   const votes = engagement().votes.get(p.id) ?? new Map();
-  const kind = (p.types ?? [p.category]).some((t) => INTERACTION_TYPES.has(t)) ? "Fault" : "Severity";
-  const choices = kind === "Fault" ? FAULT_CHOICES : SEVERITY_CHOICES;
-  const mine = (viewer && votes.get(viewer)) ?? null;
-  const total = votes.size;
+  // The main subcategory's own question and answers; votes for other answers (an older question) don't count.
+  const { question, answers } = BY_VALUE.get(p.category);
+  const choices = answers.map((a) => a.choice);
+  const cast = (viewer && votes.get(viewer)) ?? null;
+  const mine = choices.includes(cast) ? cast : null;
+  const total = [...votes.values()].filter((v) => choices.includes(v)).length;
   const isAuthor = viewer === p.authorId;
   const show = isAuthor || mine !== null || (!viewer && total >= 10);
   const results = {};
   for (const c of choices) results[c] = [...votes.values()].filter((v) => v === c).length;
   return {
-    kind,
-    choices,
+    question,
+    answers,
     total,
     results: show ? results : null,
     myChoice: mine,
@@ -457,6 +451,7 @@ function postDto(p, viewer) {
     title: p.title,
     description: p.description,
     category: p.category,
+    group: BY_VALUE.get(p.category).group,
     types: p.types,
     passengers: passengersFor(p, viewer),
     vehicle: p.vehicle,
@@ -782,20 +777,12 @@ async function identity(req, res, url) {
 }
 
 // --- API ---
-const CATEGORIES = new Set([
-  "RoadRage",
-  "DangerousOvertaking",
-  "Tailgating",
-  "MobilePhoneUse",
-  "Speeding",
-  "RedLightRunning",
-  "CuttingUp",
-  "Undertaking",
-  "LaneHogging",
-  "ClosePass",
-  "BadParking",
-  "Other",
-]);
+const CATEGORIES = new Set(BY_VALUE.keys());
+const GROUP_NAMES = new Set(GROUPS.map((g) => g.value));
+/** A post is in a group when any of its subcategories is (no group: every post). */
+function inGroup(p, group) {
+  return !group || !GROUP_NAMES.has(group) || p.types.some((t) => BY_VALUE.get(t)?.group === group);
+}
 const REACTIONS = new Set(["Like", "Heart", "Angry", "Shocked"]);
 
 async function api(req, res, url) {
@@ -845,7 +832,10 @@ async function api(req, res, url) {
     const a = reelAllowance();
     if (a.remaining === 0) return dailyLimit(a);
     const category = url.searchParams.get("category");
-    const all = db.posts.filter((p) => isReel(p) && (!category || p.types.includes(category)));
+    const group = url.searchParams.get("group");
+    const all = db.posts.filter(
+      (p) => isReel(p) && (!category || p.types.includes(category)) && inGroup(p, group),
+    );
     const start = Number(url.searchParams.get("cursor") ?? 0);
     const size = Math.min(Number(url.searchParams.get("pageSize") ?? 10), a.remaining ?? 10);
     const items = all.slice(start, start + size);
@@ -939,6 +929,7 @@ async function api(req, res, url) {
       const total = p.reduce((a, b) => a + b, 0);
       return {
         category,
+        group: BY_VALUE.get(category).group,
         suppressed: false,
         total,
         previousTotal: previous,
@@ -946,9 +937,10 @@ async function api(req, res, url) {
         points: p,
       };
     };
-    const shown = [trend("BadParking", 6, 30), trend("Tailgating", 4, 40), trend("Speeding", 2, null)];
-    const suppressed = ["RoadRage", "ClosePass"].map((category) => ({
+    const shown = [trend("DisabledBay", 6, 30), trend("Tailgating", 4, 40), trend("SpeedingInTown", 2, null)];
+    const suppressed = ["ShoutingOrGestures", "ClosePassCyclist"].map((category) => ({
       category,
+      group: BY_VALUE.get(category).group,
       suppressed: true,
       total: null,
       previousTotal: null,
@@ -1022,8 +1014,8 @@ async function api(req, res, url) {
       changePercent: 12,
       busiestHour: 8,
       topCategories: [
-        { category: "BadParking", count: 5, percent: 36 },
-        { category: "Tailgating", count: 4, percent: 29 },
+        { category: "DoubleYellows", group: "Parking", count: 5, percent: 36 },
+        { category: "Tailgating", group: "FollowingTooClose", count: 4, percent: 29 },
       ],
       topPlaces: [{ name: "Kirkstall Road, Leeds", count: 6 }],
       placeName: "Kirkstall Road, Leeds",
@@ -1509,6 +1501,7 @@ async function api(req, res, url) {
   // Posts
   if (path === "/api/posts" && method === "GET") {
     const category = url.searchParams.get("type") ?? url.searchParams.get("category");
+    const group = url.searchParams.get("group");
     const handle = url.searchParams.get("author");
     const hashtag = url.searchParams.get("hashtag")?.toLowerCase();
     const authorId = handle ? [...db.profiles.values()].find((p) => p.handle === handle)?.id : null;
@@ -1517,6 +1510,7 @@ async function api(req, res, url) {
         isPublic(p) &&
         canSee(p, me) &&
         (!category || p.types.includes(category)) &&
+        inGroup(p, group) &&
         (!handle || p.authorId === authorId) &&
         (!hashtag || tagsOf(p).some((t) => t.toLowerCase() === hashtag)),
     );
@@ -1736,8 +1730,9 @@ async function api(req, res, url) {
     const types = [...new Set(sent.filter(Boolean))];
     if (types.length === 0) return invalid(res, "Types", "Choose at least one type of bad driving.");
     if (!types.every((t) => CATEGORIES.has(t))) return invalid(res, "Types", "Choose a type from the list.");
+    if (types.length > MAX_PER_POST) return invalid(res, "Types", "Choose up to 3 types of bad driving.");
     const handles = [...new Set((body.passengers ?? []).map((h) => h.replace(/^@/, "").toLowerCase()))];
-    if (handles.length > 0 && types.every((t) => t === "BadParking"))
+    if (handles.length > 0 && types.every((t) => BY_VALUE.get(t).group === "Parking"))
       return invalid(
         res,
         "Passengers",
@@ -1890,7 +1885,7 @@ async function api(req, res, url) {
       const { choice } = await json();
       const dto = voteDto(p, me);
       if (!dto.canVote) return invalid(res, "Choice", "You can't vote on your own post.");
-      if (!dto.choices.includes(choice))
+      if (!dto.answers.some((a) => a.choice === choice))
         return invalid(res, "Choice", "That answer doesn't fit this post's vote.");
       const votes = engagement().votes.get(p.id) ?? new Map();
       votes.set(me, choice);

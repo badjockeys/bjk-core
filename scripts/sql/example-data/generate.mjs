@@ -6,6 +6,7 @@
 // Everything comes from a fixed random seed, so every run produces exactly the same data.
 
 import { COMMUNITY_REPLIES, communities as handCommunities, ids, posts as handPosts, users as handUsers } from "./data.mjs";
+import { BY_VALUE } from "./taxonomy.mjs";
 
 // --- Deterministic random numbers ---
 
@@ -156,79 +157,92 @@ export function generatedUsers(count = 100) {
 
 // --- Posts ---
 
-const INTERACTION = new Set(["RoadRage", "DangerousOvertaking", "Tailgating", "CuttingUp", "Undertaking", "ClosePass"]);
+// Generated posts' words and how often each subcategory turns up (weights), by subcategory.
 const POST_TEXT = {
-  RoadRage: [
-    ["Got out of his car at the lights on {road}", "Shouting and banging on my window because I didn't move fast enough."],
-    ["Followed me for two miles after I beeped", "Flashing his lights and right on my bumper the whole way."],
-    ["Threw something at my car on {road}", "Over a lane change he didn't like."],
-  ],
-  DangerousOvertaking: [
-    ["Overtook on a blind bend on {road}", "Oncoming car had to brake hard."],
-    ["Overtook a cyclist into oncoming traffic", "Then cut straight back in."],
-    ["Three cars in one go, double white lines", "No idea how nobody was hurt."],
-  ],
-  Tailgating: [
-    ["Inches from my bumper on {road}", "At 50 mph. Couldn't see his number plate in my mirror."],
-    ["Lorry tailgating in the rain", "Spray everywhere and about a car length behind."],
-    ["Sat on my bumper in a 30", "Then overtook and braked in front of me."],
-  ],
-  MobilePhoneUse: [
-    ["On a video call driving down {road}", "Phone held up over the steering wheel."],
-    ["Texting at the lights, then pulled off on red", "Didn't look up once."],
-    ["Phone in hand through the roundabout", "Drifted across two lanes."],
-  ],
-  Speeding: [
-    ["Way over the limit past the school on {road}", "Kids everywhere at home time."],
-    ["Flew past me in a 40", "Must have been doing 70."],
-    ["Racing another car on {road}", "Both well over the limit."],
-  ],
-  RedLightRunning: [
-    ["Straight through a red on {road}", "Lights had been red for a good two seconds."],
-    ["Ran the red at the pedestrian crossing", "Someone had already stepped out."],
-    ["Bus through the red", "Then a car followed it through."],
-  ],
-  CuttingUp: [
-    ["Cut across three lanes for the exit", "No indicator, missed my front by a foot."],
-    ["Cut me up at the roundabout on {road}", "Came from the left lane to go right."],
-    ["Pushed in at the last second", "Then gave me the finger."],
-  ],
+  DisabledBay: [["Two disabled bays, no blue badge", "Popped in to the shop for half an hour."]],
+  PavementParking: [["Parked on the pavement, blocking it completely", "Pushchair had to go round in the traffic."]],
+  DoubleYellows: [["Double yellows right on the bend on {road}", "Buses can't get round."]],
+  SchoolZigZags: [["On the zigzags outside the school", "At home time, of course."]],
+  BlockingDriveway: [["Parked across the dropped kerb on {road}", "Wheelchair users have to go in the road."]],
+  BusStopOrLane: [["Parked in the bus stop on {road}", "Bus had to stop in the middle of the road."]],
+  ParentAndChildBay: [["Parent and child bay, no child in sight", "Big SUV, one driver, no car seat."]],
+  AcrossTwoBays: [["Across two bays at the supermarket", "Busiest Saturday of the year."]],
+  EvChargingBay: [["Petrol car in the only charging bay", "Sat there all afternoon."]],
+  SpeedingInTown: [["Flew past me in a 30 on {road}", "Must have been doing 50."]],
+  SpeedingFastRoad: [["Way over the limit on {road}", "Passed me like I was standing still at 70."]],
+  SpeedingSchool: [["Way over the limit past the school on {road}", "Kids everywhere at home time."]],
+  StreetRacing: [["Racing another car on {road}", "Both well over the limit."]],
+  OvertakeIntoOncoming: [["Overtook a cyclist into oncoming traffic", "Then cut straight back in."]],
+  OvertakeOnBend: [["Overtook on a blind bend on {road}", "Oncoming car had to brake hard."]],
+  OvertakeSolidWhite: [["Three cars in one go, double white lines", "No idea how nobody was hurt."]],
   Undertaking: [
-    ["Undertook a queue on the hard shoulder", "Then forced his way back in."],
     ["Undertaking on {road} at speed", "Weaving between lanes the whole way."],
     ["Went up the inside of a turning lorry", "Nearly went under it."],
   ],
-  LaneHogging: [
+  PulledOut: [["Pulled out right in front of me on {road}", "Had to stand on the brakes."]],
+  WrongLaneRoundabout: [["Cut me up at the roundabout on {road}", "Came from the left lane to go right."]],
+  BlockingYellowBox: [["Sat in the yellow box on {road}", "Whole junction gridlocked."]],
+  MiddleLaneHogging: [
     ["Middle lane hogging for miles", "Left lane completely empty."],
     ["Doing 50 in lane three", "Queue of cars behind trying to get past."],
-    ["Wouldn't move over on {road}", "Undertaking was the only way past."],
   ],
-  ClosePass: [
+  Weaving: [["Cut across three lanes for the exit", "No indicator, missed my front by a foot."]],
+  PushingInAtMerge: [["Pushed in at the last second", "Then gave me the finger."]],
+  Tailgating: [
+    ["Inches from my bumper on {road}", "At 50 mph. Couldn't see his number plate in my mirror."],
+    ["Lorry tailgating in the rain", "Spray everywhere and about a car length behind."],
+  ],
+  BrakeTesting: [["Sat on my bumper in a 30", "Then overtook and braked hard in front of me."]],
+  PhoneInHand: [
+    ["On a video call driving down {road}", "Phone held up over the steering wheel."],
+    ["Phone in hand through the roundabout", "Drifted across two lanes."],
+  ],
+  NotLooking: [["Texting at the lights, then pulled off", "Didn't look up once."]],
+  RanRedLight: [
+    ["Straight through a red on {road}", "Lights had been red for a good two seconds."],
+    ["Bus through the red", "Then a car followed it through."],
+  ],
+  RanPedestrianCrossing: [["Ran the red at the pedestrian crossing", "Someone had already stepped out."]],
+  ClosePassCyclist: [
     ["Close pass on {road}", "Less than a foot from my handlebars."],
     ["Bus squeezed past me at the pinch point", "Mirror nearly took my elbow."],
-    ["Overtook me on the crossing islands", "Had to brake to avoid the kerb."],
   ],
-  BadParking: [
-    ["Parked across the dropped kerb on {road}", "Wheelchair users have to go in the road."],
-    ["On the zigzags outside the school", "At home time, of course."],
-    ["Two disabled bays, no blue badge", "Popped in to the shop for half an hour."],
-    ["Parked on the pavement, blocking it completely", "Pushchair had to go round in the traffic."],
-  ],
-  Other: [
-    ["Reversing up the slip road on {road}", "Missed the exit, so went back for it."],
-    ["Driving with no lights in the dark", "Couldn't see him until he was right on me."],
-    ["Load falling off a trailer", "Bits of wood all over the lane."],
-  ],
+  ClosePassHorse: [["Close pass on two horses on {road}", "Horse nearly bolted."]],
+  CyclistRidingDangerously: [["Cyclist through the red on {road}", "Straight across the junction without looking."]],
+  PedestrianSteppedOut: [["Stepped out from behind a bus", "Looking at their phone the whole time."]],
+  ShoutingOrGestures: [["Hand out the window at the lights on {road}", "All because I let a bus out."]],
+  FollowingOrChasing: [["Followed me for two miles after I beeped", "Flashing his lights and right on my bumper the whole way."]],
+  GotOutOfVehicle: [["Got out of his car at the lights on {road}", "Shouting and banging on my window because I didn't move fast enough."]],
+  RoadRageOther: [["Threw something at my car on {road}", "Over a lane change he didn't like."]],
+  NearMiss: [["Near miss at the junction on {road}", "Both of us stopped with inches to spare."]],
+  NoLightsAtNight: [["Driving with no lights in the dark", "Couldn't see him until he was right on me."]],
+  UnsafeLoad: [["Load falling off a trailer", "Bits of wood all over the lane."]],
+  HardShoulderMisuse: [["Undertook a queue on the hard shoulder", "Then forced his way back in."]],
+  StoppingOnMotorway: [["Reversing up the slip road on {road}", "Missed the exit, so went back for it."]],
+  WrongWayDriver: [["Wrong way down the dual carriageway", "Everyone flashing their lights at him."]],
 };
 const CATEGORY_WEIGHTS = [
-  ["BadParking", 9], ["MobilePhoneUse", 7], ["Tailgating", 7], ["Speeding", 6], ["DangerousOvertaking", 6],
-  ["CuttingUp", 5], ["RedLightRunning", 5], ["ClosePass", 5], ["RoadRage", 4], ["Undertaking", 3],
-  ["LaneHogging", 3], ["Other", 2],
+  ["PhoneInHand", 7], ["Tailgating", 7], ["PavementParking", 4], ["DoubleYellows", 3], ["SchoolZigZags", 3],
+  ["BlockingDriveway", 3], ["DisabledBay", 3], ["AcrossTwoBays", 2], ["BusStopOrLane", 2], ["ParentAndChildBay", 1],
+  ["EvChargingBay", 1], ["SpeedingInTown", 4], ["SpeedingFastRoad", 3], ["SpeedingSchool", 2], ["StreetRacing", 1],
+  ["OvertakeOnBend", 3], ["OvertakeIntoOncoming", 2], ["OvertakeSolidWhite", 2], ["Undertaking", 3], ["PulledOut", 3],
+  ["WrongLaneRoundabout", 3], ["BlockingYellowBox", 2], ["MiddleLaneHogging", 3], ["Weaving", 3], ["PushingInAtMerge", 2],
+  ["BrakeTesting", 2], ["NotLooking", 2], ["RanRedLight", 4], ["RanPedestrianCrossing", 2], ["ClosePassCyclist", 5],
+  ["ClosePassHorse", 1], ["CyclistRidingDangerously", 1], ["PedestrianSteppedOut", 1], ["ShoutingOrGestures", 2],
+  ["FollowingOrChasing", 1], ["GotOutOfVehicle", 1], ["RoadRageOther", 1], ["NearMiss", 2], ["NoLightsAtNight", 1],
+  ["UnsafeLoad", 1], ["HardShoulderMisuse", 1], ["StoppingOnMotorway", 1], ["WrongWayDriver", 1],
 ];
 const SECOND_TYPE = {
-  Tailgating: ["RoadRage", "Speeding"], DangerousOvertaking: ["Speeding", "ClosePass"], RedLightRunning: ["MobilePhoneUse", "Speeding"],
-  MobilePhoneUse: ["LaneHogging", "RedLightRunning"], CuttingUp: ["RoadRage"], Speeding: ["DangerousOvertaking"],
-  Undertaking: ["Speeding"], LaneHogging: ["Undertaking"],
+  Tailgating: ["ShoutingOrGestures", "SpeedingFastRoad", "BrakeTesting"],
+  OvertakeOnBend: ["SpeedingFastRoad", "ClosePassCyclist"],
+  RanRedLight: ["PhoneInHand", "SpeedingInTown"],
+  PhoneInHand: ["MiddleLaneHogging", "RanRedLight"],
+  Weaving: ["ShoutingOrGestures", "SpeedingFastRoad"],
+  SpeedingInTown: ["OvertakeIntoOncoming"],
+  Undertaking: ["SpeedingFastRoad", "Weaving"],
+  MiddleLaneHogging: ["Undertaking"],
+  PulledOut: ["NearMiss"],
+  FollowingOrChasing: ["Tailgating"],
 };
 const VEHICLES = [
   ["Car", "Ford", "Focus"], ["Car", "Ford", "Fiesta"], ["Car", "BMW", "3 Series"], ["Car", "BMW", "X5"], ["Car", "Audi", "A3"],
@@ -257,10 +271,11 @@ const REPLIES = [
   "It was about 5:15.", "They've been told about it loads of times.", "Fingers crossed something happens.",
   "Honestly I just pulled over afterwards.", "You'd think so.", "Shocking isn't it.",
 ];
-const CHOICES = {
-  Fault: [["OtherRoadUser", 12], ["Both", 2], ["FilmingDriver", 1], ["Nobody", 1]],
-  Severity: [["Careless", 4], ["Dangerous", 5], ["Shocking", 3], ["Minor", 1]],
-};
+// Voters mostly side with the person filming: these answers come up five times as often as the rest.
+const LIKELY_ANSWERS = new Set([
+  "OtherRoadUser", "Careless", "Dangerous", "No", "Blocked", "BadParking", "BadDriving", "Risky", "FarTooClose",
+  "TooClose", "Clearly", "ClearlyRanIt", "Aggressive", "Serious",
+]);
 const REACTIONS = [["Angry", 40], ["Shocked", 25], ["Like", 25], ["Heart", 10]];
 
 function generatedPosts(allUsers, count, startN) {
@@ -275,8 +290,9 @@ function generatedPosts(allUsers, count, startN) {
     const road = chance(0.75) ? pick(ROADS.filter((r) => r.town === home)) : pick(ROADS);
     const [title, text] = pick(POST_TEXT[main]);
     const roadName = road.place.split(",")[0];
-    const vehicle = main === "BadParking" && chance(0.2) ? null : pick(VEHICLES);
-    const video = chance(main === "BadParking" ? 0.15 : 0.5);
+    const parking = BY_VALUE.get(main).group === "Parking";
+    const vehicle = parking && chance(0.2) ? null : pick(VEHICLES);
+    const video = chance(parking ? 0.15 : 0.5);
     out.push({
       n: startN + i,
       by: author.n,
@@ -382,8 +398,9 @@ export function buildExampleData() {
     post.comments = flat;
 
     // Votes: the kind follows the post's types; nobody votes on their own post.
-    const kind = post.types.some((t) => INTERACTION.has(t)) ? "Fault" : "Severity";
-    post.votes = sample(others, int(2, 40)).map((u) => ({ user: u, choice: weighted(CHOICES[kind]), minute: minute(30, 2000) }));
+    // The main subcategory's own answers.
+    const answers = BY_VALUE.get(post.types[0]).answers.map((a) => [a.choice, LIKELY_ANSWERS.has(a.choice) ? 5 : 1]);
+    post.votes = sample(others, int(2, 40)).map((u) => ({ user: u, choice: weighted(answers), minute: minute(30, 2000) }));
 
     // Followers: the author, everyone who commented (as the app does), and a few more.
     post.followers = [...new Set([post.by, ...flat.map((c) => c.by), ...sample(others, int(0, 4))])];
