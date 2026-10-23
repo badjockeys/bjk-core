@@ -359,7 +359,11 @@ export function endpoints(api: ApiClient) {
       requestUpload: (
         token: string,
         body: { fileName: string; contentType: string; sizeBytes: number; vaultClipId?: string | null },
-      ) => client(MediaClient, { token }).media_RequestUpload({ ...body, vaultClipId: body.vaultClipId ?? null }),
+      ) =>
+        client(MediaClient, { token }).media_RequestUpload({
+          ...body,
+          vaultClipId: body.vaultClipId ?? null,
+        }),
       complete: (token: string, mediaId: string) => client(MediaClient, { token }).media_Complete(mediaId),
       get: (token: string, mediaId: string) => client(MediaClient, { token }).media_Get(mediaId),
       remove: (token: string, mediaId: string) => client(MediaClient, { token }).media_Delete(mediaId),

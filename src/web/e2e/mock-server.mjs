@@ -1784,7 +1784,11 @@ async function api(req, res, url) {
   if (path === "/api/vault/uploads" && method === "POST") {
     if (!requireUser()) return;
     const body = await json();
-    const type = body.contentType?.startsWith("video/") ? "Video" : body.contentType?.startsWith("image/") ? "Image" : null;
+    const type = body.contentType?.startsWith("video/")
+      ? "Video"
+      : body.contentType?.startsWith("image/")
+        ? "Image"
+        : null;
     if (!type) return invalid(res, "ContentType", "Add a video or a photo.");
     const id = randomUUID();
     const now = new Date();

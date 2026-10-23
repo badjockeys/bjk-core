@@ -427,7 +427,9 @@ test("your vault keeps clips you add, which you can post or delete", async ({ pa
   await expect(vault.getByText(/of 2 GB used · clips are kept for 30 days/)).toBeVisible();
   await expect(vault.getByText(/Only you can see your vault/)).toBeVisible();
 
-  await vault.getByTestId("vault-input").setInputFiles({ name: "dashcam-still.png", mimeType: "image/png", buffer: PNG });
+  await vault
+    .getByTestId("vault-input")
+    .setInputFiles({ name: "dashcam-still.png", mimeType: "image/png", buffer: PNG });
   const clips = vault.getByRole("list", { name: "Clips in your vault" });
   await expect(clips.getByText("dashcam-still.png")).toBeVisible();
   await expect(clips.getByText(/Kept until/)).toBeVisible();

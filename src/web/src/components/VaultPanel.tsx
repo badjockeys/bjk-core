@@ -8,7 +8,14 @@ import { completeVaultUpload, deleteVaultClip, getVaultDownload, requestVaultUpl
 import { dateTime, longDate, plural } from "@/lib/format";
 import { postPath } from "@/lib/paths";
 import type { VaultClipDto, VaultDto } from "@/lib/types";
-import { contentTypeOf, PHOTO_EXTENSIONS, PHOTO_TYPES, putFile, VIDEO_EXTENSIONS, VIDEO_TYPES } from "@/lib/upload";
+import {
+  contentTypeOf,
+  PHOTO_EXTENSIONS,
+  PHOTO_TYPES,
+  putFile,
+  VIDEO_EXTENSIONS,
+  VIDEO_TYPES,
+} from "@/lib/upload";
 import { expiresSoon, fileSize, keptFor, usedShare } from "@/lib/vault";
 
 import { DownloadIcon, PhotoIcon, ShieldIcon, VideoIcon } from "./icons";
@@ -109,17 +116,28 @@ export function VaultPanel({ vault, basePath }: { vault: VaultDto; basePath: str
       <p className="notice">
         <ShieldIcon />
         <span>
-          Only you can see your vault. These are your originals, so faces and number plates aren&apos;t blurred and
-          they keep their sound and location. Use them as evidence for the police or your insurer.
+          Only you can see your vault. These are your originals, so faces and number plates aren&apos;t
+          blurred and they keep their sound and location. Use them as evidence for the police or your insurer.
         </span>
       </p>
 
       <div className="vault-space">
-        <div className="vault-meter" role="meter" aria-label="Space used" aria-valuenow={Math.round(share * 100)} aria-valuemin={0} aria-valuemax={100}>
-          <span style={{ width: `${Math.round(share * 100)}%` }} className={share >= 0.9 ? "vault-meter-full" : undefined} />
+        <div
+          className="vault-meter"
+          role="meter"
+          aria-label="Space used"
+          aria-valuenow={Math.round(share * 100)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+        >
+          <span
+            style={{ width: `${Math.round(share * 100)}%` }}
+            className={share >= 0.9 ? "vault-meter-full" : undefined}
+          />
         </div>
         <span className="small">
-          {fileSize(vault.usedBytes)} of {fileSize(vault.limitBytes)} used · clips are kept for {keptFor(vault.retentionDays)}
+          {fileSize(vault.usedBytes)} of {fileSize(vault.limitBytes)} used · clips are kept for{" "}
+          {keptFor(vault.retentionDays)}
         </span>
         {premium ? null : (
           <span className="small muted">
@@ -160,8 +178,8 @@ export function VaultPanel({ vault, basePath }: { vault: VaultDto; basePath: str
       {vault.clips.items.length === 0 ? (
         <div className="centre vault-empty">
           <p className="muted">
-            Nothing here yet. The originals of your posts are kept here automatically, and you can add clips you
-            haven&apos;t posted.
+            Nothing here yet. The originals of your posts are kept here automatically, and you can add clips
+            you haven&apos;t posted.
           </p>
         </div>
       ) : (
@@ -169,14 +187,22 @@ export function VaultPanel({ vault, basePath }: { vault: VaultDto; basePath: str
           {vault.clips.items.map((clip) => (
             <li key={clip.id} className="vault-row">
               <span className="vault-kind" aria-hidden="true">
-                {clip.mediaType === "Video" ? <VideoIcon color="#00607F" /> : <PhotoIcon size={22} color="#00607F" />}
+                {clip.mediaType === "Video" ? (
+                  <VideoIcon color="#00607F" />
+                ) : (
+                  <PhotoIcon size={22} color="#00607F" />
+                )}
               </span>
               <div className="vault-info">
                 <strong className="vault-name">{clip.fileName}</strong>
                 <span className="small muted">
                   {fileSize(clip.sizeBytes)} · added {dateTime(clip.createdAt)} ·{" "}
                   {clip.source === "Post" ? (
-                    clip.postId ? <Link href={postPath(clip.postId)}>from your post</Link> : "from a post"
+                    clip.postId ? (
+                      <Link href={postPath(clip.postId)}>from your post</Link>
+                    ) : (
+                      "from a post"
+                    )
                   ) : (
                     "uploaded"
                   )}
@@ -197,7 +223,11 @@ export function VaultPanel({ vault, basePath }: { vault: VaultDto; basePath: str
                   Download
                 </button>
                 {clip.source === "Upload" ? (
-                  <Link className="btn btn-sm" href={`/post/new?vault=${clip.id}`} aria-label={`Post ${clip.fileName}`}>
+                  <Link
+                    className="btn btn-sm"
+                    href={`/post/new?vault=${clip.id}`}
+                    aria-label={`Post ${clip.fileName}`}
+                  >
                     Post it
                   </Link>
                 ) : null}
