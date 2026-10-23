@@ -11,6 +11,13 @@ import { clearSession, isExpired, readSession, writeSession, type Session } from
 import type { ProfileDto } from "./types";
 import { ANONYMOUS, type Viewer } from "./viewer";
 
+/**
+ * Set once the API has refused this request's access token (401 on a token that hasn't expired). From then on the
+ * request is treated as signed out: the viewer is anonymous and getAccessToken returns null, so pages show what a
+ * visitor sees instead of failing. Per request (React's cache).
+ */
+const refusal = cache(() => ({ refused: false }));
+
 /** The session from the cookie, once per request. src/proxy.ts has usually refreshed it already. */
 export const getSession = cache(async (): Promise<Session | null> => {
   const config = getConfig();
@@ -23,7 +30,7 @@ export const getSession = cache(async (): Promise<Session | null> => {
  */
 export async function getAccessToken(): Promise<string | null> {
   const session = await getSession();
-  if (!session) {
+  if (!session || refusal().refused) {
     return null;
   }
   if (!isExpired(session)) {
@@ -57,8 +64,9 @@ export const getMyProfile = cache(async (): Promise<ProfileDto | null> => {
       return null;
     }
     if (error instanceof ApiError && error.status === 401) {
-      // Treated as "no profile" so pages still render, but it isn't: the API refused the token. Say so loudly.
+      // The API refused the token: show the page signed out (getViewer), and say so in the log.
       logRefusedToken(error);
+      refusal().refused = true;
       return null;
     }
     throw error;
@@ -72,6 +80,9 @@ export const getViewer = cache(async (): Promise<Viewer> => {
     return SIGNED_OUT;
   }
   const profile = await getMyProfile();
+  if (refusal().refused) {
+    return { ...SIGNED_OUT, sessionRefused: true };
+  }
   return {
     signedIn: true,
     userId: session.sub,

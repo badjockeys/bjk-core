@@ -19,6 +19,7 @@ import {
   ProfileIcon,
   ReelsIcon,
 } from "./icons";
+import { ForgetSession } from "./ForgetSession";
 import { NotificationBell } from "./NotificationBell";
 import { SignOutMenu } from "./SignOutMenu";
 
@@ -149,6 +150,8 @@ export function AppShell({
           {aside}
         </aside>
       </div>
+
+      {viewer.sessionRefused ? <ForgetSession /> : null}
 
       {ASK_BAD_JOCKEYS_ENABLED && !dark ? <AskButton /> : null}
       {ASK_BAD_JOCKEYS_ENABLED ? <AskBadJockeys viewer={viewer} /> : null}

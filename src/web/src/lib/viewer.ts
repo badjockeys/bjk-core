@@ -12,6 +12,11 @@ export interface Viewer {
   handle: string | null;
   displayName: string | null;
   avatarUrl: string | null;
+  /**
+   * The browser has a session, but the API refused its token (e.g. the identity server's keys changed, or the account
+   * was wiped from a local database). The page is shown signed out, and ForgetSession removes the dead cookie.
+   */
+  sessionRefused?: boolean;
 }
 
 export const ANONYMOUS: Viewer = {
