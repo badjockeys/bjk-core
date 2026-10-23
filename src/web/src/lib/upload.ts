@@ -132,8 +132,9 @@ export async function uploadFile(
   fileName: string,
   contentType: string,
   onProgress: (fraction: number) => void,
+  vaultClipId?: string | null,
 ): Promise<UploadedMedia> {
-  const ticket = await requestUpload({ fileName, contentType, sizeBytes: body.size });
+  const ticket = await requestUpload({ fileName, contentType, sizeBytes: body.size, vaultClipId });
   if (!ticket.ok) {
     throw new UploadError(ticket.error, ticket.blocker);
   }

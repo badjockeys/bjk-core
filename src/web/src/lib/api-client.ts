@@ -20,6 +20,7 @@ import {
   ReportsClient,
   TimelinesClient,
   TrendsClient,
+  VaultClient,
   VehiclesClient,
 } from "./generated/api";
 import type {
@@ -345,9 +346,20 @@ export function endpoints(api: ApiClient) {
       posts: (token: string, id: string, page = 1) =>
         client(TimelinesClient, { token }).timelines_Posts(id, page, 20),
     },
-    media: {
+    /** Your vault: your original clips, kept privately for you (owner, 23 Oct 2026). */
+    vault: {
+      get: (token: string, page = 1) => client(VaultClient, { token }).vault_Get(page, 20),
       requestUpload: (token: string, body: { fileName: string; contentType: string; sizeBytes: number }) =>
-        client(MediaClient, { token }).media_RequestUpload(body),
+        client(VaultClient, { token }).vault_RequestUpload(body),
+      complete: (token: string, clipId: string) => client(VaultClient, { token }).vault_Complete(clipId),
+      download: (token: string, clipId: string) => client(VaultClient, { token }).vault_Download(clipId),
+      remove: (token: string, clipId: string) => client(VaultClient, { token }).vault_Delete(clipId),
+    },
+    media: {
+      requestUpload: (
+        token: string,
+        body: { fileName: string; contentType: string; sizeBytes: number; vaultClipId?: string | null },
+      ) => client(MediaClient, { token }).media_RequestUpload({ ...body, vaultClipId: body.vaultClipId ?? null }),
       complete: (token: string, mediaId: string) => client(MediaClient, { token }).media_Complete(mediaId),
       get: (token: string, mediaId: string) => client(MediaClient, { token }).media_Get(mediaId),
       remove: (token: string, mediaId: string) => client(MediaClient, { token }).media_Delete(mediaId),

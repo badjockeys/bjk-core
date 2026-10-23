@@ -419,3 +419,33 @@ test("other people's videos can't be downloaded for sharing", async ({ page }) =
   await expect(page.getByRole("menuitem", { name: "Copy link" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: /TikTok/ })).toHaveCount(0);
 });
+
+test("your vault keeps clips you add, which you can post or delete", async ({ page }) => {
+  await signIn(page, "/u/roadhog?tab=vault");
+  const vault = page.getByRole("region", { name: "Your vault" });
+  await expect(vault.getByText(/Nothing here yet/)).toBeVisible();
+  await expect(vault.getByText(/of 2 GB used · clips are kept for 30 days/)).toBeVisible();
+  await expect(vault.getByText(/Only you can see your vault/)).toBeVisible();
+
+  await vault.getByTestId("vault-input").setInputFiles({ name: "dashcam-still.png", mimeType: "image/png", buffer: PNG });
+  const clips = vault.getByRole("list", { name: "Clips in your vault" });
+  await expect(clips.getByText("dashcam-still.png")).toBeVisible();
+  await expect(clips.getByText(/Kept until/)).toBeVisible();
+
+  // Posting it opens the composer with the clip already added.
+  await clips.getByRole("link", { name: "Post dashcam-still.png" }).click();
+  await expect(page).toHaveURL(/\/post\/new\?vault=[0-9a-f-]{36}$/);
+  await expect(page.getByText("1 of 10")).toBeVisible();
+
+  // Deleting asks first.
+  await page.goto("/u/roadhog?tab=vault");
+  page.once("dialog", (dialog) => void dialog.accept());
+  await page.getByRole("button", { name: "Delete dashcam-still.png" }).click();
+  await expect(page.getByText(/Nothing here yet/)).toBeVisible();
+});
+
+test("other people's profiles have no vault", async ({ page }) => {
+  await signIn(page, "/u/dashcam_dave");
+  await expect(page.getByRole("link", { name: "Posts", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Vault", exact: true })).toHaveCount(0);
+});

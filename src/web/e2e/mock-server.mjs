@@ -99,6 +99,8 @@ function seed() {
   });
   const dave = USERS.dave.id;
   db = {
+    // Vault clips (bjk-modules media.VaultClips), with the file's bytes once uploaded.
+    vault: [],
     // Vertical copies of videos for sharing, by media id.
     shareCopies: new Map(),
     // Drafts of posts (bjk-modules DraftsController): up to 5 each.
@@ -491,6 +493,17 @@ const problem = (res, status, detail, extra = {}) =>
     { status, title: detail, detail, ...extra },
     { "Content-Type": "application/problem+json" },
   );
+const vaultClipDto = (c) => ({
+  id: c.id,
+  fileName: c.fileName,
+  mediaType: c.mediaType,
+  contentType: c.contentType,
+  sizeBytes: c.sizeBytes,
+  source: c.source,
+  postId: c.postId,
+  createdAt: c.createdAt,
+  expiresAt: c.expiresAt,
+});
 const invalid = (res, field, message) =>
   send(res, 400, {
     status: 400,
@@ -1742,6 +1755,7 @@ async function api(req, res, url) {
       createdAt: new Date().toISOString(),
       contentType: body.contentType,
       stored: false,
+      vaultClipId: body.vaultClipId ?? null,
     });
     return send(res, 201, {
       mediaId: id,
@@ -1753,6 +1767,70 @@ async function api(req, res, url) {
         expiresAt: new Date(Date.now() + 900_000).toISOString(),
       },
     });
+  }
+  // The vault (bjk-modules VaultController): Free keeps clips 30 days in 2 GB.
+  if (path === "/api/vault" && method === "GET") {
+    if (!requireUser()) return;
+    const mine = db.vault.filter((c) => c.userId === me && c.status === "Stored");
+    return send(res, 200, {
+      plan: "Free",
+      usedBytes: mine.reduce((sum, c) => sum + c.sizeBytes, 0),
+      limitBytes: 2 * 1024 ** 3,
+      retentionDays: 30,
+      maxFileBytes: 2 * 1024 ** 3,
+      clips: { items: mine.map(vaultClipDto), page: 1, pageSize: 20, totalCount: mine.length },
+    });
+  }
+  if (path === "/api/vault/uploads" && method === "POST") {
+    if (!requireUser()) return;
+    const body = await json();
+    const type = body.contentType?.startsWith("video/") ? "Video" : body.contentType?.startsWith("image/") ? "Image" : null;
+    if (!type) return invalid(res, "ContentType", "Add a video or a photo.");
+    const id = randomUUID();
+    const now = new Date();
+    db.vault.push({
+      id,
+      userId: me,
+      status: "Uploading",
+      fileName: body.fileName,
+      mediaType: type,
+      contentType: body.contentType,
+      sizeBytes: body.sizeBytes,
+      source: "Upload",
+      postId: null,
+      createdAt: now.toISOString(),
+      expiresAt: new Date(now.getTime() + 30 * 86_400_000).toISOString(),
+      body: null,
+    });
+    return send(res, 201, {
+      clipId: id,
+      upload: {
+        url: `${ORIGIN}/vault-storage/${id}`,
+        method: "PUT",
+        headers: { "Content-Type": body.contentType },
+        expiresAt: new Date(Date.now() + 900_000).toISOString(),
+      },
+    });
+  }
+  if ((m = path.match(/^\/api\/vault\/([0-9a-f-]{36})(\/complete|\/download)?$/))) {
+    if (!requireUser()) return;
+    const clip = db.vault.find((c) => c.id === m[1] && c.userId === me);
+    if (!clip) return problem(res, 404, "Vault clip not found.");
+    if (m[2] === "/complete" && method === "POST") {
+      if (!clip.body) return invalid(res, "ClipId", "The file hasn't arrived yet. Try uploading it again.");
+      clip.status = "Stored";
+      clip.sizeBytes = clip.body.length;
+      return send(res, 200, vaultClipDto(clip));
+    }
+    if (m[2] === "/download" && method === "GET")
+      return send(res, 200, {
+        url: `${ORIGIN}/vault-storage/${clip.id}`,
+        expiresAt: new Date(Date.now() + 900_000).toISOString(),
+      });
+    if (!m[2] && method === "DELETE") {
+      db.vault = db.vault.filter((c) => c !== clip);
+      return send(res, 204);
+    }
   }
   // A video's vertical copy for sharing (bjk-modules MediaController): owner only; "made" after a moment.
   if ((m = path.match(/^\/api\/media\/([^/]+)\/share-copy$/))) {
@@ -1880,6 +1958,25 @@ const server = createServer(async (req, res) => {
   const url = new URL(req.url, ORIGIN);
   try {
     // Storage: the browser PUTs straight here, cross-origin, like S3Mock or R2.
+    if (url.pathname.startsWith("/vault-storage/")) {
+      const cors = {
+        "Access-Control-Allow-Origin": WEB_ORIGIN,
+        "Access-Control-Allow-Methods": "GET, PUT, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Max-Age": "600",
+      };
+      if (req.method === "OPTIONS") return send(res, 204, undefined, cors);
+      const clip = db.vault.find((c) => c.id === url.pathname.slice("/vault-storage/".length));
+      if (!clip) return send(res, 404, "Not found", cors);
+      if (req.method === "GET") {
+        res.writeHead(200, { "Content-Type": clip.contentType, ...cors });
+        return res.end(clip.body ?? PNG);
+      }
+      const body = await readBody(req);
+      if (req.method !== "PUT" || body.length === 0) return send(res, 400, "Bad upload", cors);
+      clip.body = body;
+      return send(res, 200, "", cors);
+    }
     if (url.pathname.startsWith("/storage/")) {
       const cors = {
         "Access-Control-Allow-Origin": WEB_ORIGIN,
