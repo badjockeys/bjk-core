@@ -317,7 +317,9 @@ test("members report a post from its ⋯ menu", async ({ page, request }) => {
   await expect(page.getByText("Thanks. Our moderators will review it.")).toBeVisible();
 
   const state = await (await request.get("http://localhost:4010/__state")).json();
-  expect(state.reports).toEqual([expect.objectContaining({ target: SEED.photoPost, reason: "NotADrivingIncident" })]);
+  expect(state.reports).toEqual([
+    expect.objectContaining({ target: SEED.photoPost, reason: "NotADrivingIncident" }),
+  ]);
 });
 
 test("the bell shows unread notifications until you open them", async ({ page }) => {

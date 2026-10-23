@@ -13,7 +13,6 @@ import { followBlocker } from "@/lib/blockers";
 import { categoryLabel, CATEGORY_CHOICES, DESCRIPTION_MAX } from "@/lib/categories";
 import { duration, plural, timeAgo, ukDateAndTime, ukLocalToIso, whenLabel } from "@/lib/format";
 import { shrinkPhoto } from "@/lib/image-resize";
-import { containsWebAddress, LINK_MESSAGE } from "@/lib/links";
 import type {
   AuthorDto,
   DraftDto,
@@ -23,6 +22,7 @@ import type {
   VehicleDto,
 } from "@/lib/types";
 import { COLOUR_SWATCHES, describeVehicle, vehicleTypeLabel } from "@/lib/vehicles";
+import { containsWebAddress, LINK_MESSAGE } from "@/lib/web-addresses";
 import {
   contentTypeOf,
   kindOf,

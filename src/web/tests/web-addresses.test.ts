@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { containsWebAddress } from "@/lib/links";
+import { containsWebAddress } from "@/lib/web-addresses";
 
 describe("containsWebAddress", () => {
   it.each([
