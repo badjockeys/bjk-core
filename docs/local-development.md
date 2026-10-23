@@ -34,7 +34,7 @@ It's safe to run again, and skips whatever is already done. Each run also pulls 
 
 It:
 
-1. installs whatever tools are missing (Git, GitHub CLI, .NET 10 SDK, Node.js 24, Docker Desktop, ffmpeg, Ollama, VS Code) with winget on Windows or Homebrew on a Mac, plus WSL 2 on Windows and Rosetta on Apple Silicon. On a Mac, Ollama runs as a background service (`brew services`); on Windows its app starts with Windows;
+1. installs whatever tools are missing (Git, GitHub CLI, .NET 10 SDK, Node.js 24, Docker Desktop, ffmpeg, VS Code) with winget on Windows or Homebrew on a Mac, plus WSL 2 on Windows and Rosetta on Apple Silicon;
 2. starts Docker Desktop;
 3. signs you in to GitHub in your browser. That sign-in also gives access to the private `BJK.Modules` packages, so there's no token to create;
 4. clones the four repos side by side (next to this bjk-core, or into `~/Git/GitHub/badjockeys` on a Mac and `%USERPROFILE%\Git\badjockeys` on Windows);
@@ -55,7 +55,6 @@ Expect to approve a few things: Windows UAC prompts or your Mac password for ins
 - starts SQL Server, S3Mock, Elasticsearch, Kibana and the OpenTelemetry collector in Docker (the `bad-jockeys` group, replacing the old layout's two groups and the old Grafana containers if they're there) and waits until they're all ready;
 - downloads the face and number plate blurring models into `bjk-core/.local/models` (git-ignored), checking each file's SHA-256;
 - builds the .NET apps and installs the web app's packages;
-- makes sure Ollama is running (starting it if it isn't) and has Ask Bad Jockeys' model, `qwen3:8b` (about 5 GB, downloaded once). If Ollama is missing or the download fails it only warns: run the setup again later.
 
 `node scripts/setup-local.mjs --config-only` just creates the config files.
 
@@ -78,7 +77,6 @@ macOS, Windows and Linux use the same tools. The commands in this guide are for 
 | Docker Desktop | latest | `brew install --cask docker`, then open it once | `winget install Docker.DockerDesktop` (uses WSL 2), then open it once | `docker compose version` |
 | ffmpeg, with the H.264 and WebP encoders | any recent | `brew install ffmpeg ffmpeg-full` (Homebrew's plain `ffmpeg` has no WebP encoder) | `winget install Gyan.FFmpeg` | `ffmpeg -hide_banner -encoders \| grep -E "libx264\|libwebp"` |
 | GitHub CLI (optional) | latest | `brew install gh` | `winget install GitHub.cli` | `gh --version` |
-| Ollama, for Ask Bad Jockeys (optional: everything else works without it) | latest | `brew install ollama && brew services start ollama` | `winget install Ollama.Ollama` | `curl http://localhost:11434/api/version` |
 
 On Windows, open a new terminal after installing so the tools are on your `PATH`.
 
@@ -471,7 +469,7 @@ On your machine nothing needs a supplier account: S3Mock stands in for R2, email
 | `Plans:Overrides` | Empty | **Stripe billing** (not built yet) |
 | `Notifications:AppUrl`, `Posts:AppUrl` | The web app, e.g. `https://badjockeys.com` | The live domain |
 | `ConnectionStrings:BadJockeysChat` (secret) | Azure SQL `badjockeys` as the read-only `bjk_chat` login (`scripts/sql/reporting/login.sql`), `Encrypt=True` | The live server |
-| `Chat:Model:Endpoint`, `Chat:Model:Name`, `Chat:Model:ApiKey` (secret) | The serverless GPU running Qwen3 32B (OpenAI-compatible, ending `/v1`), its model name and key | The GPU host |
+| `Chat:Model:Endpoint`, `Chat:Model:Name`, `Chat:Model:ApiKey` (secret) | Empty while Ask Bad Jockeys is on hold (the logged placeholder). Later: the chosen model service (OpenAI-compatible, ending `/v1`), its model or deployment name and key | The owner's choice of model |
 | `Chat:HistoryKey` (secret) | A long random string (`openssl rand -base64 48`): signs Ask Bad Jockeys' chat history | |
 | `Notifications:Push:PublicKey`, `PrivateKey` (secret) | **Required**: a VAPID key pair made once per environment and never changed (changing it stops every phone's push subscription). Make one with `node -e "const k=require('crypto').generateKeyPairSync('ec',{namedCurve:'prime256v1'}).privateKey.export({format:'jwk'});console.log(Buffer.concat([Buffer.from([4]),Buffer.from(k.x,'base64url'),Buffer.from(k.y,'base64url')]).toString('base64url'),k.d)"` (public key first) | |
 | `Notifications:Push:Subject` | `mailto:support@badjockeys.com` (the default): who push services contact about problems | |
@@ -669,15 +667,16 @@ The e2e mock server (`src/web/e2e/mock-server.mjs`) seeds three communities, so 
 
 ## Ask Bad Jockeys (the AI chat)
 
-Premium members ask questions about reported bad driving ("Worst roads for tailgating in Prescot") from the floating **Ask** button on every page except reels (bottom right on desktop, where it opens a chat window; bottom left on phones, where the chat is full screen). Visitors and Free members see a locked preview with example questions. The Chat module (bjk-modules README, "Ask Bad Jockeys") does the work; the API hosts it, and the web app's window is `src/components/AskBadJockeys.tsx`.
+**On hold (owner, 23 Oct 2026): no model is chosen and the chat is hidden.** `ASK_BAD_JOCKEYS_ENABLED` in `src/web/src/lib/chat.ts` is `false`, so the Ask button and window don't appear (their code and unit tests stay; the e2e tests are skipped). The API keeps the Chat module with `Chat:Model` empty: asking logs event 4905 and answers 503 "not switched on yet", counting nothing. The setup no longer installs Ollama; if it's on your computer from before, you can remove it (`ollama rm qwen3:8b`, then `brew uninstall ollama` or uninstall it in Windows' Settings), and the setup takes the old model settings out of your user secrets. To switch the chat on: fill in `Chat:Model`, set the flag to `true`, and un-skip `e2e/chat.spec.ts`.
 
-- **The model** runs on your computer through Ollama (`qwen3:8b`, set up by the setup). Without it the window says the chat is busy and the question doesn't count. Check it with `ollama list`; `ollama pull qwen3:8b` downloads it again.
-- **Memory:** Qwen3 8B needs about 6 GB of free memory. The first answer after Ollama starts (or after it has unloaded an idle model) is slow while the model loads; the window says so after 5 seconds. Live's GPU switches off when idle, so the same happens there for up to about 30 seconds.
+When it's on: Premium members ask questions about reported bad driving ("Worst roads for tailgating in Prescot") from the floating **Ask** button on every page except reels (bottom right on desktop, where it opens a chat window; bottom left on phones, where the chat is full screen). Visitors and Free members see a locked preview with example questions. The Chat module (bjk-modules README, "Ask Bad Jockeys") does the work; the API hosts it, and the web app's window is `src/components/AskBadJockeys.tsx`.
+
+- **The model** is whatever `Chat:Model` points at (any OpenAI-compatible service). Without one, the window says the chat isn't switched on and the question doesn't count. If a model is slow to start, the window says so after 5 seconds.
 - **Its data** is read through the read-only `bjk_chat` login (`ConnectionStrings:BadJockeysChat`, password `BJK_CHAT_PASSWORD` in `bjk-core/.env`), which the setup creates with the reporting views (`node scripts/sql/reporting/apply.mjs`). Until that has run, the chat can't answer.
 - **To try it**, the owner account has Premium + (`Plans:Overrides`). The example questions follow your home area (Account, Notifications): with a town ("Prescot") they name it, with a postcode district they ask about "near me", and without a home area they don't mention a place. "Near me" also uses the home area.
 - **History** stays in the browser tab; nothing is stored on the server except today's count.
 - **Busy:** if the model doesn't answer (503), the window offers **Try again**; that question didn't count.
-- **Alerts (deployed):** in Elastic, alert on event 4902 (the model server unavailable) and on a spike in event 4903 (blocked questions).
+- **Alerts (deployed, once it's on):** in Elastic, alert on event 4902 (the model server unavailable) and on a spike in event 4903 (blocked questions). Event 4905 counts questions asked while the chat is switched off.
 
 ## Online safety checks
 
