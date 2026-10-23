@@ -16,7 +16,8 @@ import { PostCard } from "./PostCard";
 /**
  * A server-rendered first page of posts, continued by FeedList in the browser. On the first page of a live feed,
  * NewPosts offers anything posted since. Both are keyed by the posts shown, so a refresh that brings new posts starts
- * them afresh (the reader is back at the top by then).
+ * them afresh (the reader is back at the top by then). They're siblings, so each key has its own prefix: React needs
+ * siblings' keys to differ.
  */
 export function Feed({
   page,
@@ -36,7 +37,7 @@ export function Feed({
   const shownKey = ids.join(",");
   const watcher =
     page.page === 1 && isLiveFeed(source) ? (
-      <NewPosts key={shownKey} source={source} shownIds={ids} newestAt={newestOf(page.items)} />
+      <NewPosts key={`new:${shownKey}`} source={source} shownIds={ids} newestAt={newestOf(page.items)} />
     ) : null;
   if (page.items.length === 0 && page.page === 1) {
     return (
@@ -52,7 +53,7 @@ export function Feed({
     <>
       {watcher}
       <FeedList
-        key={shownKey}
+        key={`list:${shownKey}`}
         source={source}
         viewer={viewer}
         firstPageIds={ids}
