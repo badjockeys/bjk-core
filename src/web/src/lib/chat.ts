@@ -14,6 +14,13 @@ import type {
   IncidentCategory,
 } from "./types";
 
+/**
+ * Whether the app shows Ask Bad Jockeys (the Ask button and the chat window). Off while the chat is on hold until a
+ * model is chosen (owner, 23 Oct 2026); the API answers "not switched on yet" anyway. To switch it on, set this to
+ * true once `Chat:Model` is filled in, and un-skip `e2e/chat.spec.ts`.
+ */
+export const ASK_BAD_JOCKEYS_ENABLED = false;
+
 /** The longest question the API accepts. */
 export const MAX_QUESTION = 500;
 

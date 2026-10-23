@@ -16,8 +16,7 @@
 //   5. (user secrets are written straight into .NET's user secrets store in step 2; edit them with "Manage User
 //      Secrets" on BJK.Core.Api or BJK.Idsrv.Host; the media worker shares the API's)
 //   6. downloads the face and number plate blurring models and the CLIP content model into bjk-core/.local/models
-//   7. builds the .NET apps and installs the web app's packages; makes sure Ollama is running and has Ask Bad
-//      Jockeys' model (qwen3:8b, about 5 GB the first time)
+//   7. builds the .NET apps and installs the web app's packages
 //   8. adds example users and posts (scripts/sql/example-data), starting the identity server and the API for a
 //      moment first so their databases exist, and gives the owner account its plan (Plans:Overrides); adds the
 //      harmless online safety test entries (scripts/sql/safety-test) and says which checks work on this machine
@@ -81,12 +80,13 @@ const MODELS = [
   },
 ];
 
-// Ask Bad Jockeys (the Premium AI chat): Ollama serves the model locally through its OpenAI-compatible /v1.
-const OLLAMA_URL = "http://localhost:11434";
-const CHAT_MODEL = "qwen3:8b";
-
+// Ask Bad Jockeys (the Premium AI chat) is on hold until a model is chosen (owner, 23 Oct 2026): Chat:Model stays empty,
+// so the API's chat is a logged placeholder. The setup only makes the history key.
 /** The chat settings the setup writes into the API's user secrets. */
-const chatSettings = () => ({ Model: { Endpoint: `${OLLAMA_URL}/v1`, Name: CHAT_MODEL }, HistoryKey: secret() });
+const chatSettings = () => ({ HistoryKey: secret() });
+
+/** Ollama's address, which the setup put in Chat:Model before the chat went on hold; it's taken out again. */
+const OLD_OLLAMA_ENDPOINT = "http://localhost:11434/v1";
 
 /** The bjk_chat login's connection string: it can read only reporting.Incidents and reporting.Subcategories. */
 const chatConnection = () =>
@@ -440,19 +440,21 @@ function migrateCoreSecrets(file) {
   // False is the default everywhere, so it needn't be in the file.
   if (json.Safety?.RequireAgeVerification === false) delete json.Safety.RequireAgeVerification;
   if (json.Safety && Object.keys(json.Safety).length === 0) delete json.Safety;
-  // Ask Bad Jockeys (23 Oct 2026): the bjk_chat login and Ollama's qwen3:8b. A connection string or model address
-  // you've set yourself is kept; the bjk_chat password follows BJK_CHAT_PASSWORD in bjk-core/.env.
+  // Ask Bad Jockeys (23 Oct 2026): the bjk_chat login and a history key. A connection string you've set yourself is
+  // kept; the bjk_chat password follows BJK_CHAT_PASSWORD in bjk-core/.env. The chat is on hold, so the Ollama model
+  // the setup used to add (qwen3:8b) is taken out; a model you've set yourself is kept.
   json.ConnectionStrings = { ...(json.ConnectionStrings ?? {}) };
   const chat = json.ConnectionStrings.BadJockeysChat;
   if (unset(chat) || (/User Id=bjk_chat;/i.test(chat) && !chat.includes(`Password=${chatPassword()};`))) {
     json.ConnectionStrings.BadJockeysChat = chatConnection();
   }
-  const chatDefaults = chatSettings();
   json.Chat = { ...(json.Chat ?? {}) };
   json.Chat.Model = { ...(json.Chat.Model ?? {}) };
-  if (!("Endpoint" in json.Chat.Model)) json.Chat.Model.Endpoint = chatDefaults.Model.Endpoint;
-  if (unset(json.Chat.Model.Name)) json.Chat.Model.Name = chatDefaults.Model.Name;
-  if (unset(json.Chat.HistoryKey) || String(json.Chat.HistoryKey).length < 32) json.Chat.HistoryKey = chatDefaults.HistoryKey;
+  if (json.Chat.Model.Endpoint === OLD_OLLAMA_ENDPOINT) {
+    json.Chat.Model.Endpoint = "";
+    if (/^qwen3?:/i.test(String(json.Chat.Model.Name ?? ""))) json.Chat.Model.Name = "";
+  }
+  if (unset(json.Chat.HistoryKey) || String(json.Chat.HistoryKey).length < 32) json.Chat.HistoryKey = chatSettings().HistoryKey;
   if (!json.Notifications?.Push?.PublicKey) {
     // Files made before web push existed: a key pair for this computer.
     json.Notifications = { ...(json.Notifications ?? {}) };
@@ -673,71 +675,6 @@ async function downloadModels() {
   }
 }
 
-/** True once Ollama answers on its usual port. */
-async function ollamaUp() {
-  try {
-    return (await fetch(`${OLLAMA_URL}/api/version`, { signal: AbortSignal.timeout(2000) })).ok;
-  } catch {
-    return false;
-  }
-}
-
-/** The ollama command: on the PATH, or where the Windows and Mac apps put it (a new install isn't on this PATH yet). */
-function findOllama() {
-  const candidates = [
-    "ollama",
-    ...(isWindows && process.env.LOCALAPPDATA ? [join(process.env.LOCALAPPDATA, "Programs", "Ollama", "ollama.exe")] : []),
-    ...(process.platform === "darwin" ? ["/opt/homebrew/bin/ollama", "/usr/local/bin/ollama", "/Applications/Ollama.app/Contents/Resources/ollama"] : []),
-  ];
-  return candidates.find((c) => (c === "ollama" ? output(c, ["--version"]) !== null : existsSync(c))) ?? null;
-}
-
-/**
- * Ask Bad Jockeys' model: starts Ollama if it isn't running (setup.sh starts it as a Homebrew service and the Windows
- * app starts with Windows, so this is mostly for Linux and first runs), then downloads qwen3:8b unless it's there.
- * A problem only warns: everything else works without it, and the chat answers 503 until the model is there.
- */
-async function chatModel() {
-  step(`Setting up Ask Bad Jockeys' model (Ollama, ${CHAT_MODEL}: about 5 GB the first time)`);
-  const warn = (text) => console.warn(colour("33", `${text}\nThe rest of the app works without it; Ask Bad Jockeys answers "busy" until it's done. Run the setup again afterwards.`));
-  const ollama = findOllama();
-  if (!(await ollamaUp())) {
-    if (!ollama) {
-      warn(
-        "Ollama isn't installed. " +
-          (isWindows ? "Install it with: winget install Ollama.Ollama" : process.platform === "darwin" ? "Install it with: brew install ollama && brew services start ollama" : "Install it with: curl -fsSL https://ollama.com/install.sh | sh"),
-      );
-      return;
-    }
-    console.log("Starting Ollama in the background...");
-    spawn(ollama, ["serve"], { detached: true, stdio: "ignore", windowsHide: true }).unref();
-    for (let i = 0; i < 30 && !(await ollamaUp()); i++) await new Promise((done) => setTimeout(done, 1000));
-    if (!(await ollamaUp())) {
-      warn(`Ollama didn't start (nothing answered on ${OLLAMA_URL}). Open the Ollama app, or run: ollama serve`);
-      return;
-    }
-  }
-
-  try {
-    const { models = [] } = await (await fetch(`${OLLAMA_URL}/api/tags`)).json();
-    if (models.some((m) => m.name === CHAT_MODEL || m.model === CHAT_MODEL)) {
-      ok(`Ollama is running and has ${CHAT_MODEL}.`);
-      return;
-    }
-  } catch {
-    // Can't list the models: try the download anyway.
-  }
-
-  // The command shows progress; without it (Ollama running as an app with no command on the PATH), the HTTP API.
-  const pulled = ollama
-    ? run(ollama, ["pull", CHAT_MODEL])
-    : await fetch(`${OLLAMA_URL}/api/pull`, { method: "POST", body: JSON.stringify({ model: CHAT_MODEL, stream: false }) })
-        .then((r) => r.ok)
-        .catch(() => false);
-  if (pulled) ok(`${CHAT_MODEL} is downloaded: Ask Bad Jockeys answers on this computer.`);
-  else warn(`Downloading ${CHAT_MODEL} didn't finish. Try: ollama pull ${CHAT_MODEL}`);
-}
-
 function build() {
   step("Restoring and building the .NET apps");
   const hint = "If it's NU1301 or 401, your GitHub sign-in can't read the packages: run gh auth refresh -s read:packages, then this again.";
@@ -873,7 +810,6 @@ if (configOnly) {
   startDocker();
   await downloadModels();
   build();
-  await chatModel();
   await exampleData();
   reporting();
   safetyCoverage();

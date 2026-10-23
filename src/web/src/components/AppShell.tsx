@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { ASK_BAD_JOCKEYS_ENABLED } from "@/lib/chat";
 import { joinPath, profilePath, signInPath } from "@/lib/paths";
 import type { Viewer } from "@/lib/viewer";
 
@@ -38,7 +39,8 @@ export type Section =
  * bar at the bottom (Home, Reels, Map, Profile, like Instagram and Facebook; Account is on your profile) and the +
  * button, or the sign-up bar for visitors. `dark` is the reels page: a black page and a dark glass bar. Every page
  * but reels has a floating Ask button for Ask Bad Jockeys (the AI chat; bottom right on desktop, bottom left on phones,
- * above the tab bar or sign-up bar); visitors and Free members see its locked preview.
+ * above the tab bar or sign-up bar); visitors and Free members see its locked preview. Hidden while
+ * ASK_BAD_JOCKEYS_ENABLED is false (the chat is on hold).
  */
 export function AppShell({
   viewer,
@@ -148,8 +150,8 @@ export function AppShell({
         </aside>
       </div>
 
-      {dark ? null : <AskButton />}
-      <AskBadJockeys viewer={viewer} />
+      {ASK_BAD_JOCKEYS_ENABLED && !dark ? <AskButton /> : null}
+      {ASK_BAD_JOCKEYS_ENABLED ? <AskBadJockeys viewer={viewer} /> : null}
 
       {viewer.signedIn && fab ? (
         <Link href="/post/new" className="fab m-only" aria-label="New post">

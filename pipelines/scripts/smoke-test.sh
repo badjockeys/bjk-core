@@ -458,8 +458,9 @@ request GET "/api/heatmap?bbox=$BBOX&zoom=14&from=2020-01-01&categories=ClosePas
 pass "Premium + gets filters and 5 years of history"
 
 # ---------- Ask Bad Jockeys (the Chat module) ----------
-# No model server in CI (Chat:Model:Endpoint is empty in Development), so this covers the plan checks and the 503
-# that doesn't use up a question; the answers themselves are covered by bjk-modules' Chat tests.
+# The chat is on hold with no model (Chat:Model is empty everywhere for now), so this covers the plan checks and the
+# placeholder's 503 "not switched on yet", which doesn't use up a question; the answers themselves are covered by
+# bjk-modules' Chat tests.
 
 request GET /api/chat/usage
 expect 200 "chat allowance, logged out"
@@ -472,7 +473,8 @@ expect 401 "asking needs a token"
 request POST /api/chat/questions "$CHAT_QUESTION" "$TOKEN_B"
 expect 403 "Ask Bad Jockeys isn't on the Free plan"
 request POST /api/chat/questions "$CHAT_QUESTION" "$TOKEN_PLUS"
-expect 503 "Premium + with no model server gets 503"
+expect 503 "Premium + with no model gets the placeholder's 503"
+grep -q "switched on yet" <<< "$RESPONSE" || fail "Expected the placeholder's \"not switched on yet\": $RESPONSE"
 request GET /api/chat/usage "" "$TOKEN_PLUS"
 expect 200 "chat allowance, Premium +"
 [ "$(json .canAsk)" = "true" ] && [ "$(json .used)" = "0" ] \

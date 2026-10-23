@@ -2,6 +2,10 @@ import { expect, test } from "@playwright/test";
 
 import { MOCK, resetMock, signIn } from "./helpers";
 
+// Ask Bad Jockeys is hidden while it's on hold (ASK_BAD_JOCKEYS_ENABLED in src/lib/chat.ts). Remove this line when
+// it's switched on again.
+test.skip(true, "Ask Bad Jockeys is switched off in the web app for now.");
+
 test.beforeEach(async ({ request }) => {
   await resetMock(request);
 });
