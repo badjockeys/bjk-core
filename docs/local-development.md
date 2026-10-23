@@ -608,6 +608,9 @@ locally it uses the real head-turn check and stand-ins for Yoti that answer age 
   profiles show follower and following counts, with lists at `/u/{handle}/followers` and `/following`. A post's ⋯
   menu can limit comments to people you follow. The optional mobile number lives on the identity server
   (Account → Mobile number).
+- **Post analytics:** under your own post, **Analytics** opens graphs of views (and local views), reactions, comments
+  and shares since posting: hour by hour for 48 hours, then day by day, then week by week after 90 days, with a table
+  view. Premium and Premium + only; on Free the graphs are blurred with a link to Premium (the API sends no points).
 - **Uploads** go straight from the browser to storage: the web server asks the API for a signed link
   (`POST /api/media/uploads`), the browser `PUT`s the file to S3Mock (or R2) with a progress bar, then the web server
   tells the API it's there. Photos are shrunk in the browser first; videos are trimmed to at most 30 seconds and

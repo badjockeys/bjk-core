@@ -3,6 +3,7 @@ import { getAccessToken } from "@/lib/auth";
 import type { PostReachDto } from "@/lib/types";
 
 import { EyeIcon } from "./icons";
+import { PostAnalytics } from "./PostAnalytics";
 
 /**
  * How far your post reached: only its author sees this. Views count each viewer once; local views are viewers whose
@@ -37,6 +38,9 @@ export async function ReachStats({ postId }: { postId: string }) {
       <p className="small muted">
         Local views come from people whose home area is within 10 km of where it happened.
       </p>
+      <div>
+        <PostAnalytics postId={postId} />
+      </div>
     </section>
   );
 }
