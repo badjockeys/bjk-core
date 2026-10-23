@@ -91,4 +91,3 @@ function Item({ notification: n }: { notification: NotificationDto }) {
     <div className="notif-link">{body}</div>
   );
 }
-

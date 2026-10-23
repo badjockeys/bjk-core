@@ -13,17 +13,26 @@ describe("notificationHref", () => {
 
   it("opens the post when the path is the post or missing", () => {
     expect(notificationHref({ type: "CommentOnPost", postId: post, path: `/p/${post}` })).toBe(`/p/${post}`);
-    expect(notificationHref({ type: "CommentOnPost", postId: post, path: "/notifications" })).toBe(`/p/${post}`);
+    expect(notificationHref({ type: "CommentOnPost", postId: post, path: "/notifications" })).toBe(
+      `/p/${post}`,
+    );
   });
 
   it("opens a new follower's profile", () => {
     expect(
-      notificationHref({ type: "NewFollower", postId: null, path: "/notifications", actor: { handle: "sam_j" } }),
+      notificationHref({
+        type: "NewFollower",
+        postId: null,
+        path: "/notifications",
+        actor: { handle: "sam_j" },
+      }),
     ).toBe("/@sam_j");
   });
 
   it("never follows a link to another site", () => {
     expect(notificationHref({ type: "CommunityInvite", postId: null, path: "//evil.example" })).toBeNull();
-    expect(notificationHref({ type: "CommunityInvite", postId: null, path: "https://evil.example" })).toBeNull();
+    expect(
+      notificationHref({ type: "CommunityInvite", postId: null, path: "https://evil.example" }),
+    ).toBeNull();
   });
 });

@@ -3090,7 +3090,7 @@ export class CommunitiesClient {
     }
 
     /**
-     * Members (anyone who can see inside), or requests and bans (admins and moderators).
+     * Members (anyone who can see inside), or requests, invitations and bans (admins and moderators).
      * @param status (optional) 
      * @param page (optional) 
      * @param pageSize (optional) 
@@ -3148,6 +3148,63 @@ export class CommunitiesClient {
             });
         }
         return Promise.resolve<PagedResultOfCommunityMemberDto>(null as any);
+    }
+
+    /**
+     * Invite someone by their @handle (admins and moderators). They're notified and join when they accept (Join);
+    decline with Leave, and cancel an invitation by removing them. Inviting someone who asked to join lets them in.
+     */
+    communities_Invite(slug: string, request: CommunityInviteRequest, signal?: AbortSignal): Promise<CommunityMemberDto> {
+        let url_ = this.baseUrl + "/api/communities/{slug}/invites";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_Invite(_response);
+        });
+    }
+
+    protected processCommunities_Invite(response: Response): Promise<CommunityMemberDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as CommunityMemberDto;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<CommunityMemberDto>(null as any);
     }
 
     /**
@@ -8688,7 +8745,7 @@ export interface PagedResultOfNotificationDto {
     totalCount: number;
 }
 
-/** One notification for the bell. Text is ready to show ("Sam J commented on your post “...”"); At is when it last changed (a grouped reaction); PostId is where tapping it goes. */
+/** One notification for the bell. Text is ready to show ("Sam J commented on your post “...”"); At is when it last changed (a grouped reaction); Path is where tapping it goes in the web app (the post, or a community page for community notifications). */
 export interface NotificationDto {
     id: string;
     type: NotificationType;
@@ -8700,10 +8757,11 @@ export interface NotificationDto {
     text: string;
     at: string;
     isRead: boolean;
+    path: string;
 }
 
 /** What happened, for a notification. Stored by name: add new types at the end. */
-export type NotificationType = "PassengerTagged" | "PassengerAccepted" | "CommentOnPost" | "ReplyToComment" | "ReactionOnPost" | "AreaPost" | "NewFollower" | "CommentOnFollowedPost" | "VoteClosed";
+export type NotificationType = "PassengerTagged" | "PassengerAccepted" | "CommentOnPost" | "ReplyToComment" | "ReactionOnPost" | "AreaPost" | "NewFollower" | "CommentOnFollowedPost" | "VoteClosed" | "CommunityJoinRequest" | "CommunityRequestApproved" | "CommunityInvite" | "CommunityReply";
 
 /** Who did it. Handle is null if their profile has gone ("Former member"). */
 export interface NotificationActorDto {
@@ -9152,7 +9210,7 @@ export interface CommunitySummaryDto {
 export type CommunityVisibility = "Public" | "Private";
 
 /** What you are to a community. */
-export type CommunityStanding = "None" | "Requested" | "Member" | "Banned";
+export type CommunityStanding = "None" | "Requested" | "Member" | "Banned" | "Invited";
 
 /** What a member may do. Admins run the community; moderators help with requests and content. */
 export type CommunityRole = "Member" | "Moderator" | "Admin";
@@ -9160,7 +9218,7 @@ export type CommunityRole = "Member" | "Moderator" | "Admin";
 /** Which communities to list. */
 export type CommunityListKind = "Near" | "Mine" | "Topics" | "Search";
 
-/** One community, with what you may do in it. CanSeeInside: public, or you're a member, so its posts, discussions and members can be shown. CanModerate: you're an admin or moderator (requests, removing members and content). IsAdmin: settings, roles, deleting it. CanJoin: you can join (public) or ask to (private: adults only). */
+/** One community, with what you may do in it. CanSeeInside: public, or you're a member, so its posts, discussions and members can be shown. CanModerate: you're an admin or moderator (requests, removing members and content). IsAdmin: settings, roles, deleting it. CanJoin: you can join (public, or invited) or ask to (private: adults only). */
 export interface CommunityDto {
     id: string;
     slug: string;
@@ -9220,7 +9278,11 @@ export interface CommunityMemberDto {
     since: string | null;
 }
 
-export type CommunityMembershipStatus = "Requested" | "Member" | "Banned";
+export type CommunityMembershipStatus = "Requested" | "Member" | "Banned" | "Invited";
+
+export interface CommunityInviteRequest {
+    handle: string;
+}
 
 export interface CommunityRequestDecision {
     approve: boolean;

@@ -81,7 +81,9 @@ export default async function ManageCommunityPage({ params, searchParams }: Prop
           </Link>
         ))}
       </nav>
-      {tab.tab === "invited" ? <InviteForm slug={community.slug} isPrivate={community.visibility === "Private"} /> : null}
+      {tab.tab === "invited" ? (
+        <InviteForm slug={community.slug} isPrivate={community.visibility === "Private"} />
+      ) : null}
       {tab.tab === "settings" ? (
         <div className="pad">
           <CommunityForm existing={community} />
@@ -98,7 +100,7 @@ export default async function ManageCommunityPage({ params, searchParams }: Prop
               ? "No one is banned."
               : tab.tab === "invited"
                 ? "No open invitations."
-              : "No members."}
+                : "No members."}
         </p>
       ) : (
         <>

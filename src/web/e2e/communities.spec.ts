@@ -105,8 +105,7 @@ test("replying to someone's discussion tells them", async ({ page, request }) =>
   await page.context().clearCookies();
   await request.post(`${MOCK}/__next-user`, { data: "dave" });
   await signIn(page, "/notifications");
-  await expect(page.getByRole("link", { name: /replied to your discussion “Mancunian Way roadworks”/ })).toHaveAttribute(
-    "href",
-    "/communities/manchester-road-watch/d/d0000000-0000-4000-8000-000000000001",
-  );
+  await expect(
+    page.getByRole("link", { name: /replied to your discussion “Mancunian Way roadworks”/ }),
+  ).toHaveAttribute("href", "/communities/manchester-road-watch/d/d0000000-0000-4000-8000-000000000001");
 });

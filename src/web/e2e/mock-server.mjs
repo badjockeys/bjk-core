@@ -1086,7 +1086,15 @@ async function api(req, res, url) {
   const notify = (userId, n) => {
     if (userId === n.actorId) return;
     const list = db.notifications.get(userId) ?? [];
-    list.push({ id: randomUUID(), postId: null, commentId: null, count: 1, at: new Date().toISOString(), isRead: false, ...n });
+    list.push({
+      id: randomUUID(),
+      postId: null,
+      commentId: null,
+      count: 1,
+      at: new Date().toISOString(),
+      isRead: false,
+      ...n,
+    });
     db.notifications.set(userId, list);
   };
   if (path === "/api/communities" && method === "GET") {
@@ -1208,22 +1216,47 @@ async function api(req, res, url) {
     }
     if (rest === "/invites" && method === "POST") {
       if (!isMod(mem)) return problem(res, 403, "Only the community's admins and moderators can do that.");
-      const handle = String((await json()).handle ?? "").replace(/^@/, "").toLowerCase();
+      const handle = String((await json()).handle ?? "")
+        .replace(/^@/, "")
+        .toLowerCase();
       const profile = [...db.profiles.values()].find((p) => p.handle === handle);
-      if (!profile || profile.id === me) return invalid(res, "Handle", `There's nobody called @${handle} you can invite.`);
+      if (!profile || profile.id === me)
+        return invalid(res, "Handle", `There's nobody called @${handle} you can invite.`);
       const existing = db.communityMembers.find((x) => x.communityId === c.id && x.userId === profile.id);
       if (existing?.status === "Member") return invalid(res, "Handle", `@${handle} is already a member.`);
-      if (existing?.status === "Banned") return invalid(res, "Handle", `@${handle} is banned. Unban them first.`);
+      if (existing?.status === "Banned")
+        return invalid(res, "Handle", `@${handle} is banned. Unban them first.`);
       let row = existing;
       if (existing?.status === "Requested") {
         existing.status = "Member";
-        notify(profile.id, { type: "CommunityRequestApproved", actorId: me, postTitle: c.name, link: `/communities/${c.slug}` });
+        notify(profile.id, {
+          type: "CommunityRequestApproved",
+          actorId: me,
+          postTitle: c.name,
+          link: `/communities/${c.slug}`,
+        });
       } else if (!existing) {
-        row = { communityId: c.id, userId: profile.id, role: "Member", status: "Invited", since: new Date().toISOString() };
+        row = {
+          communityId: c.id,
+          userId: profile.id,
+          role: "Member",
+          status: "Invited",
+          since: new Date().toISOString(),
+        };
         db.communityMembers.push(row);
-        notify(profile.id, { type: "CommunityInvite", actorId: me, postTitle: c.name, link: `/communities/${c.slug}` });
+        notify(profile.id, {
+          type: "CommunityInvite",
+          actorId: me,
+          postTitle: c.name,
+          link: `/communities/${c.slug}`,
+        });
       }
-      return send(res, 200, { person: author(row.userId), role: row.role, status: row.status, since: row.since });
+      return send(res, 200, {
+        person: author(row.userId),
+        role: row.role,
+        status: row.status,
+        since: row.since,
+      });
     }
     if (rest === "/membership" && method === "DELETE") {
       db.communityMembers = db.communityMembers.filter((x) => x !== mem);
@@ -1352,7 +1385,12 @@ async function api(req, res, url) {
       const { approve } = await json();
       if (approve) {
         req2.status = "Member";
-        notify(req2.userId, { type: "CommunityRequestApproved", actorId: me, postTitle: c.name, link: `/communities/${c.slug}` });
+        notify(req2.userId, {
+          type: "CommunityRequestApproved",
+          actorId: me,
+          postTitle: c.name,
+          link: `/communities/${c.slug}`,
+        });
       } else db.communityMembers = db.communityMembers.filter((x) => x !== req2);
       return send(res, 204);
     }

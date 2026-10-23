@@ -70,7 +70,10 @@ export async function leaveCommunity(slug: string): Promise<ActionResult> {
 }
 
 /** Invite someone by their @handle (admins and moderators). */
-export async function inviteToCommunity(slug: string, handle: string): Promise<ActionResult<CommunityMemberDto>> {
+export async function inviteToCommunity(
+  slug: string,
+  handle: string,
+): Promise<ActionResult<CommunityMemberDto>> {
   const clean = handle.trim().replace(/^@/, "");
   if (!SLUG.test(slug)) return NOT_FOUND;
   if (!/^[A-Za-z0-9_]{1,40}$/.test(clean)) return { ok: false, error: "Enter their @handle." };
