@@ -604,7 +604,7 @@ locally it uses the real head-turn check and stand-ins for Yoti that answer age 
   (`/following`) and your **custom timelines** (`/t/{id}`, made on `/timelines`: one or more types of bad driving,
   optionally near a place; Free 1, Premium 5, Premium + 10), as tabs at the top of Home. The old category tabs are
   gone; category pages (`/c/{slug}`) open from Category trends.
-- **Following:** Follow buttons on profiles and in the right panel's **Who to follow** (adults near your home area);
+- **Following:** Follow buttons on profiles and in the right panel's **Who to follow** (adults who posted most in the last 90 days near your home area, or where you post, else across the UK);
   profiles show follower and following counts, with lists at `/u/{handle}/followers` and `/following`. A post's ⋯
   menu can limit comments to people you follow. The optional mobile number lives on the identity server
   (Account → Mobile number).

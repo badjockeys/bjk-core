@@ -28,27 +28,27 @@ export async function WhoToFollowPanel() {
     return null;
   }
 
+  // The most active posters near your home area (or where you post), else across the UK (owner, 22 Oct 2026).
   return (
     <div className="card">
       <h2 className="card-h">Who to follow</h2>
+      {who.people.map((p) => (
+        <div key={p.id} className="who">
+          <Link href={profilePath(p.handle)} className="who-person">
+            <Avatar name={p.displayName} url={p.avatarUrl} size="sm" />
+            <span className="c-sub">
+              <strong>{p.displayName}</strong>
+              <small>@{p.handle}</small>
+            </span>
+          </Link>
+          <FollowButton handle={p.handle} following={p.isFollowing === true} signedIn small />
+        </div>
+      ))}
       {!who.hasHomeArea ? (
         <p className="small muted trends-pad">
-          <Link href="/account/notifications">Choose your home area</Link> to see people near you.
+          <Link href="/account/notifications">Choose your home area</Link> to see more people near you.
         </p>
-      ) : (
-        who.people.map((p) => (
-          <div key={p.id} className="who">
-            <Link href={profilePath(p.handle)} className="who-person">
-              <Avatar name={p.displayName} url={p.avatarUrl} size="sm" />
-              <span className="c-sub">
-                <strong>{p.displayName}</strong>
-                <small>@{p.handle}</small>
-              </span>
-            </Link>
-            <FollowButton handle={p.handle} following={p.isFollowing === true} signedIn small />
-          </div>
-        ))
-      )}
+      ) : null}
     </div>
   );
 }
