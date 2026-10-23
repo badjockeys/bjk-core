@@ -114,7 +114,12 @@ export function PassengerPicker({
         </button>
       </div>
       {open ? (
-        <ul id="passenger-suggestions" className="tag-suggest tag-people" role="listbox" aria-label="People to tag">
+        <ul
+          id="passenger-suggestions"
+          className="tag-suggest tag-people"
+          role="listbox"
+          aria-label="People to tag"
+        >
           {items.map((p, i) => {
             const label = connectionLabel(p.connection);
             return (

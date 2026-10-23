@@ -1700,12 +1700,26 @@ async function api(req, res, url) {
     const rank = { Mutual: 0, FollowsYou: 1, YouFollow: 2, None: 3 };
     const people = [...db.profiles.values()]
       .filter((p) => q && p.id !== me && !blocked.has(p.id))
-      .filter((p) => p.handle.startsWith(q) || p.displayName.toLowerCase().split(/\s+/).some((w) => w.startsWith(q)))
+      .filter(
+        (p) =>
+          p.handle.startsWith(q) ||
+          p.displayName
+            .toLowerCase()
+            .split(/\s+/)
+            .some((w) => w.startsWith(q)),
+      )
       .map((p) => {
         const theyFollow = follows(p.id, me);
         const iFollow = follows(me, p.id);
-        const connection = theyFollow && iFollow ? "Mutual" : theyFollow ? "FollowsYou" : iFollow ? "YouFollow" : "None";
-        return { id: p.id, handle: p.handle, displayName: p.displayName, avatarUrl: avatarUrl(p), connection };
+        const connection =
+          theyFollow && iFollow ? "Mutual" : theyFollow ? "FollowsYou" : iFollow ? "YouFollow" : "None";
+        return {
+          id: p.id,
+          handle: p.handle,
+          displayName: p.displayName,
+          avatarUrl: avatarUrl(p),
+          connection,
+        };
       })
       .sort((a, b) => rank[a.connection] - rank[b.connection] || a.displayName.localeCompare(b.displayName))
       .slice(0, Number(url.searchParams.get("limit") ?? 8));

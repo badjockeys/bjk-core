@@ -6889,6 +6889,53 @@ export class ProfilesClient {
     }
 
     /**
+     * People to tag as you type (passengers): handle or name starting with q, the people you're
+    connected to first (following each other, your followers, people you follow), then other adults. Never anyone
+    blocked either way.
+     * @param q (optional) 
+     * @param limit (optional) 
+     */
+    profiles_TagSuggestions(q?: string | null | undefined, limit?: number | undefined, signal?: AbortSignal): Promise<TagSuggestionDto[]> {
+        let url_ = this.baseUrl + "/api/profiles/me/tag-suggestions?";
+        if (q !== undefined && q !== null)
+            url_ += "q=" + encodeURIComponent("" + q) + "&";
+        if (limit === null)
+            throw new globalThis.Error("The parameter 'limit' cannot be null.");
+        else if (limit !== undefined)
+            url_ += "limit=" + encodeURIComponent("" + limit) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processProfiles_TagSuggestions(_response);
+        });
+    }
+
+    protected processProfiles_TagSuggestions(response: Response): Promise<TagSuggestionDto[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as TagSuggestionDto[];
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<TagSuggestionDto[]>(null as any);
+    }
+
+    /**
      * Someone's followers, most recent first. Anyone can call this.
      * @param page (optional) 
      * @param pageSize (optional) 
@@ -8409,6 +8456,18 @@ export interface FollowProfileDto {
     bio: string | null;
     isFollowing: boolean | null;
 }
+
+/** Someone to tag, with how they're connected to you. */
+export interface TagSuggestionDto {
+    id: string;
+    handle: string;
+    displayName: string;
+    avatarUrl: string | null;
+    connection: TagConnection;
+}
+
+/** How someone suggested for tagging is connected to you. */
+export type TagConnection = "None" | "Mutual" | "FollowsYou" | "YouFollow";
 
 export interface PagedResultOfFollowProfileDto {
     items: FollowProfileDto[];
