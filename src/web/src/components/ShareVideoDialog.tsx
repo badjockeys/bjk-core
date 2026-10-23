@@ -10,10 +10,7 @@ import { DownloadIcon, SpinnerIcon } from "./icons";
 import { Modal } from "./Modal";
 import { toast } from "./toast";
 
-type View =
-  | { kind: "making" }
-  | { kind: "ready"; url: string }
-  | { kind: "error"; message: string };
+type View = { kind: "making" } | { kind: "ready"; url: string } | { kind: "error"; message: string };
 
 /**
  * "Download for TikTok, Reels and Shorts" on your own video post (owner, 23 Oct 2026). Asks the API for the vertical
@@ -102,7 +99,12 @@ export function ShareVideoDialog({
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="Share on TikTok, Reels and Shorts" titleId={`share-video-${mediaId}`}>
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Share on TikTok, Reels and Shorts"
+      titleId={`share-video-${mediaId}`}
+    >
       {view.kind === "making" ? (
         <p className="share-making" role="status">
           <SpinnerIcon />
@@ -122,8 +124,8 @@ export function ShareVideoDialog({
       {view.kind === "ready" ? (
         <div className="stack">
           <p role="status">
-            Your video is ready: upright for phones, with a Bad Jockeys end card. Faces and number plates are blurred
-            and there&apos;s no sound.
+            Your video is ready: upright for phones, with a Bad Jockeys end card. Faces and number plates are
+            blurred and there&apos;s no sound.
           </p>
           <a href={view.url} className="btn btn-primary" download="bad-jockeys-clip.mp4">
             <DownloadIcon />

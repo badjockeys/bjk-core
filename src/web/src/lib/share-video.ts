@@ -23,7 +23,9 @@ function typeTag(label: string): string {
 }
 
 /** What a share caption is made from. */
-export type ShareCaptionPost = Pick<PostDto, "title" | "category"> & { location: { placeName: string | null } };
+export type ShareCaptionPost = Pick<PostDto, "title" | "category"> & {
+  location: { placeName: string | null };
+};
 
 /** The caption to paste with the video: title, place, the link back, and a few tags. */
 export function shareCaption(post: ShareCaptionPost, url: string): string {
@@ -39,7 +41,11 @@ export function shareVideoFor(post: PostDto): { mediaId: string; post: ShareCapt
     ? {
         mediaId,
         // Only what the caption needs, as this goes to the browser.
-        post: { title: post.title, category: post.category, location: { placeName: post.location.placeName } },
+        post: {
+          title: post.title,
+          category: post.category,
+          location: { placeName: post.location.placeName },
+        },
       }
     : null;
 }

@@ -1770,7 +1770,8 @@ async function api(req, res, url) {
       };
     };
     if (method === "POST") {
-      if (media.mediaType !== "Video") return invalid(res, "MediaId", "Only videos can be downloaded for sharing.");
+      if (media.mediaType !== "Video")
+        return invalid(res, "MediaId", "Only videos can be downloaded for sharing.");
       if (!db.shareCopies.has(media.id)) db.shareCopies.set(media.id, { at: Date.now() });
       return send(res, 202, describe());
     }

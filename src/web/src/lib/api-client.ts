@@ -352,7 +352,8 @@ export function endpoints(api: ApiClient) {
       get: (token: string, mediaId: string) => client(MediaClient, { token }).media_Get(mediaId),
       remove: (token: string, mediaId: string) => client(MediaClient, { token }).media_Delete(mediaId),
       /** Your video's vertical copy for TikTok, Reels, Shorts and X: its state, and a download link once made. */
-      shareCopy: (token: string, mediaId: string) => client(MediaClient, { token }).media_GetShareCopy(mediaId),
+      shareCopy: (token: string, mediaId: string) =>
+        client(MediaClient, { token }).media_GetShareCopy(mediaId),
       /** Ask for your video's vertical copy (made by the media worker); poll `shareCopy` until it's Ready. */
       requestShareCopy: (token: string, mediaId: string) =>
         client(MediaClient, { token }).media_RequestShareCopy(mediaId),

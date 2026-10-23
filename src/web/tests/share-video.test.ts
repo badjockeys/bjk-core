@@ -5,9 +5,13 @@ import { shareableVideoId, shareCaption } from "@/lib/share-video";
 const video = { mediaId: "v1", mediaType: "Video" } as const;
 const photo = { mediaId: "p1", mediaType: "Image" } as const;
 const post = (media: { mediaId: string; mediaType: "Video" | "Image" }[], extra: object = {}) =>
-  ({ media, isSensitive: false, status: "Published", mediaState: "Ready", ...extra }) as unknown as Parameters<
-    typeof shareableVideoId
-  >[0];
+  ({
+    media,
+    isSensitive: false,
+    status: "Published",
+    mediaState: "Ready",
+    ...extra,
+  }) as unknown as Parameters<typeof shareableVideoId>[0];
 
 describe("sharing videos to other apps", () => {
   it("offers a published post's single video", () => {
