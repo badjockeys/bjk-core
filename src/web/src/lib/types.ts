@@ -58,6 +58,8 @@ export type {
   ReportReason,
   ReportReceipt,
   RequestUploadResult,
+  ShareCopyDto,
+  ShareCopyState,
   SignedUpload,
   SubscriptionPlan,
   TimelineDto,

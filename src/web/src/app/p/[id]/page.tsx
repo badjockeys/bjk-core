@@ -13,6 +13,7 @@ import { HashtagText } from "@/components/HashtagText";
 import { ClockIcon, SpinnerIcon } from "@/components/icons";
 import { LinkExpiryRefresh } from "@/components/LinkExpiryRefresh";
 import { PostMoreMenu } from "@/components/PostMoreMenu";
+import { shareVideoFor } from "@/lib/share-video";
 import { WithPassengers } from "@/components/PostPeople";
 import { ProcessingWatcher } from "@/components/ProcessingWatcher";
 import { isBlurred } from "@/components/PostMedia";
@@ -59,19 +60,33 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       ? (first.previewUrl ?? null)
       : (first.thumbnailUrl ?? (first.mediaType === "Image" ? (first.feedUrl ?? first.playbackUrl) : null));
   const visible = post.status === "Published" && (post.mediaState ?? "Ready") === "Ready";
+  // Video posts also share the (blurred, silent) video, so Facebook, WhatsApp and others can play it in the preview.
+  // Never for sensitive posts, whose real files are behind short-lived links.
+  const video =
+    visible && !post.isSensitive && first?.mediaType === "Video" && first.playbackUrl
+      ? {
+          url: first.playbackUrl,
+          secureUrl: first.playbackUrl,
+          type: "video/mp4",
+          width: first.width ?? undefined,
+          height: first.height ?? undefined,
+        }
+      : null;
+  const og = {
+    title: post.title,
+    description,
+    url: postPath(post.id),
+    siteName: "Bad Jockeys",
+    images: image ? [{ url: image, alt: `${categoryLabel(post.category)}${where}` }] : undefined,
+  };
   return {
     title: post.title,
     description,
     alternates: { canonical: postPath(post.id) },
     robots: visible && !post.isSensitive ? undefined : { index: false, follow: false },
-    openGraph: {
-      type: "article",
-      title: post.title,
-      description,
-      url: postPath(post.id),
-      publishedTime: post.createdAt,
-      images: image ? [{ url: image, alt: `${categoryLabel(post.category)}${where}` }] : undefined,
-    },
+    openGraph: video
+      ? { ...og, type: "video.other", videos: [video] }
+      : { ...og, type: "article", publishedTime: post.createdAt },
     twitter: { card: image ? "summary_large_image" : "summary", title: post.title, description },
   };
 }
@@ -143,6 +158,7 @@ export default async function PostPage({ params, searchParams }: Props) {
             className="icon-btn"
             afterDelete="home"
             commentSetting={post.commentSetting}
+            shareVideo={shareVideoFor(post)}
           />
         </div>
         <WithPassengers passengers={post.passengers} showPending={isMine} />

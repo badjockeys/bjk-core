@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { shareVideoFor } from "@/lib/share-video";
 import { categoryHref, categoryLabel, postTypes } from "@/lib/categories";
 import { timeAgo } from "@/lib/format";
 import { postPath, profilePath } from "@/lib/paths";
@@ -65,6 +66,7 @@ export function PostCard({ post, viewer }: { post: PostDto; viewer: Viewer }) {
             isMine={isMine}
             signedIn={viewer.signedIn}
             commentSetting={post.commentSetting}
+            shareVideo={shareVideoFor(post)}
           />
         </div>
         <WithPassengers passengers={post.passengers} showPending={isMine} />
