@@ -14,6 +14,8 @@ export async function requestUpload(file: {
   fileName: string;
   contentType: string;
   sizeBytes: number;
+  /** When posting a clip from your vault: the clip, so it isn't kept in the vault twice. */
+  vaultClipId?: string | null;
 }): Promise<ActionResult<RequestUploadResult>> {
   return asUser((t) => api().media.requestUpload(t, file));
 }

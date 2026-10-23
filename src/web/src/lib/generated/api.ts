@@ -1099,6 +1099,253 @@ export class MediaClient {
     }
 }
 
+export class VaultClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * Your vault: your plan's limits, the space used, and a page of your clips, newest first.
+     * @param page (optional) 
+     * @param pageSize (optional) 
+     */
+    vault_Get(page?: number | undefined, pageSize?: number | undefined, signal?: AbortSignal): Promise<VaultDto> {
+        let url_ = this.baseUrl + "/api/vault?";
+        if (page === null)
+            throw new globalThis.Error("The parameter 'page' cannot be null.");
+        else if (page !== undefined)
+            url_ += "page=" + encodeURIComponent("" + page) + "&";
+        if (pageSize === null)
+            throw new globalThis.Error("The parameter 'pageSize' cannot be null.");
+        else if (pageSize !== undefined)
+            url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processVault_Get(_response);
+        });
+    }
+
+    protected processVault_Get(response: Response): Promise<VaultDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as VaultDto;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<VaultDto>(null as any);
+    }
+
+    /**
+     * Start an upload straight to your vault. Returns a link valid for a few minutes: PUT the file to it with the
+    headers given, then call POST /api/vault/{id}/complete. 400 if the vault hasn't room.
+     */
+    vault_RequestUpload(request: VaultUploadRequest, signal?: AbortSignal): Promise<VaultUploadResult> {
+        let url_ = this.baseUrl + "/api/vault/uploads";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processVault_RequestUpload(_response);
+        });
+    }
+
+    protected processVault_RequestUpload(response: Response): Promise<VaultUploadResult> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 201) {
+            return response.text().then((_responseText) => {
+            let result201: any = null;
+            result201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as VaultUploadResult;
+            return result201;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<VaultUploadResult>(null as any);
+    }
+
+    /**
+     * The file has been uploaded: keeps it, if it arrived and fits.
+     */
+    vault_Complete(id: string, signal?: AbortSignal): Promise<VaultClipDto> {
+        let url_ = this.baseUrl + "/api/vault/{id}/complete";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "POST",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processVault_Complete(_response);
+        });
+    }
+
+    protected processVault_Complete(response: Response): Promise<VaultClipDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as VaultClipDto;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<VaultClipDto>(null as any);
+    }
+
+    /**
+     * A link, valid for 15 minutes, that downloads one of your clips.
+     */
+    vault_Download(id: string, signal?: AbortSignal): Promise<VaultDownloadDto> {
+        let url_ = this.baseUrl + "/api/vault/{id}/download";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processVault_Download(_response);
+        });
+    }
+
+    protected processVault_Download(response: Response): Promise<VaultDownloadDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as VaultDownloadDto;
+            return result200;
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<VaultDownloadDto>(null as any);
+    }
+
+    /**
+     * Delete one of your clips now.
+     */
+    vault_Delete(id: string, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/vault/{id}";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            signal,
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processVault_Delete(_response);
+        });
+    }
+
+    protected processVault_Delete(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+}
+
 export class AreaClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -7518,9 +7765,14 @@ export interface SignedUpload {
 }
 
 export interface RequestUploadRequest {
+    /** The name on the device. */
     fileName: string;
+    /** The file's type. */
     contentType: string;
+    /** Its size. */
     sizeBytes: number;
+    /** When posting a clip from your vault: the clip (see /api/vault). */
+    vaultClipId: string | null;
 }
 
 export interface PagedResultOfMediaDto {
@@ -7542,6 +7794,77 @@ export interface ShareCopyDto {
 
 /** Where a video's share copy is, from its owner's point of view. */
 export type ShareCopyState = "None" | "Rendering" | "Ready" | "Failed";
+
+/** Your vault: your plan's limits, the space used, and a page of your clips (newest first). */
+export interface VaultDto {
+    /** Your plan. */
+    plan: SubscriptionPlan;
+    /** Space used. */
+    usedBytes: number;
+    /** Your plan's space. */
+    limitBytes: number;
+    /** How long your plan keeps clips. */
+    retentionDays: number;
+    /** The largest file you can upload straight to the vault. */
+    maxFileBytes: number;
+    /** The clips. */
+    clips: PagedResultOfVaultClipDto;
+}
+
+/** The caller's subscription plan. Logged-out callers have no plan (modules treat them separately). Billing isn't built yet: the identity server will issue the access-token claim plan (free, premium or premium_plus) once it is; until then every signed-in user is Free unless listed in Plans:Overrides. */
+export type SubscriptionPlan = "Free" | "Premium" | "PremiumPlus";
+
+export interface PagedResultOfVaultClipDto {
+    items: VaultClipDto[];
+    page: number;
+    pageSize: number;
+    totalCount: number;
+}
+
+/** One clip in your vault. */
+export interface VaultClipDto {
+    /** The clip. */
+    id: string;
+    /** Its name on your device. */
+    fileName: string;
+    /** Video or Image. */
+    mediaType: MediaType;
+    /** Its type. */
+    contentType: string;
+    /** Its size. */
+    sizeBytes: number;
+    /** From a post, or uploaded straight to the vault. */
+    source: VaultClipSource;
+    /** For clips from a post: the post, if known. */
+    postId: string | null;
+    /** When it went into the vault. */
+    createdAt: string;
+    /** When it's deleted automatically (it follows your plan). */
+    expiresAt: string;
+}
+
+/** How a clip got into the vault. */
+export type VaultClipSource = "Post" | "Upload";
+
+export interface VaultUploadResult {
+    /** The new clip. */
+    clipId: string;
+    /** PUT the file here, then call POST /api/vault/{id}/complete. */
+    upload: SignedUpload;
+}
+
+export interface VaultUploadRequest {
+    fileName: string;
+    contentType: string;
+    sizeBytes: number;
+}
+
+export interface VaultDownloadDto {
+    /** Downloads the original (as bad-jockeys-original-….ext). */
+    url: string;
+    /** When the link stops working. */
+    expiresAt: string;
+}
 
 /** Your home area and area alerts. PlaceName and the position (to about 1 km) are null until you choose a home area. CanUseAlerts is true on Premium and Premium +. Quiet hours are 22:00 to 07:00 UK time; Instant alerts are capped at InstantDailyCap a day; summaries go at 08:00. */
 export interface AreaSettingsDto {
@@ -8218,9 +8541,6 @@ export interface HeatmapAccessDto {
     filtersIgnored: boolean;
     modelFilterIgnored: boolean;
 }
-
-/** The caller's subscription plan. Logged-out callers have no plan (modules treat them separately). Billing isn't built yet: the identity server will issue the access-token claim plan (free, premium or premium_plus) once it is; until then every signed-in user is Free unless listed in Plans:Overrides. */
-export type SubscriptionPlan = "Free" | "Premium" | "PremiumPlus";
 
 /** Which days of the week the heat map counts. */
 export type HeatmapDays = "All" | "Weekdays" | "Weekends";
