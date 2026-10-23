@@ -1,83 +1,57 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 
-import { composerPrompt } from "@/lib/composer";
 import { postPath } from "@/lib/paths";
 
-import { Avatar } from "./Avatar";
-import { PhotoIcon, PinIcon, TagIcon } from "./icons";
-import { PostComposer, type ComposerData, type ComposerStart } from "./PostComposer";
+import { VideoIcon } from "./icons";
+import { PostComposer, type ComposerData } from "./PostComposer";
 
-const ACTIONS: { start: ComposerStart; label: string; icon: ReactNode }[] = [
-  { start: "photos", label: "Photo or video", icon: <PhotoIcon size={20} color="#00B5E5" strokeWidth={2} /> },
-  { start: "types", label: "Type", icon: <TagIcon size={20} /> },
-  { start: "where", label: "Location", icon: <PinIcon size={20} color="#111111" /> },
-];
-
-/** The bar itself, as buttons (`onOpen`) or, for members who need a profile first, as links to /post/new. */
-function Bar({
-  name,
-  avatarUrl,
-  onOpen,
-}: {
-  name: string;
-  avatarUrl: string | null;
-  onOpen?: (start: ComposerStart) => void;
-}) {
-  const prompt = composerPrompt(name);
+/**
+ * The card at the top of the feed (owner sign-off, 23 Oct 2026, option 2): one honest control, not a pretend text box.
+ * "+ Post" opens the composer (`onOpen`) or, for members who need a profile first, links to /post/new.
+ */
+function Card({ onOpen }: { onOpen?: () => void }) {
   return (
-    <div className="feed-composer d-only">
-      <div className="fc-top">
-        <Avatar name={name} url={avatarUrl} />
-        {onOpen ? (
-          <button type="button" className="fc-pill" onClick={() => onOpen("compose")}>
-            {prompt}
-          </button>
-        ) : (
-          <Link href="/post/new" className="fc-pill">
-            {prompt}
-          </Link>
-        )}
-      </div>
-      <div className="fc-actions">
-        {ACTIONS.map((action) =>
-          onOpen ? (
-            <button key={action.start} type="button" className="fc-act" onClick={() => onOpen(action.start)}>
-              {action.icon}
-              {action.label}
-            </button>
-          ) : (
-            <Link key={action.start} href="/post/new" className="fc-act">
-              {action.icon}
-              {action.label}
-            </Link>
-          ),
-        )}
-      </div>
-    </div>
+    <section className="feed-composer d-only" aria-labelledby="fc-title">
+      <span className="fc-tile" aria-hidden="true">
+        <VideoIcon size={22} color="#00607F" />
+      </span>
+      <span className="fc-text">
+        <strong id="fc-title">Caught some bad driving?</strong>
+        <span className="small muted">Faces and number plates are blurred for you.</span>
+      </span>
+      {onOpen ? (
+        <button type="button" className="btn btn-primary fc-post" onClick={onOpen}>
+          + Post
+        </button>
+      ) : (
+        <Link href="/post/new" className="btn btn-primary fc-post">
+          + Post
+        </Link>
+      )}
+    </section>
   );
 }
 
-/** Members without a profile yet: the same bar, linking to /post/new, which asks them to make one first. */
-export function ComposerLinkBar({ name, avatarUrl }: { name: string; avatarUrl: string | null }) {
-  return <Bar name={name} avatarUrl={avatarUrl} />;
+/** Members without a profile yet: the same card, linking to /post/new, which asks them to make one first. */
+export function ComposerLinkBar() {
+  return <Card />;
 }
 
 /**
- * Desktop: "Seen some bad driving, Aaron?" at the top of the feed, like Facebook (owner feedback, 22 Oct 2026). It
- * looks like a text box, so clicking it pops out the whole composer in a "Create post" dialog; Photo or video, Type
- * and Location open the dialog on that step. Closing it, keeping it as a draft or posting closes the dialog; a new
- * one starts empty each time.
+ * Desktop: the "Caught some bad driving?" card at the top of the feed. "+ Post" pops out the composer in a "Create
+ * post" dialog. Closing it, keeping it as a draft or posting closes the dialog; a new one starts empty each time.
+ * Phones use the floating + button instead.
  */
 export function ComposerBar(props: ComposerData) {
-  const [start, setStart] = useState<ComposerStart | null>(null);
+  const [open, setOpen] = useState(false);
   const [round, setRound] = useState(0);
   const [posted, setPosted] = useState<{ id: string; kind: "Image" | "Video" } | null>(null);
 
   const close = () => {
-    setStart(null);
+    setOpen(false);
     setRound((n) => n + 1);
   };
 
@@ -94,19 +68,16 @@ export function ComposerBar(props: ComposerData) {
           <Link href={postPath(posted.id)}>View post</Link>
         </p>
       ) : null}
-      <Bar
-        name={props.author.name}
-        avatarUrl={props.author.avatarUrl}
-        onOpen={(next) => {
+      <Card
+        onOpen={() => {
           setPosted(null);
-          setStart(next);
+          setOpen(true);
         }}
       />
-      {start ? (
+      {open ? (
         <PostComposer
           key={round}
           mode="dialog"
-          start={start}
           {...props}
           onClose={close}
           onPosted={(post) => {

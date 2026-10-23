@@ -625,9 +625,14 @@ locally it uses the real head-turn check and stand-ins for Yoti that answer age 
 - **Post analytics:** under your own post, **Analytics** opens graphs of views (and local views), reactions, comments
   and shares since posting: hour by hour for 48 hours, then day by day, then week by week after 90 days, with a table
   view. Premium and Premium + only; on Free the graphs are blurred with a link to Premium (the API sends no points).
-- **Your cars:** Account → **Your cars** (`/account/cars`) keeps up to 5 household cars (make, model, colour and a
-  nickname; never a registration). The post form's **Filmed from** picks one, and the post shows "Filmed from:
-  Dave's Golf". Renaming a car renames it on its posts.
+- **The composer** (signed off 23 Oct 2026): on desktop, the feed's **Caught some bad driving?** card has one
+  **+ Post** button that opens it in a dialog; phones use the floating + button and `/post/new`. Under the title and
+  text, **Add to your post** has six icons: photos or a video (one picker: up to 10 photos or one video, never both;
+  picking another video replaces it), type of bad driving, when, where, the vehicle, and passengers (driving
+  incidents only). An icon is tinted once filled in and has a dot while still needed. What's chosen shows as chips
+  under the text (tap to change, × to remove; "when" only once changed from now), and photos or the video only once
+  picked. Posters no longer tick "sensitive": automatic checks and moderators still do. Household cars and "Filmed
+  from" were removed; to tidy a local database, see the bjk-modules README.
 - **Uploads** go straight from the browser to storage: the web server asks the API for a signed link
   (`POST /api/media/uploads`), the browser `PUT`s the file to S3Mock (or R2) with a progress bar, then the web server
   tells the API it's there. Photos are shrunk in the browser first; videos are trimmed to at most 30 seconds and
