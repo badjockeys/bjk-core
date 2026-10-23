@@ -657,6 +657,9 @@ What runs on your machine, and what doesn't. The setup prints the same summary a
 | Blocked web addresses | On, against **one test entry**: `blocked-url-test.example` | Moderators' entries; the **IWF URL List** once we're members |
 | Threats, slurs and abuse in text | Built-in keyword list (the Detoxify classifier isn't run locally) | Keyword list, plus Detoxify if `Screening:Endpoint` is set |
 | Personal details in text | On (plates, phone numbers, emails, street addresses, social handles) | On |
+| Links in posts | On: web addresses in a post's title, description or place name are refused | On |
+| No vehicle in the photos or video | On (the vehicle detector that blurs plate areas). A post where nothing shows a vehicle is held for a moderator | On |
+| "Not about driving" and spam reports | On: 3 established members, or 1 Trusted reporter, hold the post for a moderator; 2 removals in 30 days pause posting for 7 days (`Safety:OffTopic`) | On |
 
 **Nothing on your machine is ever checked against the real IWF lists**, and nothing needs to be kept up to date here: the lists live in SQL (`media.KnownImageHashes`, `posts.BlockedUrls`) and, when deployed, a sync job fetches each provider's list over its API every 6 hours. Locally the only entries are the `Test` rows the setup adds.
 
@@ -665,6 +668,8 @@ What runs on your machine, and what doesn't. The setup prints the same summary a
 - **Known image:** post `scripts/sql/safety-test/known-image-test.png` (a yellow and black "TEST IMAGE" card; it's harmless). The upload fails with "This file can't be posted.", nothing is published, and the match appears in `badjockeys.media.KnownImageMatches` (and `GET /api/admin/known-images/matches` as an admin). A resized or re-saved copy is caught too, by its perceptual hash. Uploads are checked by the media worker, so it must be running.
 - **Blocked address:** write a post or comment containing `blocked-url-test.example/anything`. It's held for review (only you see it) with the label `blocked_url`.
 - **Nudity and graphic content:** the scores of every upload are in `badjockeys.media.Media` (`NudityScore`, `SensitiveScore`). Don't test with real explicit or gory pictures; ordinary dashcam footage should score near 0.
+- **No vehicle:** post a photo with no vehicle in it (a picture of a room or a pet). Once it's processed, the post shows "A moderator is checking your post" and is in the held queue with the label `no_vehicle`. `VehicleFrames` in `badjockeys.media.Media` is 0 for it (null if vehicle detection was off).
+- **Links:** a post titled "Cheap dashcams at dashcams.shop" is refused with "Links can't be included in posts". The post form says so before sending.
 - **Re-add the test entries** (for example after resetting the database): `node scripts/sql/safety-test/seed.mjs`.
 
 **IWF test environment.** The IWF doesn't publish a public sandbox for its lists. When we join, ask them for test credentials and a test feed (or a set of test hashes and URLs) for DEV and QA, so the first real sync isn't in production. The code is ready for that: each list is a "source" with its own sync, and DEV and QA can point at the test feed while production uses the live one. Until then, DEV and QA use the same `Test` entries as your machine.

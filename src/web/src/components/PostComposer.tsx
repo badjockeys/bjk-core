@@ -24,6 +24,7 @@ import type {
   VehicleDto,
 } from "@/lib/types";
 import { COLOUR_SWATCHES, describeVehicle, vehicleTypeLabel } from "@/lib/vehicles";
+import { containsWebAddress, LINK_MESSAGE } from "@/lib/web-addresses";
 import {
   contentTypeOf,
   kindOf,
@@ -656,6 +657,8 @@ export function PostComposer({
     if (items.length === 0) problems.media = "Add photos or a video.";
     else if (failed > 0) problems.media = "Remove the files that didn't work.";
     if (!fields.title.trim()) problems.title = "Give your post a title.";
+    else if (containsWebAddress(fields.title)) problems.title = LINK_MESSAGE;
+    if (containsWebAddress(fields.description)) problems.description = LINK_MESSAGE;
     if (fields.types.length === 0) problems.types = "Choose at least one type of bad driving.";
     if (!fields.placeName.trim()) problems.placeName = "Add a place name, such as a road and town.";
     if (!fields.pin) problems.pin = "Put a pin on the map where it happened.";

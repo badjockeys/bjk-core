@@ -329,7 +329,7 @@ describe("ReportDialog", () => {
     const onClose = vi.fn();
     render(<ReportDialog open onClose={onClose} what="post" submit={submit} />);
 
-    await userEvent.click(screen.getByLabelText("Spam"));
+    await userEvent.click(screen.getByLabelText("Spam or advertising"));
     await userEvent.type(screen.getByLabelText(/Anything else/), "Same advert every day");
     await userEvent.click(screen.getByRole("button", { name: "Send report" }));
 
