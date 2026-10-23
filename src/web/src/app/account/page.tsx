@@ -93,7 +93,9 @@ export default async function AccountPage() {
         <Link href="/account/vault" className="list-item">
           <span className="col" style={{ gap: 0 }}>
             <span>Vault</span>
-            <span className="small muted">Your original clips, kept privately as evidence, and automatic saving</span>
+            <span className="small muted">
+              Your original clips, kept privately as evidence, and automatic saving
+            </span>
           </span>
           <ChevronIcon />
         </Link>

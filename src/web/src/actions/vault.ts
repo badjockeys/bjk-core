@@ -19,7 +19,10 @@ import { asUser } from "./run";
 const ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Your vault: limits, space used and a page of one collection's clips. */
-export async function getVault(page = 1, collection: VaultCollection = "all"): Promise<ActionResult<VaultDto>> {
+export async function getVault(
+  page = 1,
+  collection: VaultCollection = "all",
+): Promise<ActionResult<VaultDto>> {
   const safePage = Number.isInteger(page) && page > 0 ? page : 1;
   return asUser((t) => api().vault.get(t, safePage, 30, sourceOf(collection)));
 }

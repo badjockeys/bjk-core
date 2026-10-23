@@ -39,10 +39,15 @@ export default async function VaultPage({
       vault = await api().vault.get(token, 1, 30, sourceOf(collection));
     } else {
       // Each collection's first four clips, for its tile, and its count.
-      const pages = await Promise.all(VAULT_COLLECTIONS.map((c) => api().vault.get(token, 1, 4, sourceOf(c.id))));
+      const pages = await Promise.all(
+        VAULT_COLLECTIONS.map((c) => api().vault.get(token, 1, 4, sourceOf(c.id))),
+      );
       vault = pages[0]!;
       covers = Object.fromEntries(
-        VAULT_COLLECTIONS.map((c, i) => [c.id, { clips: pages[i]!.clips.items, total: pages[i]!.clips.totalCount }]),
+        VAULT_COLLECTIONS.map((c, i) => [
+          c.id,
+          { clips: pages[i]!.clips.items, total: pages[i]!.clips.totalCount },
+        ]),
       );
     }
   } catch {
@@ -52,7 +57,12 @@ export default async function VaultPage({
   return (
     <AppShell viewer={viewer} section="account" returnTo={here} bottomNav>
       {vault ? (
-        <VaultScreen key={collection ?? "collections"} vault={vault} collection={collection} covers={covers} />
+        <VaultScreen
+          key={collection ?? "collections"}
+          vault={vault}
+          collection={collection}
+          covers={covers}
+        />
       ) : (
         <p className="error pad" role="alert">
           We couldn&apos;t load your vault. Please try again.

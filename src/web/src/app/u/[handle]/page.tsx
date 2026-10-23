@@ -201,10 +201,7 @@ export default async function ProfilePage({ params, searchParams }: Props) {
           Replies
         </Link>
         {isMe ? (
-          <Link
-            href="/account/vault"
-            className="tab"
-          >
+          <Link href="/account/vault" className="tab">
             Vault
           </Link>
         ) : null}

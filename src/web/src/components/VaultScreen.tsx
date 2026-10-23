@@ -59,7 +59,10 @@ function usePreviews(clips: readonly VaultClipDto[]): Record<string, string> {
     // Results are always kept, even if the clips shown have changed since: they're asked for once.
     void getVaultPreviews(ids).then((result) => {
       if (result.ok) {
-        setUrls((current) => ({ ...current, ...Object.fromEntries(result.data.map((p) => [p.clipId, p.url])) }));
+        setUrls((current) => ({
+          ...current,
+          ...Object.fromEntries(result.data.map((p) => [p.clipId, p.url])),
+        }));
       }
     });
   }, [wanted]);
@@ -333,7 +336,12 @@ export function VaultScreen({
           </ul>
           {hasMore ? (
             <div className="centre pad">
-              <button type="button" className="btn btn-sm" disabled={more.loading} onClick={() => void loadMore()}>
+              <button
+                type="button"
+                className="btn btn-sm"
+                disabled={more.loading}
+                onClick={() => void loadMore()}
+              >
                 {more.loading ? "Loading…" : "Show more"}
               </button>
             </div>
@@ -363,7 +371,7 @@ function Thumb({ clip, url }: { clip: VaultClipDto; url: string | undefined }) {
   const kind = previewable(clip.contentType);
   if (url && kind === "image" && !failed) {
     // A signed link to the owner's own original: next/image can't optimise it.
-    // eslint-disable-next-line @next/next/no-img-element
+     
     return <img src={url} alt="" className="vault-thumb" loading="lazy" onError={() => setFailed(true)} />;
   }
   if (url && kind === "video" && !failed) {
@@ -433,11 +441,15 @@ function ClipViewer({
         {url && kind === "video" ? (
           <video src={url} controls playsInline className="vault-view-media" />
         ) : url && kind === "image" ? (
-          // eslint-disable-next-line @next/next/no-img-element
+           
           <img src={url} alt={clip.fileName} className="vault-view-media" />
         ) : (
           <span className="vault-view-media vault-thumb-icon">
-            {clip.mediaType === "Video" ? <VideoIcon color="#00607F" /> : <PhotoIcon size={28} color="#00607F" />}
+            {clip.mediaType === "Video" ? (
+              <VideoIcon color="#00607F" />
+            ) : (
+              <PhotoIcon size={28} color="#00607F" />
+            )}
           </span>
         )}
       </div>
@@ -468,7 +480,11 @@ function ClipViewer({
           Download
         </button>
         {clip.source === "Upload" ? (
-          <Link className="btn btn-sm" href={`/post/new?vault=${clip.id}`} aria-label={`Post ${clip.fileName}`}>
+          <Link
+            className="btn btn-sm"
+            href={`/post/new?vault=${clip.id}`}
+            aria-label={`Post ${clip.fileName}`}
+          >
             Post it
           </Link>
         ) : null}
