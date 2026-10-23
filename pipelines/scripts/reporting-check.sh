@@ -4,6 +4,8 @@
 # the identity server's columns (the ones the views read) is created first.
 #   1. Both sets of views and the bjk_reporting login apply cleanly (twice: they must be safe to re-run).
 #   2. bjk_reporting can read every reporting view, and can't read a table.
+#   3. reporting.Incidents has every live post with one main subcategory (74 subcategories), and bjk_chat can read
+#      it and nothing else.
 # Needs SQL_CONTAINER (the SQL Server service container) and SQL_PASSWORD.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -12,6 +14,7 @@ fail() { echo "::error::$*"; exit 1; }
 sql() { docker exec -i "$SQL_CONTAINER" /opt/mssql-tools18/bin/sqlcmd -S localhost -C -b -I "$@"; }
 as_sa() { sql -U sa -P "$SQL_PASSWORD" "$@"; }
 REPORTING_PASSWORD="CiReporting2026x"
+CHAT_PASSWORD="CiChat2026x"
 
 echo "--- stand-in idsrv database"
 as_sa <<'SQL'
@@ -38,7 +41,7 @@ echo "--- apply the views and the login (twice)"
 for run in 1 2; do
   as_sa -d idsrv < scripts/sql/reporting/idsrv.sql || fail "scripts/sql/reporting/idsrv.sql failed (run $run)."
   as_sa -d badjockeys < scripts/sql/reporting/badjockeys.sql || fail "scripts/sql/reporting/badjockeys.sql failed (run $run)."
-  as_sa -d master -v ReportingPassword="$REPORTING_PASSWORD" < scripts/sql/reporting/login.sql || fail "scripts/sql/reporting/login.sql failed (run $run)."
+  as_sa -d master -v ReportingPassword="$REPORTING_PASSWORD" -v ChatPassword="$CHAT_PASSWORD" < scripts/sql/reporting/login.sql || fail "scripts/sql/reporting/login.sql failed (run $run)."
 done
 echo "ok  views and login apply, and re-apply"
 
@@ -56,3 +59,21 @@ if sql -U bjk_reporting -P "$REPORTING_PASSWORD" -d badjockeys -Q "SELECT TOP (1
   fail "bjk_reporting could read posts.Posts: it must only see the reporting views."
 fi
 echo "ok  bjk_reporting can't read the tables"
+
+echo "--- the incidents view, and bjk_chat"
+q() { as_sa -d badjockeys -h -1 -W -Q "SET NOCOUNT ON; $1" | tr -d '[:space:]'; }
+[ "$(q "SELECT COUNT(*) FROM reporting.Subcategories")" = "74" ] || fail "reporting.Subcategories doesn't have 74 rows."
+live=$(q "SELECT COUNT(*) FROM posts.Posts WHERE Status = N'Published' AND MediaState = N'Ready' AND IsAuthorDeactivated = 0")
+mains=$(q "SELECT COUNT(*) FROM reporting.Incidents WHERE IsMainType = 1")
+[ "$mains" = "$live" ] || fail "reporting.Incidents has $mains main subcategories for $live live posts: each needs exactly one."
+echo "ok  reporting.Incidents covers all $live live posts, one main subcategory each"
+chat() { sql -U bjk_chat -P "$CHAT_PASSWORD" -d badjockeys -Q "SET NOCOUNT ON; $1"; }
+for object in Incidents Subcategories; do
+  chat "SELECT TOP (1) * FROM reporting.$object" > /dev/null || fail "bjk_chat can't read reporting.$object."
+done
+for other in reporting.OpenReports reporting.PeopleSummary reporting.PostsByDay posts.Posts; do
+  if chat "SELECT TOP (1) * FROM $other" > /dev/null 2>&1; then
+    fail "bjk_chat could read $other: it must only see reporting.Incidents and reporting.Subcategories."
+  fi
+done
+echo "ok  bjk_chat reads the incidents and nothing else"
