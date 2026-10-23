@@ -77,3 +77,35 @@ test.describe("sharing when posting", () => {
     );
   });
 });
+
+test("an admin invites someone, who hears about it and accepts", async ({ page, request }) => {
+  await request.post(`${MOCK}/__next-user`, { data: "dave" });
+  await signIn(page, "/communities/didsbury-school-run/manage?tab=invited");
+  await expect(page.getByText("No open invitations.")).toBeVisible();
+  await page.getByLabel("Invite someone").fill("@roadhog");
+  await page.getByRole("button", { name: "Invite", exact: true }).click();
+  await expect(page.getByRole("button", { name: /Cancel the invitation to/ })).toBeVisible();
+
+  await page.context().clearCookies();
+  await request.post(`${MOCK}/__next-user`, { data: "roadhog" });
+  await signIn(page, "/notifications");
+  await page.getByRole("link", { name: /invited you to join Didsbury School Run/ }).click();
+  await expect(page).toHaveURL(/\/communities\/didsbury-school-run/);
+  await expect(page.getByText("You've been invited. Accept to see inside.")).toBeVisible();
+  await page.getByRole("button", { name: "Accept the invitation to join Didsbury School Run" }).click();
+  await expect(page.getByRole("navigation", { name: "Community" })).toBeVisible();
+});
+
+test("replying to someone's discussion tells them", async ({ page, request }) => {
+  await signIn(page, "/communities/manchester-road-watch/d/d0000000-0000-4000-8000-000000000001");
+  await page.getByLabel("Your reply").fill("Seen it too, every morning.");
+  await page.getByRole("button", { name: "Reply", exact: true }).click();
+  await expect(page.getByText("Seen it too, every morning.")).toBeVisible();
+
+  await page.context().clearCookies();
+  await request.post(`${MOCK}/__next-user`, { data: "dave" });
+  await signIn(page, "/notifications");
+  await expect(
+    page.getByRole("link", { name: /replied to your discussion “Mancunian Way roadworks”/ }),
+  ).toHaveAttribute("href", "/communities/manchester-road-watch/d/d0000000-0000-4000-8000-000000000001");
+});

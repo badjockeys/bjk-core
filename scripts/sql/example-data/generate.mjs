@@ -5,7 +5,7 @@
 //
 // Everything comes from a fixed random seed, so every run produces exactly the same data.
 
-import { ids, posts as handPosts, users as handUsers } from "./data.mjs";
+import { COMMUNITY_REPLIES, communities as handCommunities, ids, posts as handPosts, users as handUsers } from "./data.mjs";
 
 // --- Deterministic random numbers ---
 
@@ -461,7 +461,57 @@ export function buildExampleData() {
     ...sample(userNs, 18).map((u) => ({ user: u, badge: "LocalRegular" })),
   ];
 
-  return { users, posts, homeAreas, follows, bookmarks, preferences, badges };
+  // Communities, after everything else so adding them changed none of the data above.
+  const communities = buildCommunities(userNs, posts, homeOf);
+
+  return { users, posts, homeAreas, follows, bookmarks, preferences, badges, communities };
+}
+
+/**
+ * Members (place communities: mostly people whose home area is inside; topics: a sample), a moderator each, a few
+ * requests waiting in private ones, posts shared by members (inside the area, for place communities), discussions
+ * and replies. Minutes are before now.
+ */
+function buildCommunities(userNs, posts, homeOf) {
+  let replyCounter = 0;
+  let discussionCounter = 0;
+  return handCommunities.map((c) => {
+    const area = c.area ? { place: c.area[0], lat: c.area[1], lng: c.area[2], radiusKm: c.area[3] } : null;
+    const inside = (lat, lng) => area && km(area.lat, area.lng, lat, lng) <= area.radiusKm;
+    const others = userNs.filter((u) => u !== c.owner);
+    const joined = area
+      ? others.filter((u) => inside(homeOf.get(u).lat, homeOf.get(u).lng) && chance(0.7))
+      : sample(others, int(15, 30));
+    const moderator = joined.length > 0 ? pick(joined) : null;
+    const members = [
+      { user: c.owner, role: "Admin", status: "Member", minute: 60 * 24 * 30 },
+      ...joined.map((u) => ({ user: u, role: u === moderator ? "Moderator" : "Member", status: "Member", minute: int(60, 60 * 24 * 28) })),
+    ];
+    if (c.visibility === "Private") {
+      for (const u of sample(others.filter((u) => !joined.includes(u)), 3)) {
+        members.push({ user: u, role: "Member", status: "Requested", minute: int(30, 60 * 24 * 3) });
+      }
+    }
+    const memberIds = new Set(members.filter((m) => m.status === "Member").map((m) => m.user));
+    const shares = posts
+      .filter((p) => memberIds.has(p.by) && (area ? inside(p.at[0], p.at[1]) : chance(0.25)) && chance(0.6))
+      .map((p) => ({ post: p.n, by: p.by, minute: Math.max(1, (p.ago - 1) * 1440 - 30) }));
+    const people = [...memberIds];
+    const discussions = c.discussions.map(([title, body], i) => {
+      const n = ++discussionCounter;
+      const by = i === 0 ? c.owner : pick(people);
+      const started = int(60 * 24 * 2, 60 * 24 * 20);
+      const replies = sample(people.filter((u) => u !== by), int(1, 6)).map((u, r) => ({
+        n: ++replyCounter,
+        by: u,
+        text: pick(COMMUNITY_REPLIES),
+        minute: Math.max(5, started - (r + 1) * int(20, 300)),
+      }));
+      const lastMinute = replies.length > 0 ? Math.min(...replies.map((r) => r.minute)) : started;
+      return { n, by, title, body: body ?? "", minute: started, lastMinute, replies };
+    });
+    return { ...c, area, members, shares, discussions };
+  });
 }
 
 /** A signed-out visitor's viewer key: fixed per post and visitor, inside the example id range. */

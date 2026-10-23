@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import { AppShell, FooterLinks } from "@/components/AppShell";
 import { BackButton } from "@/components/BackButton";
 import { CommunityForm } from "@/components/communities/CommunityForm";
+import { InviteForm } from "@/components/communities/InviteForm";
 import { ManageRow } from "@/components/communities/ManageRow";
 import { api } from "@/lib/api";
 import { getAccessToken, getViewer } from "@/lib/auth";
@@ -25,11 +26,12 @@ export const metadata: Metadata = { title: "Manage community", robots: { index: 
 const TABS = [
   { tab: "requests", label: "Requests", status: "Requested" },
   { tab: "members", label: "Members", status: "Member" },
+  { tab: "invited", label: "Invited", status: "Invited" },
   { tab: "banned", label: "Banned", status: "Banned" },
   { tab: "settings", label: "Settings", status: null },
 ] as const;
 
-/** Running a community: requests, members (roles, remove, ban), bans, and settings (admins). */
+/** Running a community: requests, members (roles, remove, ban), invitations, bans, and settings (admins). */
 export default async function ManageCommunityPage({ params, searchParams }: Props) {
   const { slug } = await params;
   const viewer = await getViewer();
@@ -79,6 +81,9 @@ export default async function ManageCommunityPage({ params, searchParams }: Prop
           </Link>
         ))}
       </nav>
+      {tab.tab === "invited" ? (
+        <InviteForm slug={community.slug} isPrivate={community.visibility === "Private"} />
+      ) : null}
       {tab.tab === "settings" ? (
         <div className="pad">
           <CommunityForm existing={community} />
@@ -93,7 +98,9 @@ export default async function ManageCommunityPage({ params, searchParams }: Prop
             ? "No one is asking to join."
             : tab.tab === "banned"
               ? "No one is banned."
-              : "No members."}
+              : tab.tab === "invited"
+                ? "No open invitations."
+                : "No members."}
         </p>
       ) : (
         <>
