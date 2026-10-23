@@ -5,7 +5,7 @@ on:
     branches: ['tmp/gen-core-api-2']
 
 permissions:
-  contents: read
+  contents: write
   packages: read
 
 env:
@@ -49,7 +49,9 @@ jobs:
           global-json-file: global.json
       - run: dotnet restore src/BJK.Core.Api
       - run: dotnet build src/BJK.Core.Api --configuration Release --no-restore -p:GenerateApiClient=true
-      - uses: actions/upload-artifact@v4
-        with:
-          name: api-ts
-          path: src/web/src/lib/generated/api.ts
+      - name: Push the generated client to tmp/gen-core-api-2-output
+        run: |
+          cp src/web/src/lib/generated/api.ts /tmp/api.ts
+          git config user.name ci && git config user.email ci@users.noreply.github.com
+          git checkout --orphan out && git rm -rq --cached . && cp /tmp/api.ts api.ts
+          git add api.ts && git commit -qm "Generated API client" && git push -f origin out:tmp/gen-core-api-2-output
