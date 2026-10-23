@@ -36,9 +36,9 @@ export type Section =
  * The page frame. Desktop (1024 px and up): X-style navigation on the left (Home, Reels, Map, then the member's
  * links), the page in the middle and a panel on the right. Phones: the page full width, with a floating glass tab
  * bar at the bottom (Home, Reels, Map, Profile, like Instagram and Facebook; Account is on your profile) and the +
- * button, or the sign-up bar for visitors. `dark` is the reels page: a black page and a dark glass bar. Signed-in
- * members get Ask Bad Jockeys (the AI chat): an item in the desktop navigation and, on phones, a floating Ask button
- * on pages with the tab bar; Free members see its locked preview.
+ * button, or the sign-up bar for visitors. `dark` is the reels page: a black page and a dark glass bar. Every page
+ * but reels has a floating Ask button for Ask Bad Jockeys (the AI chat; bottom right on desktop, bottom left on phones,
+ * above the tab bar or sign-up bar); visitors and Free members see its locked preview.
  */
 export function AppShell({
   viewer,
@@ -102,7 +102,6 @@ export function AppShell({
               >
                 Communities
               </NavItem>
-              <AskButton variant="nav" />
               <NotificationBell label className={`nav-i${section === "notifications" ? " nav-on" : ""}`} />
               <NavItem
                 href="/bookmarks"
@@ -149,8 +148,8 @@ export function AppShell({
         </aside>
       </div>
 
-      {viewer.signedIn && bottomNav && !dark ? <AskButton variant="fab" /> : null}
-      {viewer.signedIn ? <AskBadJockeys viewer={viewer} /> : null}
+      {dark ? null : <AskButton />}
+      <AskBadJockeys viewer={viewer} />
 
       {viewer.signedIn && fab ? (
         <Link href="/post/new" className="fab m-only" aria-label="New post">

@@ -193,7 +193,7 @@ describe("Ask Bad Jockeys", () => {
   async function openWindow(viewer: Viewer = premium) {
     render(
       <>
-        <AskButton variant="nav" />
+        <AskButton />
         <AskBadJockeys viewer={viewer} />
       </>,
     );
@@ -273,6 +273,56 @@ describe("Ask Bad Jockeys", () => {
     expect(await screen.findByText(/That's your 20 questions for today/)).toBeInTheDocument();
     expect(await screen.findByText("No questions left today")).toBeInTheDocument();
     expect(screen.getByLabelText("Your question")).toBeDisabled();
+  });
+
+  it("offers to ask again when the model is busy, and the retry replaces the failed turn", async () => {
+    actions.getChatUsage.mockResolvedValue({ ok: true, data: usage() });
+    actions.askChat.mockResolvedValueOnce({
+      ok: false,
+      problem: "busy",
+      error: "Ask Bad Jockeys is busy right now. Try again in a minute; that question didn't count.",
+    });
+    actions.askChat.mockResolvedValueOnce({
+      ok: true,
+      data: { answer: answer(), usage: usage(), turnToken: "tok" },
+    });
+
+    await openWindow();
+    await screen.findByText("18 questions left today");
+    await userEvent.type(screen.getByLabelText("Your question"), "How many in Prescot?{Enter}");
+    await userEvent.click(await screen.findByRole("button", { name: "Try again" }));
+
+    expect(await screen.findByText("There were 42 reports in Prescot this month.")).toBeInTheDocument();
+    expect(actions.askChat).toHaveBeenLastCalledWith("How many in Prescot?", []);
+    expect(screen.getAllByText("How many in Prescot?")).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
+  });
+
+  it("says the first question after a quiet spell can be slow", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      actions.getChatUsage.mockResolvedValue({ ok: true, data: usage() });
+      actions.askChat.mockReturnValue(new Promise(() => {}));
+      render(
+        <>
+          <AskButton />
+          <AskBadJockeys viewer={premium} />
+        </>,
+      );
+      await user.click(screen.getByRole("button", { name: "Ask Bad Jockeys" }));
+      await screen.findByText("18 questions left today");
+      await user.type(screen.getByLabelText("Your question"), "How many?{Enter}");
+
+      expect(await screen.findByText(/Working it out/)).toBeInTheDocument();
+      expect(screen.queryByText(/can take up to 30 seconds/)).not.toBeInTheDocument();
+      await act(async () => {
+        vi.advanceTimersByTime(5000);
+      });
+      expect(screen.getByText(/can take up to 30 seconds/)).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("keeps the conversation when the page changes, but not for another account", async () => {

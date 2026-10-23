@@ -22,20 +22,24 @@ function openAsk() {
   window.dispatchEvent(new Event(OPEN_EVENT));
 }
 
-/** An Ask button: the desktop navigation item, or the floating button on phones. */
-export function AskButton({ variant }: { variant: "nav" | "fab" }) {
-  if (variant === "fab") {
-    return (
-      <button type="button" className="ask-fab m-only" onClick={openAsk} aria-haspopup="dialog">
-        <AskIcon size={20} />
-        <span>Ask</span>
-      </button>
-    );
-  }
+/** How long a question can take before the window says the model may be waking up. */
+const SLOW_AFTER_MS = 5000;
+
+/**
+ * The floating Ask button on every page (bottom right on desktop; bottom left on phones, above the tab bar or the
+ * sign-up bar). Visitors and Free members open the locked preview.
+ */
+export function AskButton() {
   return (
-    <button type="button" className="nav-i nav-btn" onClick={openAsk} aria-haspopup="dialog">
-      <AskIcon size={26} />
-      Ask Bad Jockeys
+    <button
+      type="button"
+      className="ask-fab"
+      onClick={openAsk}
+      aria-haspopup="dialog"
+      aria-label="Ask Bad Jockeys"
+    >
+      <AskIcon size={20} />
+      <span>Ask</span>
     </button>
   );
 }
@@ -165,7 +169,7 @@ export function AskBadJockeys({ viewer }: { viewer: Viewer }) {
             ? e
             : result.ok
               ? { ...e, answer: result.data.answer, token: result.data.turnToken }
-              : { ...e, error: result.error },
+              : { ...e, error: result.error, problem: result.problem },
         ),
       );
       if (result.ok) {
@@ -178,6 +182,12 @@ export function AskBadJockeys({ viewer }: { viewer: Viewer }) {
     },
     [entries, pending],
   );
+
+  // A question the model couldn't answer (busy or waking up) didn't count: ask it again in its place.
+  const retry = (entry: ChatEntry) => {
+    setEntries((list) => list.filter((e) => e.id !== entry.id));
+    void ask(entry.question);
+  };
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -268,11 +278,21 @@ export function AskBadJockeys({ viewer }: { viewer: Viewer }) {
               <div key={entry.id} className="chat-turn">
                 <p className="chat-q">{entry.question}</p>
                 {entry.error ? (
-                  <p className="chat-a chat-error">{entry.error}</p>
+                  <div className="chat-a">
+                    <p className="chat-error">{entry.error}</p>
+                    {entry.problem === "busy" && entry === last ? (
+                      <button
+                        type="button"
+                        className="btn btn-sm"
+                        disabled={!canAsk || pending}
+                        onClick={() => retry(entry)}
+                      >
+                        Try again
+                      </button>
+                    ) : null}
+                  </div>
                 ) : entry.answer === null ? (
-                  <p className="chat-a chat-thinking" role="status">
-                    <SpinnerIcon size={18} /> Working it out…
-                  </p>
+                  <Thinking />
                 ) : (
                   <div className={`chat-a chat-${entry.answer.kind.toLowerCase()}`}>
                     <p>{entry.answer.text}</p>
@@ -332,6 +352,25 @@ export function AskBadJockeys({ viewer }: { viewer: Viewer }) {
         </p>
       </div>
     </dialog>
+  );
+}
+
+/** "Working it out…", and after a few seconds why it might take a while (the model sleeps when nobody's asking). */
+function Thinking() {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setSlow(true), SLOW_AFTER_MS);
+    return () => clearTimeout(timer);
+  }, []);
+  return (
+    <div className="chat-a chat-thinking" role="status">
+      <p>
+        <SpinnerIcon size={18} /> Working it out…
+      </p>
+      {slow ? (
+        <p className="small muted">The first question after a quiet spell can take up to 30 seconds.</p>
+      ) : null}
+    </div>
   );
 }
 

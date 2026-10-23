@@ -30,6 +30,8 @@ export interface ChatEntry {
   token: string | null;
   /** Set when asking failed (limit, paused, busy): shown instead of an answer. */
   error: string | null;
+  /** Why it failed: "busy" offers to ask again (it didn't count). */
+  problem?: ChatProblem;
 }
 
 /** Why asking failed, so the window can say what to do next. */

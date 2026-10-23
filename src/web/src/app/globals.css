@@ -4766,7 +4766,8 @@ a.pf-count:hover {
   font-size: 19px;
 }
 
-/* Phones: a floating Ask pill on the left, level with the + button on the right. */
+/* A floating Ask pill on every page: on phones on the left, level with the + button on the right; on desktop at the
+   bottom right. */
 .ask-fab {
   position: fixed;
   left: 16px;
@@ -4787,6 +4788,26 @@ a.pf-count:hover {
 
 .has-bnav ~ .ask-fab {
   bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Above the visitors' sign-up bar. */
+.has-signup ~ .ask-fab {
+  bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 1024px) {
+  .ask-fab,
+  .has-bnav ~ .ask-fab {
+    left: auto;
+    right: 24px;
+    bottom: 24px;
+    height: 48px;
+    padding: 0 20px 0 16px;
+  }
+
+  .has-signup ~ .ask-fab {
+    bottom: 96px;
+  }
 }
 
 /* A full-height sheet on phones, a panel on the right on wider screens. */
@@ -4908,9 +4929,17 @@ dialog.chat-panel::backdrop {
 }
 
 .chat-thinking {
-  flex-direction: row;
-  align-items: center;
   color: var(--muted);
+}
+
+.chat-thinking p:first-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chat-a > .btn {
+  align-self: flex-start;
 }
 
 .chat-error {
@@ -5105,5 +5134,21 @@ ol.chat-bars {
     margin: 0 0 0 auto;
     width: min(440px, 100vw);
     box-shadow: -12px 0 40px rgba(0, 0, 0, 0.14);
+  }
+}
+
+/* Desktop: a chat window anchored bottom right, over the Ask button (as wireframed, about 420 x 660). */
+@media (min-width: 1024px) {
+  dialog.chat-panel {
+    margin: auto 24px 24px auto;
+    width: 420px;
+    height: min(660px, calc(100dvh - 48px));
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+  }
+
+  dialog.chat-panel::backdrop {
+    background: rgba(17, 17, 17, 0.12);
   }
 }

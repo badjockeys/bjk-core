@@ -665,12 +665,15 @@ The e2e mock server (`src/web/e2e/mock-server.mjs`) seeds three communities, so 
 
 ## Ask Bad Jockeys (the AI chat)
 
-Premium members ask questions about reported bad driving ("Worst roads for tailgating in Prescot") from the **Ask Bad Jockeys** item in the desktop navigation, or the floating **Ask** button on phones. Free members see a locked preview. The Chat module (bjk-modules README, "Ask Bad Jockeys") does the work; the API hosts it, and the web app's window is `src/components/AskBadJockeys.tsx`.
+Premium members ask questions about reported bad driving ("Worst roads for tailgating in Prescot") from the floating **Ask** button on every page except reels (bottom right on desktop, where it opens a chat window; bottom left on phones, where the chat is full screen). Visitors and Free members see a locked preview with example questions. The Chat module (bjk-modules README, "Ask Bad Jockeys") does the work; the API hosts it, and the web app's window is `src/components/AskBadJockeys.tsx`.
 
 - **The model** runs on your computer through Ollama (`qwen3:8b`, set up by the setup). Without it the window says the chat is busy and the question doesn't count. Check it with `ollama list`; `ollama pull qwen3:8b` downloads it again.
+- **Memory:** Qwen3 8B needs about 6 GB of free memory. The first answer after Ollama starts (or after it has unloaded an idle model) is slow while the model loads; the window says so after 5 seconds. Live's GPU switches off when idle, so the same happens there for up to about 30 seconds.
 - **Its data** is read through the read-only `bjk_chat` login (`ConnectionStrings:BadJockeysChat`, password `BJK_CHAT_PASSWORD` in `bjk-core/.env`), which the setup creates with the reporting views (`node scripts/sql/reporting/apply.mjs`). Until that has run, the chat can't answer.
 - **To try it**, the owner account has Premium + (`Plans:Overrides`). The example questions follow your home area (Account, Notifications): with a town ("Prescot") they name it, with a postcode district they ask about "near me", and without a home area they don't mention a place. "Near me" also uses the home area.
 - **History** stays in the browser tab; nothing is stored on the server except today's count.
+- **Busy:** if the model doesn't answer (503), the window offers **Try again**; that question didn't count.
+- **Alerts (deployed):** in Elastic, alert on event 4902 (the model server unavailable) and on a spike in event 4903 (blocked questions).
 
 ## Online safety checks
 

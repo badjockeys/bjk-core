@@ -8,7 +8,7 @@
 # Covers: startup migrations; token validation (issuer, audience, expiry, token type, scopes); profiles; uploads to
 # object storage; the processing queue; posts, reactions, comments and reports; moderation rights; data export; the
 # user lifecycle events from the identity server (deactivate, reactivate, delete); reels (daily limits by plan) and the
-# incident heat map (suppression, entitlements); and a restart.
+# incident heat map (suppression, entitlements); Ask Bad Jockeys' plan checks (no model server here); and a restart.
 set -euo pipefail
 
 PROJECT=${PROJECT:-src/BJK.Core.Api}
@@ -456,6 +456,28 @@ request GET "/api/heatmap?bbox=$BBOX&zoom=14&from=2020-01-01&categories=ClosePas
 [ "$(json .access.plan)" = "PremiumPlus" ] && [ "$(json .access.historyCapped)" = "true" ] && [ "$(json .access.filtersAllowed)" = "true" ] \
   || fail "Expected Premium + with 5 years of history and filters: $RESPONSE"
 pass "Premium + gets filters and 5 years of history"
+
+# ---------- Ask Bad Jockeys (the Chat module) ----------
+# No model server in CI (Chat:Model:Endpoint is empty in Development), so this covers the plan checks and the 503
+# that doesn't use up a question; the answers themselves are covered by bjk-modules' Chat tests.
+
+request GET /api/chat/usage
+expect 200 "chat allowance, logged out"
+[ "$(json .canAsk)" = "false" ] && [ "$(json '.exampleQuestions | length > 0')" = "true" ] \
+  || fail "Expected logged-out callers to get the locked preview (canAsk false, example questions): $RESPONSE"
+pass "logged-out callers get the locked preview"
+CHAT_QUESTION=$(body '{question: "How many incidents have there been this month?"}')
+request POST /api/chat/questions "$CHAT_QUESTION"
+expect 401 "asking needs a token"
+request POST /api/chat/questions "$CHAT_QUESTION" "$TOKEN_B"
+expect 403 "Ask Bad Jockeys isn't on the Free plan"
+request POST /api/chat/questions "$CHAT_QUESTION" "$TOKEN_PLUS"
+expect 503 "Premium + with no model server gets 503"
+request GET /api/chat/usage "" "$TOKEN_PLUS"
+expect 200 "chat allowance, Premium +"
+[ "$(json .canAsk)" = "true" ] && [ "$(json .used)" = "0" ] \
+  || fail "Expected Premium + to be able to ask, with the 503 not counted: $RESPONSE"
+pass "a question the model couldn't answer doesn't count"
 
 # ---------- moderation ----------
 
