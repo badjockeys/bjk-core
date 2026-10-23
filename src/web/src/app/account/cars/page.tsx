@@ -22,7 +22,11 @@ export default async function CarsPage() {
   }
   const token = await getAccessToken();
   const [cars, catalogue] = await Promise.all([
-    token ? api().vehicles.mine(token).catch(() => null) : null,
+    token
+      ? api()
+          .vehicles.mine(token)
+          .catch(() => null)
+      : null,
     api()
       .vehicles.catalogue()
       .catch(() => null),

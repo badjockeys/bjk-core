@@ -94,6 +94,7 @@ const post: PostDto = {
   isFollowing: false,
   isSaved: false,
   isProcessing: false,
+  filmedFrom: null,
 };
 
 const member: Viewer = {

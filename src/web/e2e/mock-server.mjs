@@ -1038,7 +1038,13 @@ async function api(req, res, url) {
   if (path.startsWith("/api/vehicles/mine")) {
     if (!requireUser()) return;
     db.cars ??= [];
-    const carDto = (c) => ({ id: c.id, make: c.make, model: c.model, colour: c.colour, nickname: c.nickname });
+    const carDto = (c) => ({
+      id: c.id,
+      make: c.make,
+      model: c.model,
+      colour: c.colour,
+      nickname: c.nickname,
+    });
     const id = path.split("/")[4];
     if (!id && method === "GET") return send(res, 200, db.cars.filter((c) => c.userId === me).map(carDto));
     if (method === "POST" || method === "PUT") {
@@ -1053,7 +1059,12 @@ async function api(req, res, url) {
         car = { id: randomUUID(), userId: me };
         db.cars.push(car);
       }
-      Object.assign(car, { make: body.make, model: body.model ?? null, colour: body.colour ?? null, nickname });
+      Object.assign(car, {
+        make: body.make,
+        model: body.model ?? null,
+        colour: body.colour ?? null,
+        nickname,
+      });
       return send(res, 200, carDto(car));
     }
     if (method === "DELETE") {

@@ -177,7 +177,9 @@ export function CarsManager({ cars, catalogue }: { cars: HouseholdCarDto[]; cata
               value={draft.nickname}
               onChange={(e) => setDraft({ ...draft, nickname: e.target.value })}
             />
-            <span className="help">Shown on your posts as &ldquo;Filmed from: {draft.nickname || placeholder}&rdquo;.</span>
+            <span className="help">
+              Shown on your posts as &ldquo;Filmed from: {draft.nickname || placeholder}&rdquo;.
+            </span>
           </label>
           {error ? (
             <p className="error" role="alert">

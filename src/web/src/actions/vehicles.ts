@@ -21,10 +21,15 @@ export async function getMyCars(): Promise<ActionResult<HouseholdCarDto[]>> {
 }
 
 /** Add a car, or change one (with its id). No registration is ever asked for or stored. */
-export async function saveCar(id: string | null, car: HouseholdCarRequest): Promise<ActionResult<HouseholdCarDto>> {
+export async function saveCar(
+  id: string | null,
+  car: HouseholdCarRequest,
+): Promise<ActionResult<HouseholdCarDto>> {
   if (id !== null && !ID.test(id)) return { ok: false, error: "We couldn't find that car." };
   const body = { ...car, model: car.model || null, nickname: car.nickname?.trim() || null };
-  const result = await asUser((t) => (id ? api().vehicles.updateCar(t, id, body) : api().vehicles.addCar(t, body)));
+  const result = await asUser((t) =>
+    id ? api().vehicles.updateCar(t, id, body) : api().vehicles.addCar(t, body),
+  );
   if (result.ok) revalidatePath("/account/cars");
   return result;
 }
