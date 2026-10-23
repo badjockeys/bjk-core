@@ -239,6 +239,71 @@ function seed() {
     createdAt: ago(60 * 24 * 20),
     isMinor: false,
   });
+  // Communities: a local one roadhog is in (covers Manchester), a private one dave runs, a topic.
+  db.communities = [
+    {
+      id: "c0000000-0000-4000-8000-000000000001",
+      slug: "manchester-road-watch",
+      name: "Manchester Road Watch",
+      description: "Bad driving around Manchester and Salford.",
+      rules: "Blur plates. No doxxing.",
+      visibility: "Public",
+      placeName: "Manchester",
+      latitude: 53.4808,
+      longitude: -2.2426,
+      radiusKm: 25,
+      ownerId: USERS.dave.id,
+      createdAt: ago(60 * 24 * 30),
+    },
+    {
+      id: "c0000000-0000-4000-8000-000000000002",
+      slug: "didsbury-school-run",
+      name: "Didsbury School Run",
+      description: "Parents watching the school gates.",
+      rules: null,
+      visibility: "Private",
+      placeName: "Didsbury",
+      latitude: 53.4167,
+      longitude: -2.2333,
+      radiusKm: 5,
+      ownerId: USERS.dave.id,
+      createdAt: ago(60 * 24 * 10),
+    },
+    {
+      id: "c0000000-0000-4000-8000-000000000003",
+      slug: "cyclists",
+      name: "Cyclists",
+      description: "Close passes and dooring.",
+      rules: null,
+      visibility: "Public",
+      placeName: null,
+      latitude: null,
+      longitude: null,
+      radiusKm: null,
+      ownerId: USERS.dave.id,
+      createdAt: ago(60 * 24 * 5),
+    },
+  ];
+  db.communityMembers = [
+    ...db.communities.map((c) => ({ communityId: c.id, userId: USERS.dave.id, role: "Admin", status: "Member", since: c.createdAt })),
+    { communityId: "c0000000-0000-4000-8000-000000000001", userId: USERS.roadhog.id, role: "Member", status: "Member", since: ago(60 * 24) },
+    { communityId: "c0000000-0000-4000-8000-000000000003", userId: USERS.roadhog.id, role: "Member", status: "Member", since: ago(60 * 24) },
+  ];
+  db.communityPosts = [
+    { communityId: "c0000000-0000-4000-8000-000000000001", postId: SEED.photoPost, sharedBy: USERS.roadhog.id, sharedAt: ago(60) },
+  ];
+  db.communityDiscussions = [
+    {
+      id: "d0000000-0000-4000-8000-000000000001",
+      communityId: "c0000000-0000-4000-8000-000000000001",
+      authorId: USERS.dave.id,
+      title: "Mancunian Way roadworks",
+      body: "Anyone else seeing people cut across at the last second?",
+      createdAt: ago(120),
+      lastActivityAt: ago(120),
+    },
+  ];
+  db.communityReplies = [];
   codes = new Map();
   refreshTokens = new Map();
   nextUser = "roadhog";
@@ -929,6 +994,236 @@ async function api(req, res, url) {
 
   // Home timelines (UI step 6). For you is the public feed, newest first here.
   const visibleTo = (p) => isPublic(p) && canSee(p, me);
+
+  // Communities (owner, 23 Oct 2026). Same rules as bjk-modules, simplified: Premium to create, private ones are
+  // ask-to-join (adults), the post stays public, recommended = its area covers the place.
+  const cm = (c) => db.communityMembers.find((x) => x.communityId === c.id && x.userId === me) ?? null;
+  const standing = (mem) =>
+    mem?.status === "Member" ? "Member" : mem?.status === "Requested" ? "Requested" : mem?.status === "Banned" ? "Banned" : "None";
+  const isMod = (mem) => mem?.status === "Member" && (mem.role === "Admin" || mem.role === "Moderator");
+  const seesInside = (c, mem) => (c.visibility === "Public" ? mem?.status !== "Banned" : mem?.status === "Member");
+  const memberCount = (c) => db.communityMembers.filter((x) => x.communityId === c.id && x.status === "Member").length;
+  const kmBetween = (a, b, c, d) => {
+    const r = (x) => (x * Math.PI) / 180;
+    const h = Math.sin(r(c - a) / 2) ** 2 + Math.cos(r(a)) * Math.cos(r(c)) * Math.sin(r(d - b) / 2) ** 2;
+    return 12742 * Math.asin(Math.sqrt(h));
+  };
+  const covers = (c, lat, lng) =>
+    c.latitude != null && lat != null && kmBetween(c.latitude, c.longitude, lat, lng) <= c.radiusKm;
+  const summaryDto = (c) => {
+    const mem = cm(c);
+    return {
+      id: c.id,
+      slug: c.slug,
+      name: c.name,
+      description: c.description,
+      visibility: c.visibility,
+      placeName: c.placeName,
+      radiusKm: c.radiusKm,
+      memberCount: memberCount(c),
+      standing: standing(mem),
+      role: mem?.status === "Member" ? mem.role : null,
+    };
+  };
+  const communityDto = (c) => {
+    const mem = cm(c);
+    const s = standing(mem);
+    return {
+      ...summaryDto(c),
+      rules: c.rules,
+      latitude: c.latitude,
+      longitude: c.longitude,
+      owner: author(c.ownerId),
+      createdAt: c.createdAt,
+      canSeeInside: seesInside(c, mem),
+      canModerate: isMod(mem),
+      isAdmin: mem?.status === "Member" && mem.role === "Admin",
+      canJoin: Boolean(me) && s === "None" && (c.visibility === "Public" || viewer.ageVerified),
+    };
+  };
+  const discussionDto = (d, c) => ({
+    id: d.id,
+    title: d.title,
+    body: d.body ?? "",
+    author: author(d.authorId),
+    createdAt: d.createdAt,
+    lastActivityAt: d.lastActivityAt,
+    replyCount: db.communityReplies.filter((r) => r.discussionId === d.id).length,
+    canRemove: d.authorId === me || isMod(cm(c)),
+  });
+  const liveCommunity = (slug) => db.communities.find((c) => c.slug === slug.toLowerCase());
+  if (path === "/api/communities" && method === "GET") {
+    const kind = url.searchParams.get("kind") ?? "Near";
+    const search = (url.searchParams.get("search") ?? "").trim().toLowerCase();
+    let items = db.communities;
+    if (search) items = items.filter((c) => c.name.toLowerCase().includes(search));
+    else if (kind === "Mine") items = items.filter((c) => cm(c)?.status === "Member");
+    else if (kind === "Topics") items = items.filter((c) => c.latitude == null);
+    else items = items.filter((c) => c.latitude != null);
+    return send(res, 200, page(items, url, summaryDto));
+  }
+  if (path === "/api/communities" && method === "POST") {
+    if (!requireUser()) return;
+    if (viewer.plan !== "premium" && viewer.plan !== "premium_plus")
+      return problem(res, 403, "Starting a community needs Premium.");
+    const body = await json();
+    if (!body.name?.trim()) return invalid(res, "Name", "Give the community a name.");
+    const slug = body.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    if (db.communities.some((c) => c.slug === slug)) return invalid(res, "Name", "That name is taken.");
+    const c = {
+      id: randomUUID(),
+      slug,
+      name: body.name.trim(),
+      description: body.description ?? "",
+      rules: body.rules ?? null,
+      visibility: body.visibility ?? "Public",
+      placeName: body.placeName ?? null,
+      latitude: body.latitude ?? null,
+      longitude: body.longitude ?? null,
+      radiusKm: body.radiusKm ?? null,
+      ownerId: me,
+      createdAt: new Date().toISOString(),
+    };
+    db.communities.push(c);
+    db.communityMembers.push({ communityId: c.id, userId: me, role: "Admin", status: "Member", since: c.createdAt });
+    return send(res, 201, communityDto(c));
+  }
+  if (path === "/api/communities/suggestions" && method === "GET") {
+    if (!requireUser()) return;
+    const lat = url.searchParams.get("latitude");
+    const lng = url.searchParams.get("longitude");
+    const postId = url.searchParams.get("postId");
+    const items = db.communities
+      .filter((c) => cm(c)?.status === "Member")
+      .map((c) => ({
+        id: c.id,
+        slug: c.slug,
+        name: c.name,
+        visibility: c.visibility,
+        placeName: c.placeName,
+        recommended: lat != null && covers(c, Number(lat), Number(lng)),
+        alreadyShared: Boolean(postId) && db.communityPosts.some((s) => s.communityId === c.id && s.postId === postId),
+      }))
+      .sort((a, b) => Number(b.recommended) - Number(a.recommended));
+    return send(res, 200, items);
+  }
+  if ((m = path.match(/^\/api\/posts\/([0-9a-f-]{36})\/communities$/)) && method === "POST") {
+    if (!requireUser()) return;
+    const { communityIds = [] } = await json();
+    for (const id of communityIds) {
+      const c = db.communities.find((x) => x.id === id);
+      if (!c || cm(c)?.status !== "Member") return problem(res, 403, "Join the community first.");
+      if (!db.communityPosts.some((s) => s.communityId === id && s.postId === m[1]))
+        db.communityPosts.push({ communityId: id, postId: m[1], sharedBy: me, sharedAt: new Date().toISOString() });
+    }
+    return send(
+      res,
+      200,
+      db.communityPosts.filter((s) => s.postId === m[1]).map((s) => s.communityId),
+    );
+  }
+  if ((m = path.match(/^\/api\/communities\/([a-z0-9-]+)(\/.*)?$/))) {
+    const c = liveCommunity(m[1]);
+    if (!c) return problem(res, 404, "Community not found.");
+    const rest = m[2] ?? "";
+    const mem = cm(c);
+    if (rest === "" && method === "GET") return send(res, 200, communityDto(c));
+    if (!requireUser()) return;
+    if (rest === "/join" && method === "POST") {
+      if (mem) return problem(res, 400, "You're already in this community.");
+      db.communityMembers.push({
+        communityId: c.id,
+        userId: me,
+        role: "Member",
+        status: c.visibility === "Public" ? "Member" : "Requested",
+        since: new Date().toISOString(),
+      });
+      return send(res, 200, communityDto(c));
+    }
+    if (rest === "/membership" && method === "DELETE") {
+      db.communityMembers = db.communityMembers.filter((x) => x !== mem);
+      return send(res, 204);
+    }
+    if (rest === "/posts" && method === "GET") {
+      if (!seesInside(c, mem)) return problem(res, 403, "This community is private. Ask to join to see inside.");
+      const ids = db.communityPosts.filter((s) => s.communityId === c.id).map((s) => s.postId);
+      return send(res, 200, page(db.posts.filter((p) => ids.includes(p.id) && visibleTo(p)), url, (p) => postDto(p, me)));
+    }
+    if (rest === "/discussions" && method === "GET") {
+      if (!seesInside(c, mem)) return problem(res, 403, "This community is private. Ask to join to see inside.");
+      const items = db.communityDiscussions.filter((d) => d.communityId === c.id);
+      return send(res, 200, page(items, url, (d) => discussionDto(d, c)));
+    }
+    if (rest === "/discussions" && method === "POST") {
+      if (mem?.status !== "Member") return problem(res, 403, "Join the community first.");
+      const body = await json();
+      if (!body.title?.trim()) return invalid(res, "Title", "Give the discussion a title.");
+      const now = new Date().toISOString();
+      const d = { id: randomUUID(), communityId: c.id, authorId: me, title: body.title.trim(), body: body.body ?? "", createdAt: now, lastActivityAt: now };
+      db.communityDiscussions.unshift(d);
+      return send(res, 201, discussionDto(d, c));
+    }
+    let d;
+    if ((d = rest.match(/^\/discussions\/([0-9a-f-]{36})(\/replies)?$/))) {
+      const disc = db.communityDiscussions.find((x) => x.id === d[1] && x.communityId === c.id);
+      if (!disc) return problem(res, 404, "Discussion not found.");
+      if (!d[2] && method === "GET") {
+        if (!seesInside(c, mem)) return problem(res, 403, "This community is private. Ask to join to see inside.");
+        const replies = db.communityReplies.filter((r) => r.discussionId === disc.id);
+        return send(res, 200, {
+          discussion: discussionDto(disc, c),
+          replies: page(replies, url, (r) => ({
+            id: r.id,
+            body: r.body,
+            author: author(r.authorId),
+            createdAt: r.createdAt,
+            canRemove: r.authorId === me || isMod(mem),
+          })),
+        });
+      }
+      if (!d[2] && method === "DELETE") {
+        if (disc.authorId !== me && !isMod(mem)) return problem(res, 403, "Only the community's admins and moderators can do that.");
+        db.communityDiscussions = db.communityDiscussions.filter((x) => x !== disc);
+        return send(res, 204);
+      }
+      if (d[2] && method === "POST") {
+        if (mem?.status !== "Member") return problem(res, 403, "Join the community first.");
+        const body = await json();
+        if (!body.body?.trim()) return invalid(res, "Body", "Write a reply.");
+        const r = { id: randomUUID(), discussionId: disc.id, authorId: me, body: body.body.trim(), createdAt: new Date().toISOString() };
+        db.communityReplies.push(r);
+        disc.lastActivityAt = r.createdAt;
+        return send(res, 201, { id: r.id, body: r.body, author: author(me), createdAt: r.createdAt, canRemove: true });
+      }
+    }
+    if (rest === "/members" && method === "GET") {
+      const status = url.searchParams.get("status") ?? "Member";
+      if (status !== "Member" && !isMod(mem)) return problem(res, 403, "Only the community's admins and moderators can do that.");
+      if (!seesInside(c, mem)) return problem(res, 403, "This community is private. Ask to join to see inside.");
+      const items = db.communityMembers.filter((x) => x.communityId === c.id && x.status === status);
+      return send(res, 200, page(items, url, (x) => ({ person: author(x.userId), role: x.role, status: x.status, since: x.since })));
+    }
+    let r;
+    if ((r = rest.match(/^\/requests\/([0-9a-f-]{36})$/)) && method === "POST") {
+      if (!isMod(mem)) return problem(res, 403, "Only the community's admins and moderators can do that.");
+      const req2 = db.communityMembers.find((x) => x.communityId === c.id && x.userId === r[1] && x.status === "Requested");
+      if (!req2) return problem(res, 404, "Request not found.");
+      const { approve } = await json();
+      if (approve) req2.status = "Member";
+      else db.communityMembers = db.communityMembers.filter((x) => x !== req2);
+      return send(res, 204);
+    }
+    if ((r = rest.match(/^\/members\/([0-9a-f-]{36})$/)) && method === "DELETE") {
+      if (!isMod(mem)) return problem(res, 403, "Only the community's admins and moderators can do that.");
+      const who = db.communityMembers.find((x) => x.communityId === c.id && x.userId === r[1]);
+      if (who && url.searchParams.get("ban") === "true") who.status = "Banned";
+      else db.communityMembers = db.communityMembers.filter((x) => x !== who);
+      return send(res, 204);
+    }
+    if (rest === "/report" && method === "POST") return send(res, 204);
+    return problem(res, 404, "Not found.");
+  }
+
   const planLimit = () => (viewer.plan === "premium_plus" ? 10 : viewer.plan === "premium" ? 5 : 1);
   const planName = () =>
     viewer.plan === "premium_plus" ? "PremiumPlus" : viewer.plan === "premium" ? "Premium" : "Free";
@@ -1898,6 +2193,7 @@ const server = createServer(async (req, res) => {
         reports: db.reports,
         publicReports: db.publicReports,
         posts: db.posts.map((p) => ({ id: p.id, title: p.title, mediaState: p.mediaState })),
+        communityPosts: db.communityPosts,
       });
     }
     if (url.pathname === "/__next-user" && req.method === "POST") {

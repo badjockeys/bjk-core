@@ -8,6 +8,7 @@ import { deleteDraft, listDrafts, saveDraft } from "@/actions/drafts";
 import { discardMedia, getMedia } from "@/actions/media";
 import { findPassenger } from "@/actions/passengers";
 import { getVehicleCatalogue } from "@/actions/vehicles";
+import { shareToCommunities } from "@/actions/communities";
 import { createPost } from "@/actions/posts";
 import { followBlocker } from "@/lib/blockers";
 import { categoryLabel, CATEGORY_CHOICES, DESCRIPTION_MAX } from "@/lib/categories";
@@ -53,6 +54,7 @@ import {
 } from "./icons";
 import { useHashtagSuggest } from "./HashtagSuggest";
 import type { Pin } from "./MapPicker";
+import { CommunityShareField } from "./communities/CommunityShareField";
 import { PlaceSearch } from "./PlaceSearch";
 import { TrimVideo, type TrimmedClip } from "./TrimVideo";
 
@@ -188,6 +190,8 @@ export function PostComposer({
     reportedToPolice: null,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  /** Communities to share the post into once it's up (owner, 23 Oct 2026). */
+  const [shareTo, setShareTo] = useState<string[]>([]);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -644,6 +648,10 @@ export function PostComposer({
         result = await createPost(request);
       }
       setStatus(null);
+      if (result.ok && shareTo.length > 0) {
+        // The post is up whatever happens here; a community that refuses it is simply left out.
+        await shareToCommunities(result.data.id, shareTo);
+      }
       if (!result.ok) {
         if (followBlocker(result.blocker)) {
           return;
@@ -1055,6 +1063,13 @@ export function PostComposer({
             </label>
           </div>
         </div>
+
+        <CommunityShareField
+          latitude={fields.pin?.lat ?? null}
+          longitude={fields.pin?.lng ?? null}
+          selected={shareTo}
+          onChange={setShareTo}
+        />
 
         <div className="notice">
           <ShieldIcon />
