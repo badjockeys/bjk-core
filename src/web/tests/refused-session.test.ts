@@ -35,11 +35,21 @@ vi.mock("@/lib/session", () => ({
   clearSession: vi.fn(),
 }));
 vi.mock("@/lib/refresh", () => ({ refreshOnce: vi.fn() }));
-vi.mock("@/lib/api", async () => ({ ApiError: (await import("@/lib/api-client")).ApiError, api: () => api }));
-
-/** Built from the module copy the code under test sees (each test resets the modules). */
-const apiError = async (...args: ConstructorParameters<typeof import("@/lib/api-client").ApiError>) =>
-  new (await import("@/lib/api-client")).ApiError(...args);
+// One error class for the whole file: the code under test checks `instanceof ApiError`, and each test resets modules.
+const { ApiError } = vi.hoisted(() => ({
+  ApiError: class ApiError extends Error {
+    constructor(
+      readonly status: number,
+      readonly problem: unknown,
+      readonly path: string,
+      readonly authenticate?: string,
+    ) {
+      super(`The API returned ${status} for ${path}.`);
+    }
+  },
+}));
+vi.mock("@/lib/api", () => ({ ApiError, api: () => api }));
+const apiError = async (...args: ConstructorParameters<typeof ApiError>) => new ApiError(...args);
 
 const refused = () =>
   apiError(
