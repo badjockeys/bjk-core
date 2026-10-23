@@ -371,7 +371,7 @@ function Thumb({ clip, url }: { clip: VaultClipDto; url: string | undefined }) {
   const kind = previewable(clip.contentType);
   if (url && kind === "image" && !failed) {
     // A signed link to the owner's own original: next/image can't optimise it.
-     
+
     return <img src={url} alt="" className="vault-thumb" loading="lazy" onError={() => setFailed(true)} />;
   }
   if (url && kind === "video" && !failed) {
@@ -441,7 +441,6 @@ function ClipViewer({
         {url && kind === "video" ? (
           <video src={url} controls playsInline className="vault-view-media" />
         ) : url && kind === "image" ? (
-           
           <img src={url} alt={clip.fileName} className="vault-view-media" />
         ) : (
           <span className="vault-view-media vault-thumb-icon">
