@@ -125,7 +125,7 @@ export default async function CommunitiesPage({ searchParams }: Props) {
                 name={c.name}
                 standing={c.standing}
                 visibility={c.visibility}
-                canJoin={c.standing === "None"}
+                canJoin={c.standing === "None" || c.standing === "Invited"}
               />
             </li>
           ))}

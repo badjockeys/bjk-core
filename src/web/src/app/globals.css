@@ -3977,3 +3977,15 @@ dialog.composer-dialog::backdrop {
 .community-share-why {
   color: var(--brand-tint-text);
 }
+
+.community-invite {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-bottom: 1px solid var(--line);
+}
+
+.community-invite input {
+  flex: 1;
+  min-width: 0;
+}

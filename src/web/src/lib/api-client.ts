@@ -373,6 +373,8 @@ export function endpoints(api: ApiClient) {
       leave: (token: string, slug: string) => client(CommunitiesClient, { token }).communities_Leave(slug),
       members: (token: string, slug: string, status: CommunityMembershipStatus, page = 1) =>
         client(CommunitiesClient, { token }).communities_Members(slug, status, page, 30),
+      invite: (token: string, slug: string, handle: string) =>
+        client(CommunitiesClient, { token }).communities_Invite(slug, { handle }),
       decide: (token: string, slug: string, userId: string, approve: boolean) =>
         client(CommunitiesClient, { token }).communities_DecideRequest(slug, userId, { approve }),
       setRole: (token: string, slug: string, userId: string, role: CommunityRole) =>

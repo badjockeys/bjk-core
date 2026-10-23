@@ -40,6 +40,8 @@ export function joinLabel(standing: CommunityStanding, visibility: CommunityVisi
       return "Joined";
     case "Requested":
       return "Requested";
+    case "Invited":
+      return "Accept invitation";
     case "Banned":
       return "Can't join";
     default:

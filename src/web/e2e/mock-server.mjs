@@ -1083,6 +1083,12 @@ async function api(req, res, url) {
     canRemove: d.authorId === me || isMod(cm(c)),
   });
   const liveCommunity = (slug) => db.communities.find((c) => c.slug === slug.toLowerCase());
+  const notify = (userId, n) => {
+    if (userId === n.actorId) return;
+    const list = db.notifications.get(userId) ?? [];
+    list.push({ id: randomUUID(), postId: null, commentId: null, count: 1, at: new Date().toISOString(), isRead: false, ...n });
+    db.notifications.set(userId, list);
+  };
   if (path === "/api/communities" && method === "GET") {
     const kind = url.searchParams.get("kind") ?? "Near";
     const search = (url.searchParams.get("search") ?? "").trim().toLowerCase();
@@ -1177,6 +1183,10 @@ async function api(req, res, url) {
     if (rest === "" && method === "GET") return send(res, 200, communityDto(c));
     if (!requireUser()) return;
     if (rest === "/join" && method === "POST") {
+      if (mem?.status === "Invited") {
+        mem.status = "Member";
+        return send(res, 200, communityDto(c));
+      }
       if (mem) return problem(res, 400, "You're already in this community.");
       db.communityMembers.push({
         communityId: c.id,
@@ -1185,7 +1195,35 @@ async function api(req, res, url) {
         status: c.visibility === "Public" ? "Member" : "Requested",
         since: new Date().toISOString(),
       });
+      if (c.visibility === "Private") {
+        for (const x of db.communityMembers.filter((x) => x.communityId === c.id && isMod(x)))
+          notify(x.userId, {
+            type: "CommunityJoinRequest",
+            actorId: me,
+            postTitle: c.name,
+            link: `/communities/${c.slug}/manage?tab=requests`,
+          });
+      }
       return send(res, 200, communityDto(c));
+    }
+    if (rest === "/invites" && method === "POST") {
+      if (!isMod(mem)) return problem(res, 403, "Only the community's admins and moderators can do that.");
+      const handle = String((await json()).handle ?? "").replace(/^@/, "").toLowerCase();
+      const profile = [...db.profiles.values()].find((p) => p.handle === handle);
+      if (!profile || profile.id === me) return invalid(res, "Handle", `There's nobody called @${handle} you can invite.`);
+      const existing = db.communityMembers.find((x) => x.communityId === c.id && x.userId === profile.id);
+      if (existing?.status === "Member") return invalid(res, "Handle", `@${handle} is already a member.`);
+      if (existing?.status === "Banned") return invalid(res, "Handle", `@${handle} is banned. Unban them first.`);
+      let row = existing;
+      if (existing?.status === "Requested") {
+        existing.status = "Member";
+        notify(profile.id, { type: "CommunityRequestApproved", actorId: me, postTitle: c.name, link: `/communities/${c.slug}` });
+      } else if (!existing) {
+        row = { communityId: c.id, userId: profile.id, role: "Member", status: "Invited", since: new Date().toISOString() };
+        db.communityMembers.push(row);
+        notify(profile.id, { type: "CommunityInvite", actorId: me, postTitle: c.name, link: `/communities/${c.slug}` });
+      }
+      return send(res, 200, { person: author(row.userId), role: row.role, status: row.status, since: row.since });
     }
     if (rest === "/membership" && method === "DELETE") {
       db.communityMembers = db.communityMembers.filter((x) => x !== mem);
@@ -1270,6 +1308,13 @@ async function api(req, res, url) {
         };
         db.communityReplies.push(r);
         disc.lastActivityAt = r.createdAt;
+        notify(disc.authorId, {
+          type: "CommunityReply",
+          actorId: me,
+          postTitle: disc.title,
+          detail: c.name,
+          link: `/communities/${c.slug}/d/${disc.id}`,
+        });
         return send(res, 201, {
           id: r.id,
           body: r.body,
@@ -1305,8 +1350,10 @@ async function api(req, res, url) {
       );
       if (!req2) return problem(res, 404, "Request not found.");
       const { approve } = await json();
-      if (approve) req2.status = "Member";
-      else db.communityMembers = db.communityMembers.filter((x) => x !== req2);
+      if (approve) {
+        req2.status = "Member";
+        notify(req2.userId, { type: "CommunityRequestApproved", actorId: me, postTitle: c.name, link: `/communities/${c.slug}` });
+      } else db.communityMembers = db.communityMembers.filter((x) => x !== req2);
       return send(res, 204);
     }
     if ((r = rest.match(/^\/members\/([0-9a-f-]{36})$/)) && method === "DELETE") {
@@ -2203,6 +2250,10 @@ const NOTIFICATION_TYPES = [
   ["ReactionOnPost", "Reactions to your posts", true, false],
   ["CommentOnFollowedPost", "Comments on posts you follow", true, false],
   ["VoteClosed", "Vote results", true, false],
+  ["CommunityJoinRequest", "Requests to join communities you run", true, false],
+  ["CommunityRequestApproved", "Your requests to join are approved", true, false],
+  ["CommunityInvite", "Invitations to communities", true, false],
+  ["CommunityReply", "Replies to your community discussions", true, false],
 ];
 function notificationDto(n) {
   const actor = n.actorId ? author(n.actorId) : null;
@@ -2210,8 +2261,18 @@ function notificationDto(n) {
   const text =
     n.type === "PassengerTagged"
       ? `${who} tagged you as a passenger on \u201c${n.postTitle}\u201d. Accept to show your name.`
-      : `${who} commented on your post \u201c${n.postTitle}\u201d.`;
-  return { ...n, actor, text };
+      : n.type === "CommunityJoinRequest"
+        ? `${who} asked to join ${n.postTitle}.`
+        : n.type === "CommunityRequestApproved"
+          ? `You're in: your request to join ${n.postTitle} was approved.`
+          : n.type === "CommunityInvite"
+            ? `${who} invited you to join ${n.postTitle}.`
+            : n.type === "CommunityReply"
+              ? `${who} replied to your discussion \u201c${n.postTitle}\u201d in ${n.detail}.`
+              : `${who} commented on your post \u201c${n.postTitle}\u201d.`;
+  const path = n.link ?? (n.postId ? `/p/${n.postId}` : "/notifications");
+  const { link: _link, detail: _detail, ...rest } = n;
+  return { postId: null, commentId: null, ...rest, actor, text, path };
 }
 function profileDto(p) {
   return {
