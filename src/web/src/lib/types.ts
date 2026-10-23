@@ -102,6 +102,8 @@ export type {
   VaultClipSource,
   VaultDownloadDto,
   VaultDto,
+  VaultPreviewDto,
+  VaultSettingsDto,
   VaultUploadResult,
   VehicleColour,
   VehicleDto,

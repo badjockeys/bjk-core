@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { expiresSoon, fileSize, keptFor, usedShare } from "@/lib/vault";
+import {
+  collectionHref,
+  collectionName,
+  expiresSoon,
+  fileSize,
+  keptFor,
+  parseCollection,
+  previewable,
+  sourceOf,
+  usedShare,
+} from "@/lib/vault";
 
 describe("the vault", () => {
   it("describes sizes", () => {
@@ -25,5 +35,30 @@ describe("the vault", () => {
   it("works out the space used", () => {
     expect(usedShare(1, 4)).toBe(0.25);
     expect(usedShare(5, 4)).toBe(1);
+  });
+});
+
+describe("the vault's collections", () => {
+  it("reads the collection from the page's query, ignoring anything else", () => {
+    expect(parseCollection("posts")).toBe("posts");
+    expect(parseCollection(["uploads", "all"])).toBe("uploads");
+    expect(parseCollection("everything")).toBeNull();
+    expect(parseCollection(undefined)).toBeNull();
+  });
+
+  it("maps collections to the API's source filter, names and links", () => {
+    expect(sourceOf("all")).toBeUndefined();
+    expect(sourceOf("posts")).toBe("Post");
+    expect(sourceOf("uploads")).toBe("Upload");
+    expect(collectionName("posts")).toBe("From your posts");
+    expect(collectionHref("uploads")).toBe("/account/vault?c=uploads");
+  });
+
+  it("only previews formats a browser can show", () => {
+    expect(previewable("image/png")).toBe("image");
+    expect(previewable("VIDEO/MP4")).toBe("video");
+    expect(previewable("video/quicktime")).toBe("video");
+    expect(previewable("image/heic")).toBeNull();
+    expect(previewable("video/x-matroska")).toBeNull();
   });
 });

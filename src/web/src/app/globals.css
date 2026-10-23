@@ -4236,8 +4236,6 @@ a.pf-count:hover {
 }
 
 /* The vault on your own profile (owner, 23 Oct 2026). */
-.vault {
-}
 
 /* Post analytics (owner, 22 Oct 2026): small multiples, one chart per measure, thin marks, recessive grid. */
 .an {
@@ -4250,13 +4248,6 @@ a.pf-count:hover {
   display: flex;
   flex-direction: column;
   gap: 14px;
-}
-
-.vault-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
 }
 
 .vault-space {
@@ -4282,42 +4273,6 @@ a.pf-count:hover {
   background: #c0392b;
 }
 
-.vault-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.vault-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--line);
-  flex-wrap: wrap;
-}
-
-.vault-kind {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: var(--soft);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-}
-
-.vault-info {
-  flex: 1;
-  min-width: 180px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
 .vault-name {
   overflow-wrap: anywhere;
 }
@@ -4327,28 +4282,8 @@ a.pf-count:hover {
   font-weight: 600;
 }
 
-.vault-actions {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.vault-actions .btn svg {
-  margin-right: 4px;
-}
-
 .vault-empty {
   padding: 32px 16px;
-}
-
-.vault-pages {
-  gap: 16px;
-  justify-content: center;
-  border-radius: 12px;
-  background: var(--brand);
-  color: #ffffff;
-  font-weight: 600;
-  font-size: 15px;
 }
 
 .community-badge-sm {
@@ -4753,6 +4688,141 @@ a.pf-count:hover {
   border-radius: 50%;
   border: 1px solid var(--line);
   flex: none;
+}
+
+/* --- The vault in Account: laid out like Instagram's Saved screen --- */
+
+.vault-auto {
+  align-items: flex-start;
+}
+
+.vault-uploads {
+  margin: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Collections: two across, each a rounded square of four clips with its name under it. */
+.vault-collections {
+  margin: 0;
+  padding: 8px 16px 24px;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 12px;
+}
+
+.vault-collection {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.vault-mosaic {
+  aspect-ratio: 1;
+  border-radius: 12px;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 2px;
+  background: #ffffff;
+  margin-bottom: 6px;
+}
+
+.vault-mosaic-cell {
+  background: var(--fill);
+  overflow: hidden;
+  min-width: 0;
+  min-height: 0;
+}
+
+.vault-collection-name {
+  font-weight: 600;
+}
+
+/* A collection: three across, edge to edge, square tiles with a thin gap. */
+.vault-grid {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px;
+}
+
+.vault-tile {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 0;
+  background: var(--fill);
+  overflow: hidden;
+}
+
+.vault-tile:focus-visible {
+  outline: 3px solid var(--brand);
+  outline-offset: -3px;
+}
+
+.vault-thumb {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.vault-thumb-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand-tint);
+}
+
+.vault-tile-kind {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}
+
+.vault-tile-soon {
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: rgba(17, 17, 17, 0.7);
+  color: #ffffff;
+  font-size: 11px;
+}
+
+.vault-view {
+  border-radius: 12px;
+  overflow: hidden;
+  background: #111111;
+}
+
+.vault-view-media {
+  display: flex;
+  width: 100%;
+  max-height: 60vh;
+  min-height: 180px;
+  object-fit: contain;
+}
+
+@media (min-width: 640px) {
+  .vault-collections {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .vault-grid {
+    gap: 4px;
+  }
 }
 
 /* --- Ask Bad Jockeys (the AI chat) --- */

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 
 import { AppShell, FooterLinks } from "@/components/AppShell";
@@ -12,7 +12,6 @@ import { FollowButton } from "@/components/FollowButton";
 import { AccountIcon, CalendarIcon, PinIcon } from "@/components/icons";
 import { ProfileBadges } from "@/components/ProfileBadges";
 import { ProfileMoreMenu } from "@/components/ProfileMoreMenu";
-import { VaultPanel } from "@/components/VaultPanel";
 import { ProfileReplies } from "@/components/ProfileReplies";
 import type { FeedSource } from "@/actions/posts";
 import { api, ApiError } from "@/lib/api";
@@ -20,7 +19,7 @@ import { getAccessToken, getViewer } from "@/lib/auth";
 import { feedPage, pageNumber } from "@/lib/feed";
 import { joined, plural } from "@/lib/format";
 import { profilePath } from "@/lib/paths";
-import type { PagedResult, PostDto, ProfileDto, ProfileReplyDto, VaultDto } from "@/lib/types";
+import type { PagedResult, PostDto, ProfileDto, ProfileReplyDto } from "@/lib/types";
 
 type Props = {
   params: Promise<{ handle: string }>;
@@ -66,8 +65,11 @@ export default async function ProfilePage({ params, searchParams }: Props) {
   const isMe = viewer.userId === profile.id;
   const query = await searchParams;
   const page = pageNumber(query.page);
-  const tab: "posts" | "replies" | "vault" =
-    query.tab === "replies" ? "replies" : query.tab === "vault" && isMe ? "vault" : "posts";
+  // The vault moved to Account (Instagram-style, with the automatic saving switch); old links still get there.
+  if (query.tab === "vault" && isMe) {
+    redirect("/account/vault");
+  }
+  const tab: "posts" | "replies" = query.tab === "replies" ? "replies" : "posts";
   const here = profilePath(profile.handle);
 
   // Your own profile includes posts still processing, held or hidden, which only you can see.
@@ -94,17 +96,6 @@ export default async function ProfilePage({ params, searchParams }: Props) {
     replies = token
       ? await api()
           .posts.replies(token, profile.handle, page)
-          .catch(() => null)
-      : null;
-  }
-
-  // Your vault (owner, 23 Oct 2026): only on your own profile.
-  let vault: VaultDto | null = null;
-  if (tab === "vault") {
-    const token = await getAccessToken();
-    vault = token
-      ? await api()
-          .vault.get(token, page)
           .catch(() => null)
       : null;
   }
@@ -210,24 +201,12 @@ export default async function ProfilePage({ params, searchParams }: Props) {
           Replies
         </Link>
         {isMe ? (
-          <Link
-            href={`${here}?tab=vault`}
-            className={`tab${tab === "vault" ? " tab-on" : ""}`}
-            aria-current={tab === "vault" ? "page" : undefined}
-          >
+          <Link href="/account/vault" className="tab">
             Vault
           </Link>
         ) : null}
       </nav>
-      {tab === "vault" ? (
-        vault ? (
-          <VaultPanel vault={vault} basePath={here} />
-        ) : (
-          <p className="error pad" role="alert">
-            We couldn&apos;t load your vault. Please try again.
-          </p>
-        )
-      ) : tab === "replies" ? (
+      {tab === "replies" ? (
         blocked ? null : !viewer.signedIn ? (
           <section className="centre">
             <h2 className="h2">Sign in to see replies</h2>
