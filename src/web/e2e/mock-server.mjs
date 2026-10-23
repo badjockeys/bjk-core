@@ -99,6 +99,8 @@ function seed() {
   });
   const dave = USERS.dave.id;
   db = {
+    // Vertical copies of videos for sharing, by media id.
+    shareCopies: new Map(),
     // Drafts of posts (bjk-modules DraftsController): up to 5 each.
     drafts: [],
     profiles: new Map([
@@ -1751,6 +1753,29 @@ async function api(req, res, url) {
         expiresAt: new Date(Date.now() + 900_000).toISOString(),
       },
     });
+  }
+  // A video's vertical copy for sharing (bjk-modules MediaController): owner only; "made" after a moment.
+  if ((m = path.match(/^\/api\/media\/([^/]+)\/share-copy$/))) {
+    if (!requireUser()) return;
+    const media = db.media.get(m[1]);
+    if (!media || media.userId !== me) return problem(res, 404, "Media not found.");
+    const describe = () => {
+      const copy = db.shareCopies.get(media.id);
+      if (!copy) return { state: "None", downloadUrl: null, linkExpiresAt: null };
+      if (Date.now() - copy.at < 1_500) return { state: "Rendering", downloadUrl: null, linkExpiresAt: null };
+      return {
+        state: "Ready",
+        downloadUrl: `${ORIGIN}/media/share/${media.id}/vertical.mp4`,
+        linkExpiresAt: new Date(Date.now() + 900_000).toISOString(),
+      };
+    };
+    if (method === "POST") {
+      if (media.mediaType !== "Video")
+        return invalid(res, "MediaId", "Only videos can be downloaded for sharing.");
+      if (!db.shareCopies.has(media.id)) db.shareCopies.set(media.id, { at: Date.now() });
+      return send(res, 202, describe());
+    }
+    if (method === "GET") return send(res, 200, describe());
   }
   if ((m = path.match(/^\/api\/media\/([0-9a-f-]{36})(\/complete)?$/))) {
     if (!requireUser()) return;

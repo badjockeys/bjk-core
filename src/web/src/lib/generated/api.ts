@@ -996,6 +996,107 @@ export class MediaClient {
         }
         return Promise.resolve<PagedResultOfMediaDto>(null as any);
     }
+
+    /**
+     * Your video's vertical copy for TikTok, Reels, Shorts and X: whether it's been made, and a short-lived download
+    link once it has. Only the uploader can see it; anyone else gets 404.
+     */
+    media_GetShareCopy(id: string, signal?: AbortSignal): Promise<ShareCopyDto> {
+        let url_ = this.baseUrl + "/api/media/{id}/share-copy";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processMedia_GetShareCopy(_response);
+        });
+    }
+
+    protected processMedia_GetShareCopy(response: Response): Promise<ShareCopyDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ShareCopyDto;
+            return result200;
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<ShareCopyDto>(null as any);
+    }
+
+    /**
+     * Ask for your video's vertical copy for sharing: 1080×1920, made from the published (blurred, silent) file with a
+    small watermark and an end card. Returns at once (Rendering); poll GET /api/media/{id}/share-copy. If one
+    is already made or being made, that's returned instead. Not for photos or videos marked sensitive (400).
+     */
+    media_RequestShareCopy(id: string, signal?: AbortSignal): Promise<ShareCopyDto> {
+        let url_ = this.baseUrl + "/api/media/{id}/share-copy";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "POST",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processMedia_RequestShareCopy(_response);
+        });
+    }
+
+    protected processMedia_RequestShareCopy(response: Response): Promise<ShareCopyDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 202) {
+            return response.text().then((_responseText) => {
+            let result202: any = null;
+            result202 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ShareCopyDto;
+            return result202;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<ShareCopyDto>(null as any);
+    }
 }
 
 export class AreaClient {
@@ -7359,6 +7460,19 @@ export interface PagedResultOfMediaDto {
     pageSize: number;
     totalCount: number;
 }
+
+/** A video's vertical copy for TikTok, Reels, Shorts and X. */
+export interface ShareCopyDto {
+    /** Where it is. */
+    state: ShareCopyState;
+    /** When Ready: a short-lived link that downloads it as bad-jockeys-clip.mp4. */
+    downloadUrl: string | null;
+    /** When the link stops working (ask again for a fresh one). */
+    linkExpiresAt: string | null;
+}
+
+/** Where a video's share copy is, from its owner's point of view. */
+export type ShareCopyState = "None" | "Rendering" | "Ready" | "Failed";
 
 /** Your home area and area alerts. PlaceName and the position (to about 1 km) are null until you choose a home area. CanUseAlerts is true on Premium and Premium +. Quiet hours are 22:00 to 07:00 UK time; Instant alerts are capped at InstantDailyCap a day; summaries go at 08:00. */
 export interface AreaSettingsDto {
