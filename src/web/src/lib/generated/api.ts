@@ -3038,6 +3038,1283 @@ export class AdminPostsClient {
     }
 }
 
+export class CommunitiesClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * Communities near you (covering your home area), yours, about topics (no area), or matching a search.
+     * @param kind (optional) 
+     * @param search (optional) 
+     * @param page (optional) 
+     * @param pageSize (optional) 
+     */
+    communities_List(kind?: CommunityListKind | undefined, search?: string | null | undefined, page?: number | undefined, pageSize?: number | undefined, signal?: AbortSignal): Promise<PagedResultOfCommunitySummaryDto> {
+        let url_ = this.baseUrl + "/api/communities?";
+        if (kind === null)
+            throw new globalThis.Error("The parameter 'kind' cannot be null.");
+        else if (kind !== undefined)
+            url_ += "kind=" + encodeURIComponent("" + kind) + "&";
+        if (search !== undefined && search !== null)
+            url_ += "search=" + encodeURIComponent("" + search) + "&";
+        if (page === null)
+            throw new globalThis.Error("The parameter 'page' cannot be null.");
+        else if (page !== undefined)
+            url_ += "page=" + encodeURIComponent("" + page) + "&";
+        if (pageSize === null)
+            throw new globalThis.Error("The parameter 'pageSize' cannot be null.");
+        else if (pageSize !== undefined)
+            url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_List(_response);
+        });
+    }
+
+    protected processCommunities_List(response: Response): Promise<PagedResultOfCommunitySummaryDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PagedResultOfCommunitySummaryDto;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PagedResultOfCommunitySummaryDto>(null as any);
+    }
+
+    /**
+     * Start a community (Premium and Premium +, adults, up to 5). You're its admin.
+     */
+    communities_Create(request: CommunityRequest, signal?: AbortSignal): Promise<CommunityDto> {
+        let url_ = this.baseUrl + "/api/communities";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_Create(_response);
+        });
+    }
+
+    protected processCommunities_Create(response: Response): Promise<CommunityDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 201) {
+            return response.text().then((_responseText) => {
+            let result201: any = null;
+            result201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as CommunityDto;
+            return result201;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<CommunityDto>(null as any);
+    }
+
+    /**
+     * Your communities to share a post into, those covering where it happened first (recommended). Give the place, or
+    an existing post of yours (which also marks the communities it's in).
+     * @param latitude (optional) 
+     * @param longitude (optional) 
+     * @param postId (optional) 
+     */
+    communities_Suggestions(latitude?: number | null | undefined, longitude?: number | null | undefined, postId?: string | null | undefined, signal?: AbortSignal): Promise<CommunitySuggestionDto[]> {
+        let url_ = this.baseUrl + "/api/communities/suggestions?";
+        if (latitude !== undefined && latitude !== null)
+            url_ += "latitude=" + encodeURIComponent("" + latitude) + "&";
+        if (longitude !== undefined && longitude !== null)
+            url_ += "longitude=" + encodeURIComponent("" + longitude) + "&";
+        if (postId !== undefined && postId !== null)
+            url_ += "postId=" + encodeURIComponent("" + postId) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_Suggestions(_response);
+        });
+    }
+
+    protected processCommunities_Suggestions(response: Response): Promise<CommunitySuggestionDto[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as CommunitySuggestionDto[];
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<CommunitySuggestionDto[]>(null as any);
+    }
+
+    /**
+     * One community, with what you may do in it.
+     */
+    communities_Get(slug: string, signal?: AbortSignal): Promise<CommunityDto> {
+        let url_ = this.baseUrl + "/api/communities/{slug}";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_Get(_response);
+        });
+    }
+
+    protected processCommunities_Get(response: Response): Promise<CommunityDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as CommunityDto;
+            return result200;
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<CommunityDto>(null as any);
+    }
+
+    /**
+     * Change a community's details (admins). Its address stays the same.
+     */
+    communities_Update(slug: string, request: CommunityRequest, signal?: AbortSignal): Promise<CommunityDto> {
+        let url_ = this.baseUrl + "/api/communities/{slug}";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_Update(_response);
+        });
+    }
+
+    protected processCommunities_Update(response: Response): Promise<CommunityDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as CommunityDto;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<CommunityDto>(null as any);
+    }
+
+    /**
+     * Delete a community for everyone (admins). Posts shared into it stay on Bad Jockeys.
+     */
+    communities_Delete(slug: string, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/communities/{slug}";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            signal,
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_Delete(_response);
+        });
+    }
+
+    protected processCommunities_Delete(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    /**
+     * Join a public community, or ask to join a private one (adults only).
+     */
+    communities_Join(slug: string, signal?: AbortSignal): Promise<CommunityDto> {
+        let url_ = this.baseUrl + "/api/communities/{slug}/join";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "POST",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_Join(_response);
+        });
+    }
+
+    protected processCommunities_Join(response: Response): Promise<CommunityDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as CommunityDto;
+            return result200;
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<CommunityDto>(null as any);
+    }
+
+    /**
+     * Leave, or withdraw your request to join.
+     */
+    communities_Leave(slug: string, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/communities/{slug}/membership";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            signal,
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_Leave(_response);
+        });
+    }
+
+    protected processCommunities_Leave(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    /**
+     * Members (anyone who can see inside), or requests and bans (admins and moderators).
+     * @param status (optional) 
+     * @param page (optional) 
+     * @param pageSize (optional) 
+     */
+    communities_Members(slug: string, status?: CommunityMembershipStatus | undefined, page?: number | undefined, pageSize?: number | undefined, signal?: AbortSignal): Promise<PagedResultOfCommunityMemberDto> {
+        let url_ = this.baseUrl + "/api/communities/{slug}/members?";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        if (status === null)
+            throw new globalThis.Error("The parameter 'status' cannot be null.");
+        else if (status !== undefined)
+            url_ += "status=" + encodeURIComponent("" + status) + "&";
+        if (page === null)
+            throw new globalThis.Error("The parameter 'page' cannot be null.");
+        else if (page !== undefined)
+            url_ += "page=" + encodeURIComponent("" + page) + "&";
+        if (pageSize === null)
+            throw new globalThis.Error("The parameter 'pageSize' cannot be null.");
+        else if (pageSize !== undefined)
+            url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_Members(_response);
+        });
+    }
+
+    protected processCommunities_Members(response: Response): Promise<PagedResultOfCommunityMemberDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PagedResultOfCommunityMemberDto;
+            return result200;
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PagedResultOfCommunityMemberDto>(null as any);
+    }
+
+    /**
+     * Approve or decline someone's request to join (admins and moderators).
+     */
+    communities_DecideRequest(slug: string, userId: string, request: CommunityRequestDecision, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/communities/{slug}/requests/{userId}";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        if (userId === undefined || userId === null)
+            throw new globalThis.Error("The parameter 'userId' must be defined.");
+        url_ = url_.replace("{userId}", encodeURIComponent("" + userId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_DecideRequest(_response);
+        });
+    }
+
+    protected processCommunities_DecideRequest(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    /**
+     * Make a member an admin, a moderator or a member (admins). Admins and moderators must be adults.
+     */
+    communities_SetRole(slug: string, userId: string, request: CommunityRoleRequest, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/communities/{slug}/members/{userId}/role";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        if (userId === undefined || userId === null)
+            throw new globalThis.Error("The parameter 'userId' must be defined.");
+        url_ = url_.replace("{userId}", encodeURIComponent("" + userId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_SetRole(_response);
+        });
+    }
+
+    protected processCommunities_SetRole(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    /**
+     * Remove a member, optionally banning them (admins and moderators).
+     * @param ban (optional) 
+     */
+    communities_RemoveMember(slug: string, userId: string, ban?: boolean | undefined, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/communities/{slug}/members/{userId}?";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        if (userId === undefined || userId === null)
+            throw new globalThis.Error("The parameter 'userId' must be defined.");
+        url_ = url_.replace("{userId}", encodeURIComponent("" + userId));
+        if (ban === null)
+            throw new globalThis.Error("The parameter 'ban' cannot be null.");
+        else if (ban !== undefined)
+            url_ += "ban=" + encodeURIComponent("" + ban) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            signal,
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_RemoveMember(_response);
+        });
+    }
+
+    protected processCommunities_RemoveMember(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    /**
+     * Lift a ban (admins and moderators).
+     */
+    communities_Unban(slug: string, userId: string, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/communities/{slug}/bans/{userId}";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        if (userId === undefined || userId === null)
+            throw new globalThis.Error("The parameter 'userId' must be defined.");
+        url_ = url_.replace("{userId}", encodeURIComponent("" + userId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            signal,
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_Unban(_response);
+        });
+    }
+
+    protected processCommunities_Unban(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    /**
+     * Posts shared into the community, newest share first.
+     * @param page (optional) 
+     * @param pageSize (optional) 
+     */
+    communities_Posts(slug: string, page?: number | undefined, pageSize?: number | undefined, signal?: AbortSignal): Promise<PagedResultOfPostDto> {
+        let url_ = this.baseUrl + "/api/communities/{slug}/posts?";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        if (page === null)
+            throw new globalThis.Error("The parameter 'page' cannot be null.");
+        else if (page !== undefined)
+            url_ += "page=" + encodeURIComponent("" + page) + "&";
+        if (pageSize === null)
+            throw new globalThis.Error("The parameter 'pageSize' cannot be null.");
+        else if (pageSize !== undefined)
+            url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_Posts(_response);
+        });
+    }
+
+    protected processCommunities_Posts(response: Response): Promise<PagedResultOfPostDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PagedResultOfPostDto;
+            return result200;
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PagedResultOfPostDto>(null as any);
+    }
+
+    /**
+     * Take a post out of the community (whoever shared it, or admins and moderators).
+     */
+    communities_Unshare(slug: string, postId: string, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/communities/{slug}/posts/{postId}";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        if (postId === undefined || postId === null)
+            throw new globalThis.Error("The parameter 'postId' must be defined.");
+        url_ = url_.replace("{postId}", encodeURIComponent("" + postId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            signal,
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_Unshare(_response);
+        });
+    }
+
+    protected processCommunities_Unshare(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    /**
+     * The community's discussions, most recently active first.
+     * @param page (optional) 
+     * @param pageSize (optional) 
+     */
+    communities_Discussions(slug: string, page?: number | undefined, pageSize?: number | undefined, signal?: AbortSignal): Promise<PagedResultOfCommunityDiscussionDto> {
+        let url_ = this.baseUrl + "/api/communities/{slug}/discussions?";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        if (page === null)
+            throw new globalThis.Error("The parameter 'page' cannot be null.");
+        else if (page !== undefined)
+            url_ += "page=" + encodeURIComponent("" + page) + "&";
+        if (pageSize === null)
+            throw new globalThis.Error("The parameter 'pageSize' cannot be null.");
+        else if (pageSize !== undefined)
+            url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_Discussions(_response);
+        });
+    }
+
+    protected processCommunities_Discussions(response: Response): Promise<PagedResultOfCommunityDiscussionDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PagedResultOfCommunityDiscussionDto;
+            return result200;
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PagedResultOfCommunityDiscussionDto>(null as any);
+    }
+
+    /**
+     * Start a discussion (members).
+     */
+    communities_StartDiscussion(slug: string, request: DiscussionRequest, signal?: AbortSignal): Promise<CommunityDiscussionDto> {
+        let url_ = this.baseUrl + "/api/communities/{slug}/discussions";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_StartDiscussion(_response);
+        });
+    }
+
+    protected processCommunities_StartDiscussion(response: Response): Promise<CommunityDiscussionDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 201) {
+            return response.text().then((_responseText) => {
+            let result201: any = null;
+            result201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as CommunityDiscussionDto;
+            return result201;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<CommunityDiscussionDto>(null as any);
+    }
+
+    /**
+     * A discussion and a page of its replies, oldest first.
+     * @param page (optional) 
+     * @param pageSize (optional) 
+     */
+    communities_Discussion(slug: string, discussionId: string, page?: number | undefined, pageSize?: number | undefined, signal?: AbortSignal): Promise<CommunityDiscussionDetailDto> {
+        let url_ = this.baseUrl + "/api/communities/{slug}/discussions/{discussionId}?";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        if (discussionId === undefined || discussionId === null)
+            throw new globalThis.Error("The parameter 'discussionId' must be defined.");
+        url_ = url_.replace("{discussionId}", encodeURIComponent("" + discussionId));
+        if (page === null)
+            throw new globalThis.Error("The parameter 'page' cannot be null.");
+        else if (page !== undefined)
+            url_ += "page=" + encodeURIComponent("" + page) + "&";
+        if (pageSize === null)
+            throw new globalThis.Error("The parameter 'pageSize' cannot be null.");
+        else if (pageSize !== undefined)
+            url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_Discussion(_response);
+        });
+    }
+
+    protected processCommunities_Discussion(response: Response): Promise<CommunityDiscussionDetailDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as CommunityDiscussionDetailDto;
+            return result200;
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<CommunityDiscussionDetailDto>(null as any);
+    }
+
+    /**
+     * Remove a discussion (its author, or admins and moderators).
+     */
+    communities_RemoveDiscussion(slug: string, discussionId: string, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/communities/{slug}/discussions/{discussionId}";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        if (discussionId === undefined || discussionId === null)
+            throw new globalThis.Error("The parameter 'discussionId' must be defined.");
+        url_ = url_.replace("{discussionId}", encodeURIComponent("" + discussionId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            signal,
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_RemoveDiscussion(_response);
+        });
+    }
+
+    protected processCommunities_RemoveDiscussion(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    /**
+     * Reply to a discussion (members).
+     */
+    communities_Reply(slug: string, discussionId: string, request: DiscussionReplyRequest, signal?: AbortSignal): Promise<CommunityReplyDto> {
+        let url_ = this.baseUrl + "/api/communities/{slug}/discussions/{discussionId}/replies";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        if (discussionId === undefined || discussionId === null)
+            throw new globalThis.Error("The parameter 'discussionId' must be defined.");
+        url_ = url_.replace("{discussionId}", encodeURIComponent("" + discussionId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_Reply(_response);
+        });
+    }
+
+    protected processCommunities_Reply(response: Response): Promise<CommunityReplyDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 201) {
+            return response.text().then((_responseText) => {
+            let result201: any = null;
+            result201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as CommunityReplyDto;
+            return result201;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<CommunityReplyDto>(null as any);
+    }
+
+    /**
+     * Remove a reply (its author, or admins and moderators).
+     */
+    communities_RemoveReply(slug: string, discussionId: string, replyId: string, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/communities/{slug}/discussions/{discussionId}/replies/{replyId}";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        if (discussionId === undefined || discussionId === null)
+            throw new globalThis.Error("The parameter 'discussionId' must be defined.");
+        url_ = url_.replace("{discussionId}", encodeURIComponent("" + discussionId));
+        if (replyId === undefined || replyId === null)
+            throw new globalThis.Error("The parameter 'replyId' must be defined.");
+        url_ = url_.replace("{replyId}", encodeURIComponent("" + replyId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            signal,
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_RemoveReply(_response);
+        });
+    }
+
+    protected processCommunities_RemoveReply(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    /**
+     * Report a community (its name, description or rules) to Bad Jockeys' moderators.
+     */
+    communities_Report(slug: string, request: ReportRequest, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/communities/{slug}/report";
+        if (slug === undefined || slug === null)
+            throw new globalThis.Error("The parameter 'slug' must be defined.");
+        url_ = url_.replace("{slug}", encodeURIComponent("" + slug));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_Report(_response);
+        });
+    }
+
+    protected processCommunities_Report(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    /**
+     * Report a discussion to Bad Jockeys' moderators.
+     */
+    communities_ReportDiscussion(discussionId: string, request: ReportRequest, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/communities/discussions/{discussionId}/report";
+        if (discussionId === undefined || discussionId === null)
+            throw new globalThis.Error("The parameter 'discussionId' must be defined.");
+        url_ = url_.replace("{discussionId}", encodeURIComponent("" + discussionId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_ReportDiscussion(_response);
+        });
+    }
+
+    protected processCommunities_ReportDiscussion(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    /**
+     * Report a reply to Bad Jockeys' moderators.
+     */
+    communities_ReportReply(replyId: string, request: ReportRequest, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/communities/replies/{replyId}/report";
+        if (replyId === undefined || replyId === null)
+            throw new globalThis.Error("The parameter 'replyId' must be defined.");
+        url_ = url_.replace("{replyId}", encodeURIComponent("" + replyId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_ReportReply(_response);
+        });
+    }
+
+    protected processCommunities_ReportReply(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    /**
+     * Share your own post into communities you're a member of (offered when posting). It stays public everywhere.
+    Returns the communities it's in now.
+     */
+    communities_SharePost(postId: string, request: SharePostRequest, signal?: AbortSignal): Promise<string[]> {
+        let url_ = this.baseUrl + "/api/posts/{postId}/communities";
+        if (postId === undefined || postId === null)
+            throw new globalThis.Error("The parameter 'postId' must be defined.");
+        url_ = url_.replace("{postId}", encodeURIComponent("" + postId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCommunities_SharePost(_response);
+        });
+    }
+
+    protected processCommunities_SharePost(response: Response): Promise<string[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as string[];
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<string[]>(null as any);
+    }
+}
+
 export class DraftsClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -8023,7 +9300,7 @@ export interface ReportDto {
     outcomeNotifiedAt: string | null;
 }
 
-export type ReportTargetType = "Post" | "Comment" | "Profile";
+export type ReportTargetType = "Post" | "Comment" | "Profile" | "Community" | "CommunityDiscussion" | "CommunityReply";
 
 export type ReportReason = "DangerousOrIllegal" | "PersonalInformation" | "HarassmentOrHate" | "Spam" | "NotADrivingIncident" | "Other" | "IllegalContent" | "Threat" | "InThisClip" | "Copyright" | "Impersonation" | "UnderThirteen";
 
@@ -8358,6 +9635,175 @@ export interface AddBlockedUrlRequest {
     reason: string;
 }
 
+export interface PagedResultOfCommunitySummaryDto {
+    items: CommunitySummaryDto[];
+    page: number;
+    pageSize: number;
+    totalCount: number;
+}
+
+/** A community in a list. */
+export interface CommunitySummaryDto {
+    id: string;
+    slug: string;
+    name: string;
+    description: string;
+    visibility: CommunityVisibility;
+    placeName: string | null;
+    radiusKm: number | null;
+    memberCount: number;
+    standing: CommunityStanding;
+    role: CommunityRole | null;
+}
+
+/** Who can see inside a community. */
+export type CommunityVisibility = "Public" | "Private";
+
+/** What you are to a community. */
+export type CommunityStanding = "None" | "Requested" | "Member" | "Banned";
+
+/** What a member may do. Admins run the community; moderators help with requests and content. */
+export type CommunityRole = "Member" | "Moderator" | "Admin";
+
+/** Which communities to list. */
+export type CommunityListKind = "Near" | "Mine" | "Topics" | "Search";
+
+/** One community, with what you may do in it. CanSeeInside: public, or you're a member, so its posts, discussions and members can be shown. CanModerate: you're an admin or moderator (requests, removing members and content). IsAdmin: settings, roles, deleting it. CanJoin: you can join (public) or ask to (private: adults only). */
+export interface CommunityDto {
+    id: string;
+    slug: string;
+    name: string;
+    description: string;
+    rules: string | null;
+    visibility: CommunityVisibility;
+    placeName: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    radiusKm: number | null;
+    memberCount: number;
+    owner: AuthorDto;
+    createdAt: string;
+    standing: CommunityStanding;
+    role: CommunityRole | null;
+    canSeeInside: boolean;
+    canModerate: boolean;
+    isAdmin: boolean;
+    canJoin: boolean;
+}
+
+export interface CommunityRequest {
+    name: string;
+    description: string | null;
+    rules: string | null;
+    visibility: CommunityVisibility;
+    placeName: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    radiusKm: number | null;
+}
+
+/** One of your communities, offered when sharing a post. Recommended: its area covers where the incident happened. AlreadyShared: the post is in it already. */
+export interface CommunitySuggestionDto {
+    id: string;
+    slug: string;
+    name: string;
+    visibility: CommunityVisibility;
+    placeName: string | null;
+    recommended: boolean;
+    alreadyShared: boolean;
+}
+
+export interface PagedResultOfCommunityMemberDto {
+    items: CommunityMemberDto[];
+    page: number;
+    pageSize: number;
+    totalCount: number;
+}
+
+/** Someone in a community (or asking to join, or banned). */
+export interface CommunityMemberDto {
+    person: AuthorDto;
+    role: CommunityRole;
+    status: CommunityMembershipStatus;
+    since: string | null;
+}
+
+export type CommunityMembershipStatus = "Requested" | "Member" | "Banned";
+
+export interface CommunityRequestDecision {
+    approve: boolean;
+}
+
+export interface CommunityRoleRequest {
+    role: CommunityRole;
+}
+
+export interface PagedResultOfPostDto {
+    items: PostDto[];
+    page: number;
+    pageSize: number;
+    totalCount: number;
+}
+
+export interface PagedResultOfCommunityDiscussionDto {
+    items: CommunityDiscussionDto[];
+    page: number;
+    pageSize: number;
+    totalCount: number;
+}
+
+/** A discussion. CanRemove: you wrote it, or you moderate the community. */
+export interface CommunityDiscussionDto {
+    id: string;
+    title: string;
+    body: string;
+    author: AuthorDto;
+    createdAt: string;
+    lastActivityAt: string;
+    replyCount: number;
+    canRemove: boolean;
+}
+
+export interface DiscussionRequest {
+    title: string;
+    body: string | null;
+}
+
+/** A discussion and a page of its replies (oldest first). */
+export interface CommunityDiscussionDetailDto {
+    discussion: CommunityDiscussionDto;
+    replies: PagedResultOfCommunityReplyDto;
+}
+
+export interface PagedResultOfCommunityReplyDto {
+    items: CommunityReplyDto[];
+    page: number;
+    pageSize: number;
+    totalCount: number;
+}
+
+/** A reply to a discussion. */
+export interface CommunityReplyDto {
+    id: string;
+    body: string;
+    author: AuthorDto;
+    createdAt: string;
+    canRemove: boolean;
+}
+
+export interface DiscussionReplyRequest {
+    body: string;
+}
+
+export interface ReportRequest {
+    reason: ReportReason;
+    details: string | null;
+}
+
+export interface SharePostRequest {
+    communityIds: string[];
+}
+
 /** A saved draft, to reopen in the composer. */
 export interface DraftDto {
     /** The draft's id. */
@@ -8464,13 +9910,6 @@ export interface PostFollowStateDto {
 export interface BookmarkStateDto {
     postId: string;
     saved: boolean;
-}
-
-export interface PagedResultOfPostDto {
-    items: PostDto[];
-    page: number;
-    pageSize: number;
-    totalCount: number;
 }
 
 /** Posts the viewer saw (1 to 50). */
@@ -8704,11 +10143,6 @@ export interface HideCommentRequest {
 /** Who can comment on your post. */
 export interface CommentSettingRequest {
     setting: CommentSetting;
-}
-
-export interface ReportRequest {
-    reason: ReportReason;
-    details: string | null;
 }
 
 export interface AppealRequest {

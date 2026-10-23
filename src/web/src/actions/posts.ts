@@ -27,6 +27,7 @@ export type FeedSource =
   | { kind: "for-you" }
   | { kind: "following" }
   | { kind: "timeline"; id: string }
+  | { kind: "community"; slug: string }
   | { kind: "mine" }
   | { kind: "bookmarks" };
 
@@ -51,6 +52,12 @@ export async function loadPosts(
   }
   if (source.kind === "following") {
     return asUser((t) => api().timelines.following(t, safePage));
+  }
+  if (source.kind === "community") {
+    if (!/^[a-z0-9-]{1,70}$/.test(source.slug)) {
+      return { ok: false, error: "That community doesn't exist." };
+    }
+    return asUser((t) => api().communities.posts(t, source.slug, safePage));
   }
   if (source.kind === "timeline") {
     if (!/^[0-9a-f-]{36}$/i.test(source.id)) {

@@ -4014,6 +4014,26 @@ a.pf-count:hover {
 
 .pf-pick {
   display: inline-flex;
+}
+
+/*
+ * Communities (owner, 23 Oct 2026; approved mock-ups). Badges are initials on cyan; a cover band sits above the
+ * community's header.
+ */
+.badge-premium {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.community-badge {
+  display: inline-flex;
+  flex: none;
   align-items: center;
   justify-content: center;
   width: 44px;
@@ -4232,4 +4252,225 @@ a.pf-count:hover {
 .vault-pages {
   gap: 16px;
   justify-content: center;
+  border-radius: 12px;
+  background: var(--brand);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.community-badge-sm {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  font-size: 12px;
+}
+
+.community-badge-lg {
+  width: 72px;
+  height: 72px;
+  border-radius: 18px;
+  font-size: 24px;
+  border: 4px solid #ffffff;
+  margin-top: -44px;
+}
+
+.community-joined {
+  background: var(--brand-tint);
+  color: var(--brand-tint-text);
+  border-color: transparent;
+}
+
+.community-list,
+.community-discussions,
+.community-replies,
+.community-people {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.community-item,
+.community-discussion,
+.community-person {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.community-discussion {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.community-item-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.community-item-name,
+.community-person-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.community-person-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.community-item-desc {
+  color: var(--muted);
+  font-size: 13px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.community-search {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+}
+
+.community-search input {
+  flex: 1;
+  min-width: 0;
+}
+
+.community-start-card {
+  margin: 12px 16px;
+}
+
+.community-cover {
+  height: 96px;
+  background: linear-gradient(135deg, var(--brand) 0%, #0089ad 100%);
+}
+
+.community-head {
+  border-bottom: 1px solid var(--line);
+}
+
+.community-locked {
+  margin: 24px 16px;
+  padding: 24px 16px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.community-discussion-body,
+.community-reply-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.community-discussion-body {
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 4px 0 0;
+}
+
+.community-thread .community-discussion-body {
+  color: var(--ink);
+  display: block;
+  -webkit-line-clamp: unset;
+}
+
+.community-reply {
+  display: flex;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.community-reply-form,
+.community-start,
+.community-start-form,
+.community-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 16px;
+}
+
+.community-rules {
+  white-space: pre-wrap;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--soft);
+}
+
+.community-visibility {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.community-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.community-choice input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.community-choice:focus-within {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.community-choice-on {
+  border-color: var(--brand);
+  background: var(--brand-tint);
+}
+
+.community-share {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.community-share-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.community-share-recommended {
+  border-color: var(--brand);
+}
+
+.community-share-why {
+  color: var(--brand-tint-text);
 }
