@@ -3839,3 +3839,30 @@ dialog.composer-modal::backdrop {
     animation: none;
   }
 }
+
+/* "Report to the police" under your own post (owner feedback, 22 Oct 2026, item 12). */
+.police-btn {
+  align-self: flex-start;
+  margin-top: 12px;
+  gap: 6px;
+}
+
+.police-where {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  gap: 10px;
+}
+
+.police-place {
+  margin: 0;
+  font-weight: 600;
+}
+
+.police-tips {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
