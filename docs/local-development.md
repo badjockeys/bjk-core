@@ -740,6 +740,13 @@ The counts-only `reporting` views behind the reports are kept and applied locall
 - **Read-only login.** Reports sign in as `bjk_reporting`, which can read those views and nothing else, not even the tables behind them. Locally its password is `BJK_REPORTING_PASSWORD` in `bjk-core/.env`; the setup creates it. To look at a view, connect your SQL tool as `bjk_reporting` (or `sa`) and `SELECT * FROM reporting.<Name>`.
 - **After pulling changes to the views**, or if the setup couldn't apply them (the identity server and API must each have started once, so both databases exist): `node scripts/sql/reporting/apply.mjs`.
 - **Adding a report:** add or change a view in the matching `scripts/sql/reporting/*.sql` (counts only, `CREATE OR ALTER VIEW reporting.<Name>`) and apply it. CI applies every view twice and checks `bjk_reporting` can read each one but not the tables.
+- **Incidents (23 Oct 2026).** `reporting.Incidents` is a live view with one row per live incident and subcategory. It has the UK date, hour and weekday, a square of about 1 km, the public place name, the group and subcategory, the vehicle, after dark, reported to police, video or photo, and its reaction, comment and view counts. It has no ids, authors, text or exact pins.
+  - **Counting:** count incidents with `WHERE IsMainType = 1`, since each incident has exactly one main subcategory; count all rows to count by subcategory.
+  - **Lookup:** `reporting.Subcategories` is a view listing the 74 subcategories and 13 groups with their names (written into the view, so `reporting` holds views only). When `IncidentTaxonomy` in BJK.Modules changes, regenerate its list.
+  - **Who reads it:** Ask Bad Jockeys, the AI chat, reads these two through `bjk_chat`, which can read nothing else. Locally its password is `BJK_CHAT_PASSWORD` in `bjk-core/.env`. The reports can read them too.
+  - **If it gets slow** (lots of posts, lots of chat questions), it can become a table refreshed on a schedule, with the same name and columns, so the chat needs no change.
+  - **CI checks** there are 74 subcategories, that every live post appears with exactly one main subcategory, and that `bjk_chat` can't read anything else.
+- `reporting.PostsByType` counts every subcategory on a post, not just the main one, and `reporting.IncidentTimes` is in UK time (both fixed 23 Oct 2026).
 
 ## Logs, traces and metrics
 

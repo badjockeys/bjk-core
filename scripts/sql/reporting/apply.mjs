@@ -4,7 +4,7 @@
 //   node scripts/sql/reporting/apply.mjs
 //
 // The identity server and the API must each have started once, so both databases (and the queue tables) exist.
-// The login's password is BJK_REPORTING_PASSWORD in bjk-core/.env (added there if missing).
+// The logins' passwords are BJK_REPORTING_PASSWORD and BJK_CHAT_PASSWORD in bjk-core/.env (added there if missing).
 
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
@@ -22,20 +22,31 @@ function readEnv(name) {
   return new RegExp(`^${name}=(.+)$`, "m").exec(readFileSync(envFile, "utf8"))?.[1]?.trim() ?? null;
 }
 
-/** BJK_REPORTING_PASSWORD from .env, created there first if it isn't set. */
-export function reportingPassword() {
-  let password = readEnv("BJK_REPORTING_PASSWORD");
+/** A login password from .env (`name`), created there first if it isn't set. */
+function envPassword(name, prefix) {
+  let password = readEnv(name);
   if (!password) {
     // Letters and digits only, so it needs no escaping in SQL, YAML or the shell.
-    password = `Rpt${randomBytes(18).toString("base64url").replace(/[^A-Za-z0-9]/g, "")}9a`;
+    password = `${prefix}${randomBytes(18).toString("base64url").replace(/[^A-Za-z0-9]/g, "")}9a`;
     const current = readFileSync(envFile, "utf8");
-    if (/^BJK_REPORTING_PASSWORD=[ \t\r]*$/m.test(current)) {
-      writeFileSync(envFile, current.replace(/^BJK_REPORTING_PASSWORD=[ \t\r]*$/m, `BJK_REPORTING_PASSWORD=${password}`));
+    const empty = new RegExp(`^${name}=[ \\t\\r]*$`, "m");
+    if (empty.test(current)) {
+      writeFileSync(envFile, current.replace(empty, `${name}=${password}`));
     } else {
-      appendFileSync(envFile, `${current.endsWith("\n") ? "" : "\n"}BJK_REPORTING_PASSWORD=${password}\n`);
+      appendFileSync(envFile, `${current.endsWith("\n") ? "" : "\n"}${name}=${password}\n`);
     }
   }
   return password;
+}
+
+/** BJK_REPORTING_PASSWORD from .env (the reports' login), created there first if it isn't set. */
+export function reportingPassword() {
+  return envPassword("BJK_REPORTING_PASSWORD", "Rpt");
+}
+
+/** BJK_CHAT_PASSWORD from .env (Ask Bad Jockeys' login: the incident tables only), created there first if it isn't set. */
+export function chatPassword() {
+  return envPassword("BJK_CHAT_PASSWORD", "Cht");
 }
 
 function sqlcmd(file, database, variables = {}) {
@@ -57,7 +68,7 @@ export function applyReporting() {
   try {
     sqlcmd("idsrv.sql", "idsrv");
     sqlcmd("badjockeys.sql", "badjockeys");
-    sqlcmd("login.sql", "master", { ReportingPassword: reportingPassword() });
+    sqlcmd("login.sql", "master", { ReportingPassword: reportingPassword(), ChatPassword: chatPassword() });
   } catch (error) {
     throw new Error((error.stdout || "") + (error.stderr || error.message));
   }
@@ -67,7 +78,7 @@ export function applyReporting() {
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     applyReporting();
-    console.log("Reporting views and the bjk_reporting login are up to date.");
+    console.log("Reporting views, the incident tables and the bjk_reporting and bjk_chat logins are up to date.");
   } catch (error) {
     console.error(`The reporting views couldn't be applied:\n${error.message}`);
     process.exit(1);

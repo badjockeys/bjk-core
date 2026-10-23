@@ -35,7 +35,7 @@ import { removeOldGroups, startServices } from "./docker-services.mjs";
 import { findFfmpeg } from "./ffmpeg-tools.mjs";
 import { ensureElasticEnv, readEnvValue } from "./elastic-env.mjs";
 import { OWNER_EMAIL, OWNER_PLAN } from "./sql/example-data/data.mjs";
-import { applyReporting, reportingPassword } from "./sql/reporting/apply.mjs";
+import { applyReporting, chatPassword, reportingPassword } from "./sql/reporting/apply.mjs";
 import { ownerId, seedExampleData } from "./sql/example-data/seed.mjs";
 import { safetyCoverage, seedSafetyTestData } from "./sql/safety-test/seed.mjs";
 
@@ -524,8 +524,9 @@ function createConfig() {
     writeIfMissing(envFile, env, carried ? "bjk-core/.env (SQL password carried over from bjk-identity-server/.env)" : "bjk-core/.env");
   }
 
-  // The reports' read-only login, and the Elastic containers' passwords and key.
+  // The reports' and Ask Bad Jockeys' read-only logins, and the Elastic containers' passwords and key.
   reportingPassword();
+  chatPassword();
   const addedElastic = ensureElasticEnv(core);
   if (addedElastic.length) ok(`bjk-core/.env: added ${addedElastic.join(", ")} for Elasticsearch and Kibana`);
 
