@@ -103,7 +103,12 @@ function GroupBox({
   }, [state]);
   return (
     <label className="cat-filter-all">
-      <input ref={ref} type="checkbox" checked={state === "all"} onChange={(e) => onChange(e.target.checked)} />
+      <input
+        ref={ref}
+        type="checkbox"
+        checked={state === "all"}
+        onChange={(e) => onChange(e.target.checked)}
+      />
       {label}
     </label>
   );

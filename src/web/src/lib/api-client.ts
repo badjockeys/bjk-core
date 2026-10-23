@@ -361,7 +361,12 @@ export function endpoints(api: ApiClient) {
       list: (
         token: string | null,
         viewerId: string | null,
-        q: { cursor?: string | null; category?: IncidentCategory; group?: IncidentGroup; pageSize?: number } = {},
+        q: {
+          cursor?: string | null;
+          category?: IncidentCategory;
+          group?: IncidentGroup;
+          pageSize?: number;
+        } = {},
       ) =>
         client(ReelsClient, { token, headers: viewer(viewerId) }).reels_List(
           q.cursor,

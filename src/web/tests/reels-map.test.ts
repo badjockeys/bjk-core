@@ -70,7 +70,12 @@ describe("reels and heat map API calls", () => {
     const api = endpoints(createApiClient("https://api.example.com", fetchImpl as unknown as typeof fetch));
 
     await api.reels.play("t", null, "p1");
-    await api.heatmap.get("t", { bbox: "-2,53,-1,54", zoom: 9, categories: "ClosePassCyclist", days: "Weekdays" });
+    await api.heatmap.get("t", {
+      bbox: "-2,53,-1,54",
+      zoom: 9,
+      categories: "ClosePassCyclist",
+      days: "Weekdays",
+    });
     await api.heatmap.area("t", { bbox: "-2,53,-1,54", zoom: 9 });
 
     const calls = fetchImpl.mock.calls as unknown as [URL, RequestInit][];

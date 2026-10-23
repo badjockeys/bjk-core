@@ -142,7 +142,9 @@ test("category pages filter the feed, from Category trends, with an empty state"
   await expect(page.getByRole("heading", { name: "Parking", exact: true })).toBeVisible();
   await expect(page.getByText("Parked across two disabled bays, again")).toBeVisible();
   await expect(
-    page.getByRole("navigation", { name: "Kinds of parking" }).getByRole("link", { name: "On double yellow lines" }),
+    page
+      .getByRole("navigation", { name: "Kinds of parking" })
+      .getByRole("link", { name: "On double yellow lines" }),
   ).toHaveAttribute("href", "/c/on-double-yellow-lines");
 
   await page.goto("/c/tailgating");
@@ -211,7 +213,10 @@ test("members switch between For you, Following and a custom timeline, and follo
   // Free members get one custom timeline.
   await page.goto("/timelines");
   await page.getByLabel("Name").fill("Parking");
-  await page.getByRole("group", { name: "Types of bad driving" }).getByLabel("Parking", { exact: true }).check();
+  await page
+    .getByRole("group", { name: "Types of bad driving" })
+    .getByLabel("Parking", { exact: true })
+    .check();
   await page.getByRole("button", { name: "Add timeline" }).click();
   await expect(page.getByRole("link", { name: "Parking" })).toBeVisible();
   await expect(page.getByText("You have 1 of 1.")).toBeVisible();

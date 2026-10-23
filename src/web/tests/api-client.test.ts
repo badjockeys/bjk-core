@@ -19,7 +19,9 @@ describe("api client", () => {
 
     expect(page.page).toBe(2);
     const [url, init] = fetchImpl.mock.calls[0] as unknown as [URL, RequestInit];
-    expect(url.toString()).toBe("https://api.example.com/api/posts?category=DoubleYellows&page=2&pageSize=20");
+    expect(url.toString()).toBe(
+      "https://api.example.com/api/posts?category=DoubleYellows&page=2&pageSize=20",
+    );
     expect((init.headers as Record<string, string>).Authorization).toBe("Bearer token-1");
     expect(init.cache).toBe("no-store");
   });

@@ -3909,7 +3909,7 @@ export class PostsClient {
     /**
      * The public feed, newest first. Anyone can call this; logged-out callers never get sensitive posts, and
     signed-in callers don't get posts by people they've blocked.
-     * @param type (optional) Only posts with this type of bad driving among their types.
+     * @param type (optional) Only posts with this subcategory of bad driving among their subcategories.
      * @param category (optional) The old name for type, still accepted.
      * @param author (optional) Only posts by this @handle.
      * @param lat (optional) Centre of an area to search (with lng and radiusKm).
@@ -3918,8 +3918,9 @@ export class PostsClient {
      * @param page (optional) Page number, from 1.
      * @param pageSize (optional) Posts per page, up to 50.
      * @param hashtag (optional) Only posts with this hashtag (with or without the #, any case).
+     * @param group (optional) Only posts with a subcategory in this group.
      */
-    posts_List(type?: IncidentCategory | null | undefined, category?: IncidentCategory | null | undefined, author?: string | null | undefined, lat?: number | null | undefined, lng?: number | null | undefined, radiusKm?: number | null | undefined, page?: number | undefined, pageSize?: number | undefined, hashtag?: string | null | undefined, signal?: AbortSignal): Promise<PagedResultOfPostDto> {
+    posts_List(type?: IncidentCategory | null | undefined, category?: IncidentCategory | null | undefined, author?: string | null | undefined, lat?: number | null | undefined, lng?: number | null | undefined, radiusKm?: number | null | undefined, page?: number | undefined, pageSize?: number | undefined, hashtag?: string | null | undefined, group?: IncidentGroup | null | undefined, signal?: AbortSignal): Promise<PagedResultOfPostDto> {
         let url_ = this.baseUrl + "/api/posts?";
         if (type !== undefined && type !== null)
             url_ += "type=" + encodeURIComponent("" + type) + "&";
@@ -3943,6 +3944,8 @@ export class PostsClient {
             url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
         if (hashtag !== undefined && hashtag !== null)
             url_ += "hashtag=" + encodeURIComponent("" + hashtag) + "&";
+        if (group !== undefined && group !== null)
+            url_ += "group=" + encodeURIComponent("" + group) + "&";
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
@@ -5365,10 +5368,11 @@ export class ReelsClient {
      * A page of reels, best ranked first, with the caller's plays left today (playsRemainingToday, null for
     unlimited). When none are left: 403 with code = daily_limit and resetsAt.
      * @param cursor (optional) From the previous page's nextCursor.
-     * @param category (optional) Only this kind of incident.
+     * @param category (optional) Only this subcategory of bad driving.
      * @param pageSize (optional) Reels per page, up to 20 (and at most the plays left today).
+     * @param group (optional) Only this group of subcategories.
      */
-    reels_List(cursor?: string | null | undefined, category?: IncidentCategory | null | undefined, pageSize?: number | undefined, signal?: AbortSignal): Promise<ReelsPage> {
+    reels_List(cursor?: string | null | undefined, category?: IncidentCategory | null | undefined, pageSize?: number | undefined, group?: IncidentGroup | null | undefined, signal?: AbortSignal): Promise<ReelsPage> {
         let url_ = this.baseUrl + "/api/reels?";
         if (cursor !== undefined && cursor !== null)
             url_ += "cursor=" + encodeURIComponent("" + cursor) + "&";
@@ -5378,6 +5382,8 @@ export class ReelsClient {
             throw new globalThis.Error("The parameter 'pageSize' cannot be null.");
         else if (pageSize !== undefined)
             url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
+        if (group !== undefined && group !== null)
+            url_ += "group=" + encodeURIComponent("" + group) + "&";
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
@@ -7619,6 +7625,8 @@ export interface PostDto {
     isSaved: boolean;
     /** True while the post waits for its photos or video: the app shows a "processing" indicator. */
     isProcessing: boolean;
+    /** The group the main subcategory is listed under. */
+    group: IncidentGroup;
 }
 
 /** Who wrote a post or comment. Handle is null if the author's profile no longer exists. */
@@ -7629,8 +7637,8 @@ export interface AuthorDto {
     avatarUrl: string | null;
 }
 
-/** What kind of bad driving a post shows. Stored by name, so new values can be added safely. */
-export type IncidentCategory = "RoadRage" | "DangerousOvertaking" | "Tailgating" | "MobilePhoneUse" | "Speeding" | "RedLightRunning" | "CuttingUp" | "Undertaking" | "LaneHogging" | "ClosePass" | "BadParking" | "Other";
+/** What kind of bad driving a post shows: one of the subcategories in IncidentTaxonomy, each in an IncidentGroup, every group with its own "Other". Stored by name. Values are bit positions in TypeFlags / TypeFlagsHigh (see IncidentTypeFlags): add new ones at the end, never reorder. */
+export type IncidentCategory = "DisabledBay" | "PavementParking" | "DoubleYellows" | "SchoolZigZags" | "BlockingDriveway" | "BusStopOrLane" | "ParentAndChildBay" | "AcrossTwoBays" | "EvChargingBay" | "ParkingOther" | "SpeedingInTown" | "SpeedingFastRoad" | "SpeedingSchool" | "StreetRacing" | "SpeedingOther" | "OvertakeIntoOncoming" | "OvertakeOnBend" | "OvertakeSolidWhite" | "OvertakeAtJunction" | "Undertaking" | "OvertakingOther" | "PulledOut" | "WrongLaneRoundabout" | "RanStopOrGiveWay" | "BlockingYellowBox" | "CuttingCorner" | "NoSignal" | "JunctionsOther" | "MiddleLaneHogging" | "Weaving" | "PushingInAtMerge" | "StraddlingLanes" | "BusOrCycleLane" | "LaneDisciplineOther" | "Tailgating" | "BrakeTesting" | "FollowingOther" | "PhoneInHand" | "EatingSmokingScreen" | "NotLooking" | "DistractionOther" | "RanRedLight" | "RanPedestrianCrossing" | "LevelCrossing" | "WrongWayOneWay" | "RedLightsOther" | "ClosePassCyclist" | "ClosePassHorse" | "IgnoredPedestrian" | "DoorOpened" | "CyclistRidingDangerously" | "PedestrianSteppedOut" | "VulnerableOther" | "ShoutingOrGestures" | "FollowingOrChasing" | "GotOutOfVehicle" | "DeliberatelyBlocking" | "RoadRageOther" | "Collision" | "NearMiss" | "FailedToStop" | "LostControl" | "CollisionsOther" | "NoLightsAtNight" | "UnsafeLoad" | "UnroadworthyVehicle" | "LearnerMistake" | "LorryOrBusDriving" | "VehiclesOther" | "ClosedLaneRedX" | "HardShoulderMisuse" | "StoppingOnMotorway" | "WrongWayDriver" | "MotorwaysOther";
 
 /** Where it happened: the map pin, rounded to about 500 m when the post was saved, and the place name. */
 export interface LocationDto {
@@ -7690,10 +7698,10 @@ export type VehicleColour = "Black" | "White" | "Silver" | "Grey" | "Blue" | "Re
 /** Who can comment on a post, chosen by its author. Stored by name. */
 export type CommentSetting = "Everyone" | "Off" | "Following";
 
-/** A post's vote as the viewer may see it. Kind says which question it asks and Choices the answers in order. Results (votes per answer) is null while hidden: until the viewer votes, for everyone except the author; for signed-out visitors until there are PublicResultsAfter votes. Closed votes show results to everyone. ClosesAt is null when the vote never closes. */
+/** A post's vote as the viewer may see it. Question and Answers (in order) come from its main subcategory (owner, 23 Oct 2026: votes fit the category). Results (votes per answer) is null while hidden: until the viewer votes, for everyone except the author; for signed-out visitors until there are PublicResultsAfter votes. Closed votes show results to everyone. ClosesAt is null when the vote never closes. */
 export interface VoteSummaryDto {
-    kind: VoteKind;
-    choices: VoteChoice[];
+    question: string;
+    answers: VoteAnswerDto[];
     total: number;
     results: { [key in VoteChoice]?: number; } | null;
     myChoice: VoteChoice | null;
@@ -7702,11 +7710,17 @@ export interface VoteSummaryDto {
     canVote: boolean;
 }
 
-/** Which question a post's vote asks (owner, 21 Oct 2026). Incidents between road users ask "Who's at fault?"; posts about one driver (bad parking, phone use, speeding, red lights, lane hogging, other) ask "How bad was it?". */
-export type VoteKind = "Fault" | "Severity";
+/** One answer a vote offers, and its wording for that vote. */
+export interface VoteAnswerDto {
+    choice: VoteChoice;
+    label: string;
+}
 
-/** An answer to a post's vote. The first four answer Fault, the rest Severity. */
-export type VoteChoice = "FilmingDriver" | "OtherRoadUser" | "Both" | "Nobody" | "Minor" | "Careless" | "Dangerous" | "Shocking";
+/** An answer to a post's vote. Which answers a vote offers, and their wording, come from its main subcategory (VoteFor). Stored by name: add new ones at the end. */
+export type VoteChoice = "FilmingDriver" | "OtherRoadUser" | "Both" | "Nobody" | "Minor" | "Careless" | "Dangerous" | "Shocking" | "No" | "Maybe" | "Yes" | "Blocked" | "PartlyBlocked" | "RoomToPass" | "BadParking" | "FairEnough" | "CantTell" | "Safe" | "Risky" | "Unclear" | "BadDriving" | "FarTooClose" | "TooClose" | "Fine" | "Clearly" | "Probably" | "NotReally" | "ClearlyRanIt" | "AmberGamble" | "HardToTell" | "GaveEnoughRoom" | "Heated" | "Aggressive" | "Threatening" | "Serious" | "VerySerious" | "FairMistake";
+
+/** The 13 groups the types of bad driving are listed under (owner signed off the categories doc, 23 Oct 2026). Stored by name. */
+export type IncidentGroup = "Parking" | "Speeding" | "Overtaking" | "Junctions" | "LaneDiscipline" | "FollowingTooClose" | "Distraction" | "RedLightsAndCrossings" | "VulnerableRoadUsers" | "RoadRage" | "Collisions" | "VehiclesAndDrivers" | "Motorways";
 
 /** The content screening queues moderators work through. */
 export type ScreeningQueue = "Held" | "Flagged";
@@ -8062,6 +8076,8 @@ export interface CategoryShareDto {
     category: IncidentCategory;
     count: number;
     percent: number;
+    /** The group the subcategory is listed under. */
+    group: IncidentGroup;
 }
 
 /** A place name (usually a road and town, e.g. "A57 Warrington Road, Prescot") and its incidents. */
@@ -8306,6 +8322,8 @@ export interface CategoryTrendDto {
     previousTotal: number | null;
     changePercent: number | null;
     points: number[];
+    /** The group the subcategory is listed under. */
+    group: IncidentGroup;
 }
 
 /** How the trend lines are bucketed: days up to 92 days, weeks (from Monday) up to two years, then months. */

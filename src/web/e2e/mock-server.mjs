@@ -727,7 +727,9 @@ async function api(req, res, url) {
     if (a.remaining === 0) return dailyLimit(a);
     const category = url.searchParams.get("category");
     const group = url.searchParams.get("group");
-    const all = db.posts.filter((p) => isReel(p) && (!category || p.types.includes(category)) && inGroup(p, group));
+    const all = db.posts.filter(
+      (p) => isReel(p) && (!category || p.types.includes(category)) && inGroup(p, group),
+    );
     const start = Number(url.searchParams.get("cursor") ?? 0);
     const size = Math.min(Number(url.searchParams.get("pageSize") ?? 10), a.remaining ?? 10);
     const items = all.slice(start, start + size);

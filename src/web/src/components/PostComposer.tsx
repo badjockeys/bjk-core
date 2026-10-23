@@ -1665,7 +1665,9 @@ function TypesPanel({
             {results.length > 0 ? (
               results.map((info) => box(info, true))
             ) : (
-              <p className="small muted">Nothing matches. Try another word, or pick an Other below a group.</p>
+              <p className="small muted">
+                Nothing matches. Try another word, or pick an Other below a group.
+              </p>
             )}
           </fieldset>
         ) : (
