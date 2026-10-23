@@ -460,7 +460,6 @@ function postDto(p, viewer) {
     passengers: passengersFor(p, viewer),
     vehicle: p.vehicle,
     reportedToPolice: p.reportedToPolice,
-    filmedFrom: p.filmedFrom ?? null,
     incidentAt: p.incidentAt,
     location: { latitude: p.latitude, longitude: p.longitude, placeName: p.placeName },
     status: p.status,
@@ -1638,44 +1637,6 @@ async function api(req, res, url) {
   if (path === "/api/vehicles" && method === "GET") {
     return send(res, 200, VEHICLES);
   }
-  // Household cars (owner, 22 Oct 2026): make, model, colour and nickname; never a registration.
-  if (path.startsWith("/api/vehicles/mine")) {
-    if (!requireUser()) return;
-    db.cars ??= [];
-    const carDto = (c) => ({
-      id: c.id,
-      make: c.make,
-      model: c.model,
-      colour: c.colour,
-      nickname: c.nickname,
-    });
-    const id = path.split("/")[4];
-    if (!id && method === "GET") return send(res, 200, db.cars.filter((c) => c.userId === me).map(carDto));
-    if (method === "POST" || method === "PUT") {
-      const body = await json();
-      if (!body.make) return invalid(res, "Make", "Choose the make.");
-      const nickname = (body.nickname?.trim() || `${body.make} ${body.model ?? ""}`).trim();
-      let car = db.cars.find((c) => c.id === id && c.userId === me);
-      if (method === "PUT" && !car) return problem(res, 404, "Car not found.");
-      if (!car) {
-        if (db.cars.filter((c) => c.userId === me).length >= 5)
-          return invalid(res, "Cars", "You can add up to 5 cars. Delete one first.");
-        car = { id: randomUUID(), userId: me };
-        db.cars.push(car);
-      }
-      Object.assign(car, {
-        make: body.make,
-        model: body.model ?? null,
-        colour: body.colour ?? null,
-        nickname,
-      });
-      return send(res, 200, carDto(car));
-    }
-    if (method === "DELETE") {
-      db.cars = db.cars.filter((c) => !(c.id === id && c.userId === me));
-      return send(res, 204);
-    }
-  }
   // Places and home areas
   if (path === "/api/places" && method === "GET") {
     if (!requireUser()) return;
@@ -1893,10 +1854,6 @@ async function api(req, res, url) {
             }
           : null,
         reportedToPolice: body.reportedToPolice ?? null,
-        filmedFrom: (() => {
-          const car = (db.cars ?? []).find((c) => c.id === body.filmedFromCarId && c.userId === me);
-          return car ? { carId: car.id, label: car.nickname } : null;
-        })(),
         placeName: body.placeName,
         isSensitive: body.isSensitive,
         mediaState: pending ? "Pending" : "Ready",

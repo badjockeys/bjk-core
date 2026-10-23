@@ -33,13 +33,13 @@ export function FeedHeader({ viewer, title = "Home" }: { viewer: Viewer; title?:
 }
 
 /**
- * Desktop: "Seen some bad driving, Aaron?" at the top of the feed, which pops out the composer in a dialog. Members
- * without a profile yet get the same bar linking to /post/new, which asks them to make one first.
+ * Desktop: the "Caught some bad driving?" card at the top of the feed, whose "+ Post" pops out the composer in a
+ * dialog. Members without a profile yet get the same card linking to /post/new, which asks them to make one first.
  */
 export function Composer({ viewer }: { viewer: Viewer }) {
   const data = inlineComposerProps(viewer);
   if (data) {
     return <ComposerBar {...data} />;
   }
-  return <ComposerLinkBar name={viewer.displayName ?? viewer.email ?? "You"} avatarUrl={viewer.avatarUrl} />;
+  return <ComposerLinkBar />;
 }

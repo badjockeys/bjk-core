@@ -15,18 +15,28 @@ test.describe("posting", () => {
     const post = page.getByRole("button", { name: "Post", exact: true });
     await expect(post).toBeDisabled();
     await expect(page.getByText("Still needed: photos or a video, title")).toBeVisible();
+    // No placeholder for photos or a video until something is picked, and no sensitive tick box or "Filmed from".
+    await expect(page.getByRole("group", { name: "Your photos" })).toHaveCount(0);
+    await expect(page.getByText(/Shows serious injuries/)).toHaveCount(0);
+    await expect(page.getByText(/Filmed from/)).toHaveCount(0);
 
     await page
-      .getByTestId("photo-input")
+      .getByTestId("media-input")
       .setInputFiles({ name: "parking.png", mimeType: "image/png", buffer: PNG });
-    await expect(page.getByText("1 of 10")).toBeVisible();
+    await expect(page.getByRole("group", { name: "Your photos" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Remove photo 1" })).toBeVisible();
+    // One picker for both, but a post can't mix them.
+    await page
+      .getByTestId("media-input")
+      .setInputFiles({ name: "clip.mp4", mimeType: "video/mp4", buffer: Buffer.from("not really a video") });
+    await expect(page.getByText("A post has photos or one video, not both.")).toBeVisible();
 
     await page.getByLabel("Title").fill("Parked on the zigzags outside the school");
     await page.getByLabel("What happened? (optional)").fill("Right on the zigzags at home time.");
     await expect(page.getByText("34 / 500")).toBeVisible();
 
     // Several types, found by searching: each shows as a tag, the first chosen is the main one.
-    await page.getByRole("button", { name: "What kind of bad driving?" }).click();
+    await page.getByRole("button", { name: "Type of bad driving", exact: true }).click();
     const search = page.getByLabel("Search the types of bad driving");
     await search.fill("zig");
     await page.getByLabel("On school zig-zags").check();
@@ -37,14 +47,14 @@ test.describe("posting", () => {
     await page.getByRole("button", { name: "Done · 2 chosen" }).click();
     await expect(page.getByRole("button", { name: "Remove Phone in hand" })).toBeVisible();
 
-    await page.getByRole("button", { name: "Add where it happened" }).click();
+    await page.getByRole("button", { name: "Where it happened", exact: true }).click();
     await page.getByLabel("Road and town").fill("Kirkstall Road, Leeds");
     await page.getByRole("button", { name: "Use my location" }).click();
     await page.getByRole("button", { name: "Use this place" }).click();
     await expect(page.getByRole("button", { name: "Where: Kirkstall Road, Leeds. Change" })).toBeVisible();
 
     // The vehicle, from lists. Whether it was reported isn't asked: that's offered under the post.
-    await page.getByRole("button", { name: "Add the vehicle" }).click();
+    await page.getByRole("button", { name: "The vehicle", exact: true }).click();
     await page.getByLabel("Car", { exact: true }).check();
     await page.getByLabel("Make").selectOption("BMW");
     await page.getByLabel("Model").selectOption("3 Series");
@@ -79,7 +89,7 @@ test.describe("posting", () => {
     page,
   }) => {
     await signIn(page, "/");
-    const open = page.getByRole("button", { name: "Seen some bad driving, Road?" });
+    const open = page.getByRole("button", { name: "+ Post", exact: true });
     await open.click();
 
     // A pop-out dialog, like Facebook; its panels open in the same dialog.
@@ -92,23 +102,26 @@ test.describe("posting", () => {
     await dialog.getByRole("button", { name: "Close", exact: true }).click();
     await expect(dialog).toBeHidden();
 
-    // Type and Location under the bar open the dialog on that step.
-    await page.getByRole("button", { name: "Location", exact: true }).click();
+    // The icons under "Add to your post" open their panels in the same dialog. Passengers only shows for driving.
+    await open.click();
+    await expect(dialog.getByRole("button", { name: "Passengers", exact: true })).toHaveCount(0);
+    await dialog.getByRole("button", { name: "Where it happened", exact: true }).click();
     await expect(page.getByRole("dialog", { name: "Where did it happen?" })).toBeVisible();
     await dialog.getByRole("button", { name: "Back to your post" }).click();
-    await dialog.getByRole("button", { name: "Close", exact: true }).click();
-    await expect(dialog).toBeHidden();
 
-    await page.getByRole("button", { name: "Type", exact: true }).click();
+    await dialog.getByRole("button", { name: "Type of bad driving", exact: true }).click();
     await expect(page.getByRole("dialog", { name: "What kind of bad driving?" })).toBeVisible();
     // Open a group and pick from it.
     await dialog.locator("summary", { hasText: "Following too close" }).click();
     await dialog.getByLabel("Tailgating").check();
     await dialog.getByRole("button", { name: "Done · 1 chosen" }).click();
     await expect(page.getByRole("dialog", { name: "Create post" })).toBeVisible();
+    await expect(
+      dialog.getByRole("button", { name: "Type of bad driving: Tailgating. Change" }),
+    ).toBeVisible();
 
     await dialog
-      .getByTestId("photo-input")
+      .getByTestId("media-input")
       .setInputFiles({ name: "tailgate.png", mimeType: "image/png", buffer: PNG });
     await dialog.getByLabel("Title").fill("Tailgated for two miles on the A57");
     await dialog.getByRole("button", { name: "Where it happened", exact: true }).click();
@@ -120,7 +133,8 @@ test.describe("posting", () => {
     ).toBeVisible();
 
     // Driving incidents can have passengers: they're asked to accept before their name shows.
-    await dialog.getByRole("button", { name: "Tag a passenger" }).click();
+    await dialog.getByRole("button", { name: "Passengers", exact: true }).click();
+    await expect(page.getByRole("dialog", { name: "Who was in your vehicle?" })).toBeVisible();
     // Not yourself: the author can't be their own passenger.
     const passenger = dialog.getByLabel("Passenger's name or username");
     await passenger.fill("@roadhog");
@@ -132,6 +146,7 @@ test.describe("posting", () => {
     await expect(people.getByRole("option").first()).toContainText("Lane One Larry");
     await expect(people.getByRole("option").first()).toContainText("@lane_one_larry · Follows you");
     await people.getByRole("option", { name: /Lane One Larry/ }).click();
+    await dialog.getByRole("button", { name: "Done · 1 passenger" }).click();
     await expect(dialog.getByRole("button", { name: "Remove @lane_one_larry" })).toBeVisible();
 
     await dialog.getByLabel(/I took these photos/).check();
@@ -150,12 +165,12 @@ test.describe("posting", () => {
     page,
   }) => {
     await signIn(page, "/");
-    const open = page.getByRole("button", { name: "Seen some bad driving, Road?" });
+    const open = page.getByRole("button", { name: "+ Post", exact: true });
     const dialog = page.getByRole("dialog");
     const close = dialog.getByRole("button", { name: "Close", exact: true });
     await open.click();
     await dialog
-      .getByTestId("photo-input")
+      .getByTestId("media-input")
       .setInputFiles({ name: "parked.png", mimeType: "image/png", buffer: PNG });
     await dialog.getByLabel("Title").fill("Parked across the dropped kerb");
     await expect(dialog.getByText("Uploading…")).toBeHidden();
@@ -184,11 +199,11 @@ test.describe("posting", () => {
     await open.click();
     await dialog.getByRole("button", { name: /You have 1 draft saved/ }).click();
     await dialog.getByRole("button", { name: "Open Parked across the dropped kerb" }).click();
-    await dialog.getByRole("button", { name: "What kind of bad driving?" }).click();
+    await dialog.getByRole("button", { name: "Type of bad driving", exact: true }).click();
     await dialog.getByLabel("Search the types of bad driving").fill("dropped");
     await dialog.getByLabel("Blocking a driveway or dropped kerb").check();
     await dialog.getByRole("button", { name: "Done · 1 chosen" }).click();
-    await dialog.getByRole("button", { name: "Add where it happened" }).click();
+    await dialog.getByRole("button", { name: "Where it happened", exact: true }).click();
     await dialog.getByLabel("Road and town").fill("The Headrow, Leeds");
     await dialog.getByRole("button", { name: "Use my location" }).click();
     await dialog.getByRole("button", { name: "Use this place" }).click();
@@ -516,7 +531,7 @@ test("your vault keeps clips you add, which you can post or delete", async ({ pa
   // Posting it opens the composer with the clip already added.
   await clip.getByRole("link", { name: "Post dashcam-still.png" }).click();
   await expect(page).toHaveURL(/\/post\/new\?vault=[0-9a-f-]{36}$/);
-  await expect(page.getByText("1 of 10")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Remove photo 1" })).toBeVisible();
 
   // Deleting asks first.
   await page.goto("/account/vault?c=uploads");
@@ -566,21 +581,4 @@ test("a Premium author opens their post's analytics, as charts or a table", asyn
 
   await dialog.getByRole("button", { name: "Show as a table" }).click();
   await expect(dialog.getByRole("columnheader", { name: "Shares" })).toBeVisible();
-});
-
-test("members keep their household cars and pick one when posting", async ({ page }) => {
-  await signIn(page, "/account/cars");
-  await expect(page.getByText("No cars yet.")).toBeVisible();
-  await page.getByRole("button", { name: "Add a car" }).click();
-  const form = page.getByRole("form", { name: "Add a car" });
-  await form.getByLabel("Make").selectOption("BMW");
-  await form.getByLabel(/Model/).selectOption("3 Series");
-  await expect(form.getByText("Shown on your posts as “Filmed from: BMW 3 Series”.")).toBeVisible();
-  await form.getByLabel(/Nickname/).fill("The school-run BMW");
-  await form.getByRole("button", { name: "Add car" }).click();
-  await expect(page.getByRole("list", { name: "Your cars" }).getByText("The school-run BMW")).toBeVisible();
-
-  await page.goto("/post/new");
-  await expect(page.getByLabel(/Filmed from/)).toBeVisible();
-  await page.getByLabel(/Filmed from/).selectOption({ label: "The school-run BMW" });
 });

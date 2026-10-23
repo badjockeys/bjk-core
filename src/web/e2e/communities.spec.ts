@@ -48,14 +48,14 @@ test.describe("sharing when posting", () => {
   }) => {
     await signIn(page, "/post/new");
     await page
-      .getByTestId("photo-input")
+      .getByTestId("media-input")
       .setInputFiles({ name: "parking.png", mimeType: "image/png", buffer: PNG });
     await page.getByLabel("Title").fill("Across two bays on Deansgate");
-    await page.getByRole("button", { name: "What kind of bad driving?" }).click();
+    await page.getByRole("button", { name: "Type of bad driving", exact: true }).click();
     await page.getByLabel("Search the types of bad driving").fill("two bays");
     await page.getByLabel("Across two bays").check();
     await page.getByRole("button", { name: "Done · 1 chosen" }).click();
-    await page.getByRole("button", { name: "Add where it happened" }).click();
+    await page.getByRole("button", { name: "Where it happened", exact: true }).click();
     await page.getByLabel("Road and town").fill("Deansgate, Manchester");
     await page.getByRole("button", { name: "Use my location" }).click();
     await page.getByRole("button", { name: "Use this place" }).click();

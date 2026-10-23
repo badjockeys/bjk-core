@@ -493,3 +493,47 @@ export function SendIcon({ color = "#FFFFFF", ...p }: IconProps) {
     </Svg>
   );
 }
+
+/** Photos or a video: one picker for both (composer, owner sign-off 23 Oct 2026). */
+export function MediaIcon({ color = INK, ...p }: IconProps) {
+  return (
+    <Svg size={24} {...p}>
+      <rect x="2" y="4" width="15" height="12" rx="2" fill="none" stroke={color} strokeWidth="2" />
+      <path d="M2 13l4-4 3 3 2-2 3 3" fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" />
+      <path d="M17 10l5-3v10l-5-3" fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" />
+      <path d="M5 20h12" stroke={color} strokeWidth="2" strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+export function CarIcon({ color = INK, ...p }: IconProps) {
+  return (
+    <Svg size={24} {...p}>
+      <path
+        d="M3 16v-4l2.5-5h13L21 12v4M3 16h18M3 16v2h3v-2M18 16v2h3v-2"
+        fill="none"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+      <circle cx="7.5" cy="13" r="1.2" fill={color} />
+      <circle cx="16.5" cy="13" r="1.2" fill={color} />
+    </Svg>
+  );
+}
+
+export function PeopleIcon({ color = INK, ...p }: IconProps) {
+  return (
+    <Svg size={24} {...p}>
+      <circle cx="9" cy="8" r="3.5" fill="none" stroke={color} strokeWidth="2" />
+      <path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6" fill="none" stroke={color} strokeWidth="2" />
+      <path
+        d="M16 4.6a3.5 3.5 0 010 6.8M18 14.4c2.1.8 3.5 2.9 3.5 5.6"
+        fill="none"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
