@@ -394,3 +394,28 @@ test("new members get three welcome steps after making a profile", async ({ page
   await page.getByRole("link", { name: "Start browsing" }).click();
   await expect(page).toHaveURL(/\/$/);
 });
+
+test("authors download their video for TikTok, Reels and Shorts, with a caption to paste", async ({
+  page,
+  request,
+}) => {
+  await request.post("http://localhost:4010/__next-user", { data: "dave" });
+  await signIn(page, `/p/${SEED.videoPost}`);
+  await page.getByRole("button", { name: "Edit or delete your post" }).click();
+  await page.getByRole("menuitem", { name: "Download for TikTok, Reels and Shorts" }).click();
+
+  const dialog = page.getByRole("dialog", { name: "Share on TikTok, Reels and Shorts" });
+  await expect(dialog.getByText(/Making your video/)).toBeVisible();
+  const download = dialog.getByRole("link", { name: "Download video" });
+  await expect(download).toHaveAttribute("href", /\/share\/m-4\/vertical\.mp4$/);
+  await expect(dialog.getByLabel("Caption to paste")).toHaveValue(
+    new RegExp(`^Undertaking a lorry on the M62[\\s\\S]*/p/${SEED.videoPost}[\\s\\S]*#dashcam`),
+  );
+});
+
+test("other people's videos can't be downloaded for sharing", async ({ page }) => {
+  await signIn(page, `/p/${SEED.videoPost}`);
+  await page.getByRole("button", { name: "More: report or copy link" }).click();
+  await expect(page.getByRole("menuitem", { name: "Copy link" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: /TikTok/ })).toHaveCount(0);
+});

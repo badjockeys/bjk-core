@@ -575,6 +575,11 @@ locally it uses the real head-turn check and stand-ins for Yoti that answer age 
   12 months, custom). The ranges follow the heat map's plan limits (Free and visitors: 7 days; Premium: 12 months;
   Premium +: 5 years), and Premium can narrow it to an area around a place. Signed-out answers are cached for five
   minutes.
+- **Sharing to other apps:** on your own video post, the ⋯ menu's **Download for TikTok, Reels and Shorts** asks the
+  API for a vertical copy (`POST`/`GET /api/media/{id}/share-copy`; the media worker makes it from the blurred, silent
+  video, with a watermark and end card), then offers the download and a caption to paste with the link back. Only the
+  poster can download it; photos and sensitive posts can't. Post links shared anywhere show the video in the preview
+  (`og:video`), except for sensitive posts.
 - **Hashtags** in posts' titles and descriptions link to the tag's page (`/tag/m62`, from
   `GET /api/posts?hashtag=`). Typing `#` in the composer suggests tags, most used first (`GET /api/hashtags`). The
   right panel's **Trending** card lists the hashtags and towns with the most posts today against their usual level

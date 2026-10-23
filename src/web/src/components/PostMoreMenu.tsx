@@ -7,17 +7,19 @@ import { deletePost, reportPost, setCommentSetting } from "@/actions/posts";
 import { blockUser } from "@/actions/profiles";
 import { followBlocker } from "@/lib/blockers";
 import { postPath } from "@/lib/paths";
+import { shareCaption, type ShareCaptionPost } from "@/lib/share-video";
 import type { CommentSetting } from "@/lib/types";
 
 import { MoreIcon } from "./icons";
 import { Menu, type MenuItem } from "./Menu";
 import { ReportDialog } from "./ReportDialog";
+import { ShareVideoDialog } from "./ShareVideoDialog";
 import { copyLink } from "./ShareButton";
 import { toast } from "./toast";
 
 /**
- * The ⋯ on a post: copy the link; report it or block its author; or, on your own post, turn comments off or on and
- * delete it.
+ * The ⋯ on a post: copy the link; report it or block its author; or, on your own post, download the video for
+ * TikTok, Reels and Shorts, turn comments off or on, and delete it.
  */
 export function PostMoreMenu({
   postId,
@@ -28,6 +30,7 @@ export function PostMoreMenu({
   className = "icon-btn tw-more",
   afterDelete = "refresh",
   commentSetting,
+  shareVideo,
 }: {
   postId: string;
   title: string;
@@ -38,12 +41,18 @@ export function PostMoreMenu({
   afterDelete?: "refresh" | "home";
   /** Your own post: who can comment now, for the "Turn off comments" or "Turn on comments" item. */
   commentSetting?: CommentSetting;
+  /** Your own video post that can be shared (see `shareableVideoId`): the video, and what the caption is made from. */
+  shareVideo?: { mediaId: string; post: ShareCaptionPost } | null;
 }) {
   const router = useRouter();
   const [reporting, setReporting] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const link = () => new URL(postPath(postId), window.location.origin).href;
 
   const items: MenuItem[] = [{ label: "Copy link", onSelect: () => void copyLink(link()) }];
+  if (isMine && shareVideo) {
+    items.push({ label: "Download for TikTok, Reels and Shorts", onSelect: () => setSharing(true) });
+  }
   if (isMine && commentSetting) {
     // Who can comment: everyone, only people you follow, or nobody. The ones already there always stay.
     const change = (setting: CommentSetting, done: string) => async () => {
@@ -138,6 +147,14 @@ export function PostMoreMenu({
       >
         <MoreIcon />
       </Menu>
+      {isMine && shareVideo && sharing ? (
+        <ShareVideoDialog
+          mediaId={shareVideo.mediaId}
+          caption={shareCaption(shareVideo.post, link())}
+          open
+          onClose={() => setSharing(false)}
+        />
+      ) : null}
       {signedIn && !isMine ? (
         <ReportDialog
           open={reporting}

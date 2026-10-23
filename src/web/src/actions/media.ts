@@ -2,7 +2,7 @@
 
 import { api } from "@/lib/api";
 import type { ActionResult } from "@/lib/action-result";
-import type { MediaDto, RequestUploadResult } from "@/lib/types";
+import type { MediaDto, RequestUploadResult, ShareCopyDto } from "@/lib/types";
 
 import { asUser } from "./run";
 
@@ -25,6 +25,16 @@ export async function completeUpload(mediaId: string): Promise<ActionResult<Medi
 
 export async function getMedia(mediaId: string): Promise<ActionResult<MediaDto>> {
   return asUser((t) => api().media.get(t, mediaId));
+}
+
+/** Ask for your video's vertical copy for TikTok, Reels, Shorts and X (owner only). */
+export async function requestShareCopy(mediaId: string): Promise<ActionResult<ShareCopyDto>> {
+  return asUser((t) => api().media.requestShareCopy(t, mediaId));
+}
+
+/** Your video's vertical copy: whether it's made yet, with a short-lived download link once it is. */
+export async function getShareCopy(mediaId: string): Promise<ActionResult<ShareCopyDto>> {
+  return asUser((t) => api().media.shareCopy(t, mediaId));
 }
 
 /** Remove an upload that's no longer wanted (taken off the new post before posting). */

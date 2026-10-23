@@ -3732,3 +3732,19 @@ dialog.composer-dialog::backdrop {
   padding: 0;
   list-style: none;
 }
+
+/* "Download for TikTok, Reels and Shorts" (owner, 23 Oct 2026). */
+.share-making {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.share-caption {
+  margin-top: 16px;
+  gap: 8px;
+}
+
+.share-caption .btn {
+  align-self: flex-start;
+}
