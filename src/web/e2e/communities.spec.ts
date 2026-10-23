@@ -110,3 +110,31 @@ test("replying to someone's discussion tells them", async ({ page, request }) =>
     page.getByRole("link", { name: /replied to your discussion “Mancunian Way roadworks”/ }),
   ).toHaveAttribute("href", "/communities/manchester-road-watch/d/d0000000-0000-4000-8000-000000000001");
 });
+
+test("an author shares a post that's already up into another community", async ({ page, request }) => {
+  await request.post(`${MOCK}/__next-user`, { data: "dave" });
+  await signIn(page, `/p/${SEED.photoPost}`);
+
+  await page.getByRole("button", { name: "Edit or delete your post" }).click();
+  await page.getByRole("menuitem", { name: "Share to a community" }).click();
+  const dialog = page.getByRole("dialog", { name: "Share to a community" });
+  const already = dialog.getByRole("checkbox", { name: /Manchester Road Watch/ });
+  await expect(already).toBeChecked();
+  await expect(already).toBeDisabled();
+  await expect(dialog.getByText("Already shared here")).toBeVisible();
+
+  const share = dialog.getByRole("button", { name: "Share", exact: true });
+  await expect(share).toBeDisabled();
+  await dialog.getByRole("checkbox", { name: /Cyclists/ }).check();
+  await share.click();
+  await expect(page.getByText("Shared to 1 community")).toBeVisible();
+  await expect(dialog).toBeHidden();
+
+  // Still one post: it's now listed in both communities.
+  const state = await (await request.get(`${MOCK}/__state`)).json();
+  const shares = state.communityPosts.filter((s: { postId: string }) => s.postId === SEED.photoPost);
+  expect(shares.map((s: { communityId: string }) => s.communityId).sort()).toEqual([
+    "c0000000-0000-4000-8000-000000000001",
+    "c0000000-0000-4000-8000-000000000003",
+  ]);
+});
