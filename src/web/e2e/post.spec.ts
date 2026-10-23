@@ -185,7 +185,8 @@ test.describe("posting", () => {
     await dialog.getByRole("button", { name: /You have 1 draft saved/ }).click();
     await dialog.getByRole("button", { name: "Open Parked across the dropped kerb" }).click();
     await dialog.getByRole("button", { name: "What kind of bad driving?" }).click();
-    await dialog.getByLabel("Bad parking").check();
+    await dialog.getByLabel("Search the types of bad driving").fill("dropped");
+    await dialog.getByLabel("Blocking a driveway or dropped kerb").check();
     await dialog.getByRole("button", { name: "Done · 1 chosen" }).click();
     await dialog.getByRole("button", { name: "Add where it happened" }).click();
     await dialog.getByLabel("Road and town").fill("The Headrow, Leeds");
@@ -193,18 +194,6 @@ test.describe("posting", () => {
     await dialog.getByRole("button", { name: "Use this place" }).click();
     await dialog.getByLabel(/I took these photos/).check();
     await dialog.getByRole("button", { name: "Post", exact: true }).click();
-    await composer.getByRole("button", { name: /You have 1 draft saved/ }).click();
-    await panel.getByRole("button", { name: "Open Parked across the dropped kerb" }).click();
-    await composer.getByRole("button", { name: "What kind of bad driving?" }).click();
-    await panel.getByLabel("Search the types of bad driving").fill("dropped");
-    await panel.getByLabel("Blocking a driveway or dropped kerb").check();
-    await panel.getByRole("button", { name: "Done · 1 chosen" }).click();
-    await composer.getByRole("button", { name: "Add where it happened" }).click();
-    await panel.getByLabel("Road and town").fill("The Headrow, Leeds");
-    await panel.getByRole("button", { name: "Use my location" }).click();
-    await panel.getByRole("button", { name: "Use this place" }).click();
-    await composer.getByLabel(/I took these photos/).check();
-    await composer.getByRole("button", { name: "Post", exact: true }).click();
     await expect(page.getByText(/Posted\. Thanks for sharing\./)).toBeVisible();
 
     await open.click();
