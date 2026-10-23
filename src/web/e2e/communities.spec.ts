@@ -52,7 +52,8 @@ test.describe("sharing when posting", () => {
       .setInputFiles({ name: "parking.png", mimeType: "image/png", buffer: PNG });
     await page.getByLabel("Title").fill("Across two bays on Deansgate");
     await page.getByRole("button", { name: "What kind of bad driving?" }).click();
-    await page.getByRole("group", { name: "Types of bad driving" }).getByLabel("Bad parking").check();
+    await page.getByLabel("Search the types of bad driving").fill("two bays");
+    await page.getByLabel("Across two bays").check();
     await page.getByRole("button", { name: "Done · 1 chosen" }).click();
     await page.getByRole("button", { name: "Add where it happened" }).click();
     await page.getByLabel("Road and town").fill("Deansgate, Manchester");
