@@ -131,34 +131,40 @@ function createQueue(limit: number): UploadQueue {
 
 export interface PostComposerProps {
   /**
-   * "inline": at the top of the feed on desktop, like X (the panels open as small pop-ups over it); "page": the
-   * /post/new page, which fills the screen on phones.
+   * "dialog": a pop-out "Create post" dialog over the feed on desktop, like Facebook (owner feedback, 22 Oct 2026);
+   * its panels open in the same dialog. "page": the /post/new page, which fills the screen on phones.
    */
-  mode: "inline" | "page";
+  mode: "dialog" | "page";
+  /** Dialog only: what the bar under "Seen some bad driving?" asked for, so the dialog opens on it. */
+  start?: ComposerStart;
   defaultDate: string;
   defaultTime: string;
   tileUrl: string;
   attribution: string;
   emailVerified: boolean;
   author: { name: string; avatarUrl: string | null };
-  /** Inline only: the composer was closed (cancelled, discarded or kept as a draft). */
+  /** Dialog only: the composer was closed (cancelled, discarded or kept as a draft). */
   onClose?: () => void;
-  /** Inline only: the post went up. */
+  /** Dialog only: the post went up. */
   onPosted?: (post: { id: string; kind: "Image" | "Video" }) => void;
 }
 
 /** What the composer needs from a signed-in member with a profile (app/post/new/composer-props.ts). */
-export type ComposerData = Omit<PostComposerProps, "mode" | "onClose" | "onPosted">;
+export type ComposerData = Omit<PostComposerProps, "mode" | "start" | "onClose" | "onPosted">;
+
+/** Where the dialog opens: the form, the file picker, the types of bad driving, or where it happened. */
+export type ComposerStart = "compose" | "photos" | "types" | "where";
 
 /**
  * The new post composer (approved mock-ups, 20 Oct 2026): like Facebook or X, everything on one screen. Title, what
  * happened (up to 500 characters), photos or a video, then the details as chips: the types of bad driving (several),
  * when and where, each opening a panel in place. Post is enabled once nothing required is missing, and the footer
- * says what still is. On desktop it sits at the top of the feed (UI overhaul, 20 Oct 2026); on phones it fills the
- * screen.
+ * says what still is. On desktop it pops out in a dialog from the top of the feed, like Facebook (owner feedback,
+ * 22 Oct 2026); on phones it fills the screen.
  */
 export function PostComposer({
   mode,
+  start = "compose",
   defaultDate,
   defaultTime,
   tileUrl,
@@ -169,7 +175,9 @@ export function PostComposer({
   onPosted,
 }: PostComposerProps) {
   const router = useRouter();
-  const [view, setView] = useState<View>("compose");
+  const [view, setView] = useState<View>(
+    mode === "dialog" && (start === "types" || start === "where") ? start : "compose",
+  );
   const [items, setItems] = useState<Item[]>([]);
   const [videoFile, setVideoFile] = useState<{ file: File; type: string } | null>(null);
   const [mediaError, setMediaError] = useState<string | null>(null);
@@ -199,7 +207,7 @@ export function PostComposer({
   const [savingDraft, startSavingDraft] = useTransition();
   const photoInput = useRef<HTMLInputElement>(null);
   const videoInput = useRef<HTMLInputElement>(null);
-  const picker = useRef<HTMLDialogElement>(null);
+  const sheet = useRef<HTMLDialogElement>(null);
   const title = useRef<HTMLInputElement>(null);
   const text = useRef<HTMLTextAreaElement>(null);
   const uploads = useRef<UploadQueue | null>(null);
@@ -395,7 +403,8 @@ export function PostComposer({
   }, []);
 
   const close = () => {
-    if (mode === "inline") {
+    if (mode === "dialog") {
+      leaveGuard.current = false;
       onClose?.();
     } else if (window.history.length > 1) {
       router.back();
@@ -524,28 +533,32 @@ export function PostComposer({
     return result;
   };
 
-  // Inline: the title is ready to type into as soon as the composer opens.
+  // Dialog: it opens as soon as it's shown, with the title ready to type into (or the file picker, if that's what
+  // was asked for: the click that opened the dialog still counts as the person's, so the browser allows it).
+  const opened = useRef(false);
   useEffect(() => {
-    if (mode === "inline") {
-      title.current?.focus();
+    const element = sheet.current;
+    if (mode !== "dialog" || !element || opened.current) {
+      return;
     }
-  }, [mode]);
-
-  // Inline: the panels (types, when, where, vehicle, drafts, leaving) open as a small pop-up over the feed.
-  useEffect(() => {
-    const element = picker.current;
-    if (mode === "inline" && element && view !== "compose" && !element.open) {
+    opened.current = true;
+    if (!element.open) {
       element.showModal();
     }
-  }, [mode, view]);
+    if (start === "photos") {
+      photoInput.current?.click();
+    } else if (start === "compose") {
+      title.current?.focus();
+    }
+  }, [mode, start]);
 
-  // Inline: leaving the page with a post started asks first (the browser's own prompt).
+  // Dialog: leaving the page with a post started asks first (the browser's own prompt).
   const leaveGuard = useRef(false);
   useEffect(() => {
     leaveGuard.current = started;
   }, [started]);
   useEffect(() => {
-    if (mode !== "inline") {
+    if (mode !== "dialog") {
       return;
     }
     const warn = (event: BeforeUnloadEvent) => {
@@ -662,7 +675,7 @@ export function PostComposer({
         setSubmitError(result.error);
         return;
       }
-      if (mode === "inline") {
+      if (mode === "dialog") {
         leaveGuard.current = false;
         onPosted?.({ id: result.data.id, kind: kind ?? "Image" });
         router.refresh();
@@ -794,10 +807,16 @@ export function PostComposer({
 
   const compose = (
     <>
-      {mode === "inline" ? (
-        <h2 id="composer-title" className="sr-only">
-          Create post
-        </h2>
+      {mode === "dialog" ? (
+        <header className="cmp-head">
+          <span className="cmp-head-end" />
+          <h2 id="composer-title" className="cmp-heading">
+            Create post
+          </h2>
+          <button type="button" className="icon-btn icon-btn-fill" aria-label="Close" onClick={cancel}>
+            <CloseIcon />
+          </button>
+        </header>
       ) : (
         <header className="cmp-head">
           <button type="button" className="link m-only" onClick={cancel}>
@@ -1088,69 +1107,130 @@ export function PostComposer({
         ) : null}
       </form>
 
-      <footer className="cmp-foot">
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label="Add photos"
-          disabled={kind === "Video" || photosLeft <= 0}
-          onClick={() => photoInput.current?.click()}
-        >
-          <PhotoIcon size={24} color="#00B5E5" strokeWidth={2} />
-        </button>
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label="Add a video"
-          disabled={items.length > 0}
-          onClick={() => videoInput.current?.click()}
-        >
-          <VideoIcon color="#00B5E5" />
-        </button>
-        <span className="cmp-needed" aria-live="polite">
-          {needed.length > 0 ? (
-            <>
-              Still needed: <strong>{needed.join(", ")}</strong>
-            </>
-          ) : uploading > 0 ? (
-            "Uploading…"
-          ) : (
-            "Ready to post"
-          )}
-        </span>
-        {mode === "inline" ? (
-          <button type="button" className="btn btn-sm" onClick={cancel}>
-            Cancel
+      {mode === "dialog" ? (
+        <footer className="cmp-foot cmp-foot-dialog">
+          <div className="cmp-addbar">
+            <span className="cmp-addbar-label">Add to your post</span>
+            <div className="cmp-addbar-icons">
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label="Add photos"
+                disabled={kind === "Video" || photosLeft <= 0}
+                onClick={() => photoInput.current?.click()}
+              >
+                <PhotoIcon size={22} color="#00B5E5" strokeWidth={2} />
+              </button>
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label="Add a video"
+                disabled={items.length > 0}
+                onClick={() => videoInput.current?.click()}
+              >
+                <VideoIcon color="#00B5E5" />
+              </button>
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label="Type of bad driving"
+                onClick={() => setView("types")}
+              >
+                <TagIcon size={22} />
+              </button>
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label="When it happened"
+                onClick={() => setView("when")}
+              >
+                <ClockIcon size={22} color="#111111" />
+              </button>
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label="Where it happened"
+                onClick={() => setView("where")}
+              >
+                <PinIcon size={22} color="#111111" />
+              </button>
+            </div>
+          </div>
+          <span className="cmp-needed" aria-live="polite">
+            {needed.length > 0 ? (
+              <>
+                Still needed: <strong>{needed.join(", ")}</strong>
+              </>
+            ) : uploading > 0 ? (
+              "Uploading…"
+            ) : (
+              "Ready to post"
+            )}
+          </span>
+          <button type="submit" form="new-post" className="btn btn-primary btn-block" disabled={!canPost}>
+            {pending ? "Posting…" : "Post"}
           </button>
-        ) : null}
-        <button type="submit" form="new-post" className="btn btn-primary d-only" disabled={!canPost}>
-          {pending ? "Posting…" : "Post"}
-        </button>
-      </footer>
+        </footer>
+      ) : (
+        <footer className="cmp-foot">
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label="Add photos"
+            disabled={kind === "Video" || photosLeft <= 0}
+            onClick={() => photoInput.current?.click()}
+          >
+            <PhotoIcon size={24} color="#00B5E5" strokeWidth={2} />
+          </button>
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label="Add a video"
+            disabled={items.length > 0}
+            onClick={() => videoInput.current?.click()}
+          >
+            <VideoIcon color="#00B5E5" />
+          </button>
+          <span className="cmp-needed" aria-live="polite">
+            {needed.length > 0 ? (
+              <>
+                Still needed: <strong>{needed.join(", ")}</strong>
+              </>
+            ) : uploading > 0 ? (
+              "Uploading…"
+            ) : (
+              "Ready to post"
+            )}
+          </span>
+          <button type="submit" form="new-post" className="btn btn-primary d-only" disabled={!canPost}>
+            {pending ? "Posting…" : "Post"}
+          </button>
+        </footer>
+      )}
     </>
   );
 
-  if (mode === "inline") {
+  if (mode === "dialog") {
     return (
-      <section className="composer composer-inline" aria-labelledby="composer-title">
+      <dialog
+        ref={sheet}
+        className="composer composer-modal"
+        aria-labelledby={panel ? "panel-title" : "composer-title"}
+        onCancel={(event) => {
+          // Escape steps back from a panel (a video being trimmed is dropped; "Save as a draft?" means keep
+          // editing), or closes as Close does.
+          event.preventDefault();
+          if (panel) {
+            setVideoFile(null);
+            setView("compose");
+          } else {
+            cancel();
+          }
+        }}
+      >
         {fileInputs}
-        {compose}
-        {panel ? (
-          <dialog
-            ref={picker}
-            className="composer composer-dialog"
-            aria-labelledby="panel-title"
-            onCancel={(event) => {
-              // Escape steps back to the composer; a video being trimmed is dropped.
-              event.preventDefault();
-              setVideoFile(null);
-              setView("compose");
-            }}
-          >
-            {panel}
-          </dialog>
-        ) : null}
-      </section>
+        {panel ?? compose}
+      </dialog>
     );
   }
 

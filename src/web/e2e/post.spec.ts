@@ -72,58 +72,64 @@ test.describe("posting", () => {
     await expect(page.getByText("Parked on the zigzags outside the school")).toBeVisible();
   });
 
-  test("the composer opens in place at the top of the feed and folds away after posting", async ({
+  test("the composer pops out in a dialog from the top of the feed and closes after posting", async ({
     page,
   }) => {
     await signIn(page, "/");
-    const open = page.getByRole("button", { name: /Seen some bad driving/ });
+    const open = page.getByRole("button", { name: "Seen some bad driving, Road?" });
     await open.click();
 
-    // Not a pop-up: the composer opens in the feed, and its panels open as small pop-ups over it.
-    const composer = page.getByRole("region", { name: "Create post" });
-    const panel = page.getByRole("dialog");
-    await expect(composer).toBeVisible();
-    await expect(composer.getByLabel("Title")).toBeFocused();
+    // A pop-out dialog, like Facebook; its panels open in the same dialog.
+    const dialog = page.getByRole("dialog");
+    await expect(page.getByRole("dialog", { name: "Create post" })).toBeVisible();
+    await expect(dialog.getByLabel("Title")).toBeFocused();
     await expect(page).toHaveURL(/\/$/);
 
-    // Cancelling an untouched composer folds it away.
-    await composer.getByRole("button", { name: "Cancel", exact: true }).click();
-    await expect(composer).toBeHidden();
+    // Closing an untouched composer closes the dialog straight away.
+    await dialog.getByRole("button", { name: "Close", exact: true }).click();
+    await expect(dialog).toBeHidden();
 
-    await open.click();
-    await composer
+    // Type and Location under the bar open the dialog on that step.
+    await page.getByRole("button", { name: "Location", exact: true }).click();
+    await expect(page.getByRole("dialog", { name: "Where did it happen?" })).toBeVisible();
+    await dialog.getByRole("button", { name: "Back to your post" }).click();
+    await dialog.getByRole("button", { name: "Close", exact: true }).click();
+    await expect(dialog).toBeHidden();
+
+    await page.getByRole("button", { name: "Type", exact: true }).click();
+    await expect(page.getByRole("dialog", { name: "What kind of bad driving?" })).toBeVisible();
+    await dialog.getByLabel("Tailgating").check();
+    await dialog.getByRole("button", { name: "Done · 1 chosen" }).click();
+    await expect(page.getByRole("dialog", { name: "Create post" })).toBeVisible();
+
+    await dialog
       .getByTestId("photo-input")
       .setInputFiles({ name: "tailgate.png", mimeType: "image/png", buffer: PNG });
-    await composer.getByLabel("Title").fill("Tailgated for two miles on the A57");
-    await composer.getByRole("button", { name: "What kind of bad driving?" }).click();
-    await expect(page.getByRole("dialog", { name: "What kind of bad driving?" })).toBeVisible();
-    await panel.getByLabel("Tailgating").check();
-    await panel.getByRole("button", { name: "Done · 1 chosen" }).click();
-    await expect(panel).toBeHidden();
-    await composer.getByRole("button", { name: "Add where it happened" }).click();
-    await panel.getByLabel("Road and town").fill("A57 Warrington Road, Rainhill");
-    await panel.getByRole("button", { name: "Use my location" }).click();
-    await panel.getByRole("button", { name: "Use this place" }).click();
+    await dialog.getByLabel("Title").fill("Tailgated for two miles on the A57");
+    await dialog.getByRole("button", { name: "Where it happened", exact: true }).click();
+    await dialog.getByLabel("Road and town").fill("A57 Warrington Road, Rainhill");
+    await dialog.getByRole("button", { name: "Use my location" }).click();
+    await dialog.getByRole("button", { name: "Use this place" }).click();
     await expect(
-      composer.getByRole("button", { name: "Where: A57 Warrington Road, Rainhill. Change" }),
+      dialog.getByRole("button", { name: "Where: A57 Warrington Road, Rainhill. Change" }),
     ).toBeVisible();
 
     // Driving incidents can have passengers: they're asked to accept before their name shows.
-    await composer.getByRole("button", { name: "Tag a passenger" }).click();
+    await dialog.getByRole("button", { name: "Tag a passenger" }).click();
     // Not yourself: the author can't be their own passenger.
-    await composer.getByLabel("Passenger's username").fill("@roadhog");
-    await composer.getByRole("button", { name: "Add", exact: true }).click();
-    await expect(composer.getByText("You can't tag yourself.")).toBeVisible();
-    await composer.getByLabel("Passenger's username").fill("@lane_one_larry");
-    await composer.getByRole("button", { name: "Add", exact: true }).click();
-    await expect(composer.getByRole("button", { name: "Remove @lane_one_larry" })).toBeVisible();
+    await dialog.getByLabel("Passenger's username").fill("@roadhog");
+    await dialog.getByRole("button", { name: "Add", exact: true }).click();
+    await expect(dialog.getByText("You can't tag yourself.")).toBeVisible();
+    await dialog.getByLabel("Passenger's username").fill("@lane_one_larry");
+    await dialog.getByRole("button", { name: "Add", exact: true }).click();
+    await expect(dialog.getByRole("button", { name: "Remove @lane_one_larry" })).toBeVisible();
 
-    await composer.getByLabel(/I took these photos/).check();
-    await composer.getByRole("button", { name: "Post", exact: true }).click();
+    await dialog.getByLabel(/I took these photos/).check();
+    await dialog.getByRole("button", { name: "Post", exact: true }).click();
 
-    // Posted: still on the feed, the composer folded away, with a link to the post.
+    // Posted: still on the feed, the dialog closed, with a link to the post.
     await expect(page.getByText(/Posted\. Thanks for sharing\./)).toBeVisible();
-    await expect(composer).toBeHidden();
+    await expect(dialog).toBeHidden();
     await expect(page).toHaveURL(/\/$/);
     await page.getByRole("link", { name: "View post" }).click();
     await expect(page).toHaveURL(/\/p\/[0-9a-f-]{36}/);
@@ -134,54 +140,54 @@ test.describe("posting", () => {
     page,
   }) => {
     await signIn(page, "/");
-    const open = page.getByRole("button", { name: /Seen some bad driving/ });
-    const composer = page.getByRole("region", { name: "Create post" });
-    const panel = page.getByRole("dialog");
+    const open = page.getByRole("button", { name: "Seen some bad driving, Road?" });
+    const dialog = page.getByRole("dialog");
+    const close = dialog.getByRole("button", { name: "Close", exact: true });
     await open.click();
-    await composer
+    await dialog
       .getByTestId("photo-input")
       .setInputFiles({ name: "parked.png", mimeType: "image/png", buffer: PNG });
-    await composer.getByLabel("Title").fill("Parked across the dropped kerb");
-    await expect(composer.getByText("Uploading…")).toBeHidden();
+    await dialog.getByLabel("Title").fill("Parked across the dropped kerb");
+    await expect(dialog.getByText("Uploading…")).toBeHidden();
 
-    // Cancelling asks: save it as a draft, throw it away, or keep going.
-    await composer.getByRole("button", { name: "Cancel", exact: true }).click();
+    // Closing asks: save it as a draft, throw it away, or keep going.
+    await close.click();
     await expect(page.getByRole("dialog", { name: "Save this post as a draft?" })).toBeVisible();
-    await panel.getByRole("button", { name: "Save draft" }).click();
-    await expect(composer).toBeHidden();
+    await dialog.getByRole("button", { name: "Save draft" }).click();
+    await expect(dialog).toBeHidden();
 
     // Next time, the composer offers the draft; opening it brings everything back.
     await open.click();
-    await composer.getByRole("button", { name: /You have 1 draft saved/ }).click();
+    await dialog.getByRole("button", { name: /You have 1 draft saved/ }).click();
     await expect(page.getByRole("dialog", { name: "Drafts" })).toBeVisible();
-    await expect(panel.getByText("1 of 5 drafts")).toBeVisible();
-    await panel.getByRole("button", { name: "Open Parked across the dropped kerb" }).click();
-    await expect(composer.getByLabel("Title")).toHaveValue("Parked across the dropped kerb");
+    await expect(dialog.getByText("1 of 5 drafts")).toBeVisible();
+    await dialog.getByRole("button", { name: "Open Parked across the dropped kerb" }).click();
+    await expect(dialog.getByLabel("Title")).toHaveValue("Parked across the dropped kerb");
 
     // Leaving an opened draft asks about the changes; discarding them keeps the draft as it was.
-    await composer.getByRole("button", { name: "Cancel", exact: true }).click();
+    await close.click();
     await expect(page.getByRole("dialog", { name: "Save your changes?" })).toBeVisible();
-    await panel.getByRole("button", { name: "Discard changes" }).click();
-    await expect(composer).toBeHidden();
+    await dialog.getByRole("button", { name: "Discard changes" }).click();
+    await expect(dialog).toBeHidden();
 
     // Finish it and post: the draft goes.
     await open.click();
-    await composer.getByRole("button", { name: /You have 1 draft saved/ }).click();
-    await panel.getByRole("button", { name: "Open Parked across the dropped kerb" }).click();
-    await composer.getByRole("button", { name: "What kind of bad driving?" }).click();
-    await panel.getByLabel("Bad parking").check();
-    await panel.getByRole("button", { name: "Done · 1 chosen" }).click();
-    await composer.getByRole("button", { name: "Add where it happened" }).click();
-    await panel.getByLabel("Road and town").fill("The Headrow, Leeds");
-    await panel.getByRole("button", { name: "Use my location" }).click();
-    await panel.getByRole("button", { name: "Use this place" }).click();
-    await composer.getByLabel(/I took these photos/).check();
-    await composer.getByRole("button", { name: "Post", exact: true }).click();
+    await dialog.getByRole("button", { name: /You have 1 draft saved/ }).click();
+    await dialog.getByRole("button", { name: "Open Parked across the dropped kerb" }).click();
+    await dialog.getByRole("button", { name: "What kind of bad driving?" }).click();
+    await dialog.getByLabel("Bad parking").check();
+    await dialog.getByRole("button", { name: "Done · 1 chosen" }).click();
+    await dialog.getByRole("button", { name: "Add where it happened" }).click();
+    await dialog.getByLabel("Road and town").fill("The Headrow, Leeds");
+    await dialog.getByRole("button", { name: "Use my location" }).click();
+    await dialog.getByRole("button", { name: "Use this place" }).click();
+    await dialog.getByLabel(/I took these photos/).check();
+    await dialog.getByRole("button", { name: "Post", exact: true }).click();
     await expect(page.getByText(/Posted\. Thanks for sharing\./)).toBeVisible();
 
     await open.click();
-    await expect(composer).toBeVisible();
-    await expect(composer.getByRole("button", { name: /draft saved/ })).toBeHidden();
+    await expect(page.getByRole("dialog", { name: "Create post" })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: /draft saved/ })).toBeHidden();
   });
 
   test("a passenger approves their tag from the account page", async ({ page }) => {
