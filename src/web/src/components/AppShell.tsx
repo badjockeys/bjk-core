@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { joinPath, profilePath, signInPath } from "@/lib/paths";
 import type { Viewer } from "@/lib/viewer";
 
+import { AskBadJockeys, AskButton } from "./AskBadJockeys";
 import { Avatar } from "./Avatar";
 import {
   CommunitiesIcon,
@@ -35,7 +36,9 @@ export type Section =
  * The page frame. Desktop (1024 px and up): X-style navigation on the left (Home, Reels, Map, then the member's
  * links), the page in the middle and a panel on the right. Phones: the page full width, with a floating glass tab
  * bar at the bottom (Home, Reels, Map, Profile, like Instagram and Facebook; Account is on your profile) and the +
- * button, or the sign-up bar for visitors. `dark` is the reels page: a black page and a dark glass bar.
+ * button, or the sign-up bar for visitors. `dark` is the reels page: a black page and a dark glass bar. Every page
+ * but reels has a floating Ask button for Ask Bad Jockeys (the AI chat; bottom right on desktop, bottom left on phones,
+ * above the tab bar or sign-up bar); visitors and Free members see its locked preview.
  */
 export function AppShell({
   viewer,
@@ -144,6 +147,9 @@ export function AppShell({
           {aside}
         </aside>
       </div>
+
+      {dark ? null : <AskButton />}
+      <AskBadJockeys viewer={viewer} />
 
       {viewer.signedIn && fab ? (
         <Link href="/post/new" className="fab m-only" aria-label="New post">
