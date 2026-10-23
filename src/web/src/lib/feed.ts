@@ -14,9 +14,22 @@ export async function feedPage(
     return await api().posts.list(token, { ...query, page });
   } catch (error) {
     if (error instanceof ApiError && error.status === 401 && token) {
-      return api().posts.list(null, { ...query, page });
+      return anonymously(() => api().posts.list(null, { ...query, page }), "the feed");
     }
     console.error("Couldn't load the feed", error instanceof Error ? error.message : error);
+    return null;
+  }
+}
+
+/** The API refused the token: try again as a visitor; if that fails too, show the empty state, not an error page. */
+async function anonymously<T>(call: () => Promise<T>, what: string): Promise<T | null> {
+  try {
+    return await call();
+  } catch (error) {
+    console.error(
+      `Couldn't load ${what} as a visitor either`,
+      error instanceof Error ? error.message : error,
+    );
     return null;
   }
 }
@@ -42,7 +55,7 @@ export async function homePage(
     return await api().timelines.forYou(token, page);
   } catch (error) {
     if (error instanceof ApiError && error.status === 401 && token && tab.kind === "for-you") {
-      return api().timelines.forYou(null, page);
+      return anonymously(() => api().timelines.forYou(null, page), "the timeline");
     }
     if (error instanceof ApiError && error.status === 404) {
       return null;
