@@ -460,3 +460,30 @@ export function BadgeIcon(p: IconProps) {
     </Svg>
   );
 }
+
+/** Ask Bad Jockeys (the AI chat): a speech bubble with a spark. */
+export function AskIcon({ filled, ...p }: IconProps & { filled?: boolean }) {
+  return (
+    <Svg {...p}>
+      <path
+        d="M4 5.5A2.5 2.5 0 016.5 3h11A2.5 2.5 0 0120 5.5v8a2.5 2.5 0 01-2.5 2.5H11l-4.5 4v-4h0A2.5 2.5 0 014 13.5v-8z"
+        fill={filled ? INK : "none"}
+        stroke={INK}
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 6.2l.9 2.4 2.4.9-2.4.9-.9 2.4-.9-2.4-2.4-.9 2.4-.9z"
+        fill={filled ? "#FFFFFF" : "#00B5E5"}
+      />
+    </Svg>
+  );
+}
+
+export function SendIcon({ color = "#FFFFFF", ...p }: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M4 12l16-8-6 16-2.5-6.5L4 12z" fill={color} stroke={color} strokeWidth="1.4" strokeLinejoin="round" />
+    </Svg>
+  );
+}

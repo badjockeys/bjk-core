@@ -4,6 +4,7 @@ import { AppShell, FooterLinks } from "@/components/AppShell";
 import { MapIcon } from "@/components/icons";
 import { IncidentMapLoader } from "@/components/IncidentMapLoader";
 import { getViewer } from "@/lib/auth";
+import { parseMapStart } from "@/lib/chat";
 import { getConfig } from "@/lib/config";
 import { joinPath, signInPath } from "@/lib/paths";
 
@@ -12,8 +13,15 @@ export const metadata: Metadata = {
   description: "Where bad driving is reported across the UK, from rounded locations.",
 };
 
-/** Screen 28: the incident map. Members only; the map itself needs the browser (IncidentMap). */
-export default async function MapPage() {
+/**
+ * Screen 28: the incident map. Members only; the map itself needs the browser (IncidentMap). Ask Bad Jockeys' "Open on
+ * the map" links here with where to centre it and which types to show (?lat=&lng=&zoom=&types=).
+ */
+export default async function MapPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const viewer = await getViewer();
   const config = getConfig();
 
@@ -40,7 +48,11 @@ export default async function MapPage() {
 
   return (
     <AppShell viewer={viewer} section="map" returnTo="/map" bottomNav wide>
-      <IncidentMapLoader tileUrl={config.mapTileUrl} attribution={config.mapAttribution} />
+      <IncidentMapLoader
+        tileUrl={config.mapTileUrl}
+        attribution={config.mapAttribution}
+        start={parseMapStart(await searchParams)}
+      />
     </AppShell>
   );
 }

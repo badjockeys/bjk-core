@@ -34,7 +34,7 @@ It's safe to run again, and skips whatever is already done. Each run also pulls 
 
 It:
 
-1. installs whatever tools are missing (Git, GitHub CLI, .NET 10 SDK, Node.js 24, Docker Desktop, ffmpeg, VS Code) with winget on Windows or Homebrew on a Mac, plus WSL 2 on Windows and Rosetta on Apple Silicon;
+1. installs whatever tools are missing (Git, GitHub CLI, .NET 10 SDK, Node.js 24, Docker Desktop, ffmpeg, Ollama, VS Code) with winget on Windows or Homebrew on a Mac, plus WSL 2 on Windows and Rosetta on Apple Silicon. On a Mac, Ollama runs as a background service (`brew services`); on Windows its app starts with Windows;
 2. starts Docker Desktop;
 3. signs you in to GitHub in your browser. That sign-in also gives access to the private `BJK.Modules` packages, so there's no token to create;
 4. clones the four repos side by side (next to this bjk-core, or into `~/Git/GitHub/badjockeys` on a Mac and `%USERPROFILE%\Git\badjockeys` on Windows);
@@ -54,7 +54,8 @@ Expect to approve a few things: Windows UAC prompts or your Mac password for ins
 - trusts the HTTPS development certificate and exports it for Node.js;
 - starts SQL Server, S3Mock, Elasticsearch, Kibana and the OpenTelemetry collector in Docker (the `bad-jockeys` group, replacing the old layout's two groups and the old Grafana containers if they're there) and waits until they're all ready;
 - downloads the face and number plate blurring models into `bjk-core/.local/models` (git-ignored), checking each file's SHA-256;
-- builds the .NET apps and installs the web app's packages.
+- builds the .NET apps and installs the web app's packages;
+- makes sure Ollama is running (starting it if it isn't) and has Ask Bad Jockeys' model, `qwen3:8b` (about 5 GB, downloaded once). If Ollama is missing or the download fails it only warns: run the setup again later.
 
 `node scripts/setup-local.mjs --config-only` just creates the config files.
 
@@ -77,6 +78,7 @@ macOS, Windows and Linux use the same tools. The commands in this guide are for 
 | Docker Desktop | latest | `brew install --cask docker`, then open it once | `winget install Docker.DockerDesktop` (uses WSL 2), then open it once | `docker compose version` |
 | ffmpeg, with the H.264 and WebP encoders | any recent | `brew install ffmpeg ffmpeg-full` (Homebrew's plain `ffmpeg` has no WebP encoder) | `winget install Gyan.FFmpeg` | `ffmpeg -hide_banner -encoders \| grep -E "libx264\|libwebp"` |
 | GitHub CLI (optional) | latest | `brew install gh` | `winget install GitHub.cli` | `gh --version` |
+| Ollama, for Ask Bad Jockeys (optional: everything else works without it) | latest | `brew install ollama && brew services start ollama` | `winget install Ollama.Ollama` | `curl http://localhost:11434/api/version` |
 
 On Windows, open a new terminal after installing so the tools are on your `PATH`.
 
@@ -468,6 +470,9 @@ On your machine nothing needs a supplier account: S3Mock stands in for R2, email
 | `Reels:ViewerKeySecret` (secret) | A long random string (`openssl rand -base64 48`) | |
 | `Plans:Overrides` | Empty | **Stripe billing** (not built yet) |
 | `Notifications:AppUrl`, `Posts:AppUrl` | The web app, e.g. `https://badjockeys.com` | The live domain |
+| `ConnectionStrings:BadJockeysChat` (secret) | Azure SQL `badjockeys` as the read-only `bjk_chat` login (`scripts/sql/reporting/login.sql`), `Encrypt=True` | The live server |
+| `Chat:Model:Endpoint`, `Chat:Model:Name`, `Chat:Model:ApiKey` (secret) | The serverless GPU running Qwen3 32B (OpenAI-compatible, ending `/v1`), its model name and key | The GPU host |
+| `Chat:HistoryKey` (secret) | A long random string (`openssl rand -base64 48`): signs Ask Bad Jockeys' chat history | |
 | `Notifications:Push:PublicKey`, `PrivateKey` (secret) | **Required**: a VAPID key pair made once per environment and never changed (changing it stops every phone's push subscription). Make one with `node -e "const k=require('crypto').generateKeyPairSync('ec',{namedCurve:'prime256v1'}).privateKey.export({format:'jwk'});console.log(Buffer.concat([Buffer.from([4]),Buffer.from(k.x,'base64url'),Buffer.from(k.y,'base64url')]).toString('base64url'),k.d)"` (public key first) | |
 | `Notifications:Push:Subject` | `mailto:support@badjockeys.com` (the default): who push services contact about problems | |
 | `Posts:ReportsInbox` (from bjk-modules #30) | `support@badjockeys.com` (the default) | The mailbox must exist |
@@ -657,6 +662,15 @@ Communities (`/communities` in the web app; `api/communities` in the Posts modul
 
 The e2e mock server (`src/web/e2e/mock-server.mjs`) seeds three communities, so the web tests cover joining, discussions and sharing from the post form.
 
+## Ask Bad Jockeys (the AI chat)
+
+Premium members ask questions about reported bad driving ("Worst roads for tailgating in Prescot") from the **Ask Bad Jockeys** item in the desktop navigation, or the floating **Ask** button on phones. Free members see a locked preview. The Chat module (bjk-modules README, "Ask Bad Jockeys") does the work; the API hosts it, and the web app's window is `src/components/AskBadJockeys.tsx`.
+
+- **The model** runs on your computer through Ollama (`qwen3:8b`, set up by the setup). Without it the window says the chat is busy and the question doesn't count. Check it with `ollama list`; `ollama pull qwen3:8b` downloads it again.
+- **Its data** is read through the read-only `bjk_chat` login (`ConnectionStrings:BadJockeysChat`, password `BJK_CHAT_PASSWORD` in `bjk-core/.env`), which the setup creates with the reporting views (`node scripts/sql/reporting/apply.mjs`). Until that has run, the chat can't answer.
+- **To try it**, the owner account has Premium + (`Plans:Overrides`). The example questions follow your home area (Account, Notifications): with a town ("Prescot") they name it, with a postcode district they ask about "near me", and without a home area they don't mention a place. "Near me" also uses the home area.
+- **History** stays in the browser tab; nothing is stored on the server except today's count.
+
 ## Online safety checks
 
 What runs on your machine, and what doesn't. The setup prints the same summary at the end.
@@ -691,7 +705,7 @@ If you change `known-image-test.png`, update the two hashes in `scripts/sql/safe
 
 ## AI suggestions (removed)
 
-The owner removed every AI suggestion on 22 Oct 2026, for good: "Suggest a description", the "Looks like: ..." type chips and the trim screen's suggested 30 seconds. The trim screen starts on the first 30 seconds. The setup removes their old settings (`Media:Describe`, `Posts:TypeSuggestions`, `Queues:MediaDescriptions`) from your user secrets, and Ollama is no longer used. CLIP stays in the media worker for the nudity and graphic content checks.
+The owner removed every AI suggestion on 22 Oct 2026, for good: "Suggest a description", the "Looks like: ..." type chips and the trim screen's suggested 30 seconds. The trim screen starts on the first 30 seconds. The setup removes their old settings (`Media:Describe`, `Posts:TypeSuggestions`, `Queues:MediaDescriptions`) from your user secrets, and Ollama isn't used for them (it's now only Ask Bad Jockeys' model). CLIP stays in the media worker for the nudity and graphic content checks.
 
 ## Example users and posts
 

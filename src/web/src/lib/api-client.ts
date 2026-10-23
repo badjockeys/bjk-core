@@ -7,6 +7,7 @@
 
 import {
   AreaClient,
+  ChatClient,
   CommunitiesClient,
   DraftsClient,
   EngagementClient,
@@ -26,6 +27,7 @@ import {
 } from "./generated/api";
 import type {
   AreaAlertMode,
+  ChatTurn,
   CommunityListKind,
   CommunityMembershipStatus,
   CommunityRequest,
@@ -552,6 +554,19 @@ export function endpoints(api: ApiClient) {
     },
     places: {
       search: (token: string, q: string) => client(PlacesClient, { token }).places_Search(q),
+    },
+    chat: {
+      /**
+       * Today's allowance and the example questions (tailored to the caller's home area). Anyone can call it: Free and
+       * signed-out callers get canAsk false, for the locked preview.
+       */
+      usage: (token: string | null) => client(ChatClient, { token }).chat_GetUsage(),
+      /**
+       * Ask Ask Bad Jockeys a question (Premium). `history` is the window's earlier answered turns, with their tokens.
+       * Without `near`, the API uses the member's home area for "near me".
+       */
+      ask: (token: string, question: string, history: ChatTurn[]) =>
+        client(ChatClient, { token }).chat_Ask({ question, history, near: null }),
     },
     notifications: {
       list: (token: string, page = 1, pageSize = 20) =>

@@ -227,6 +227,8 @@ function seed() {
     ]),
     notificationSettings: new Map(),
     areas: new Map(),
+    // Ask Bad Jockeys: questions asked today, by user.
+    chatUsed: new Map(),
   };
   db.posts.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   addComment(
@@ -872,6 +874,99 @@ async function api(req, res, url) {
         /(?<![\p{L}\p{N}_/&#])#([A-Za-z][A-Za-z0-9_]{1,49})(?![A-Za-z0-9_])/gu,
       ),
     ].map((m) => m[1]);
+  // Ask Bad Jockeys, as the Chat module answers: example questions follow the home area (a town is named, a postcode
+  // district gets "near me", none gets place-free ones); Premium only, 20 a day.
+  if (path.startsWith("/api/chat/")) {
+    const premium = viewer.plan === "premium" || viewer.plan === "premium_plus";
+    const limit = viewer.plan === "premium_plus" ? 100 : premium ? 20 : 0;
+    const home = me ? (db.areas.get(me)?.placeName ?? null) : null;
+    const examples = !home
+      ? [
+          "Which towns have had the most incidents this month?",
+          "Is school-run parking getting better?",
+          "What time of day is worst for speeding?",
+          "What's the most reported kind of bad driving this year?",
+        ]
+      : /^[A-Z]{1,2}[0-9][A-Z0-9]?$/i.test(home)
+        ? [
+            "How many incidents have there been near me this month?",
+            "Worst roads for tailgating near me",
+            "Is pavement parking getting worse near me?",
+            "What time of day is worst for speeding?",
+          ]
+        : [
+            `How many incidents have there been in ${home} this month?`,
+            `Worst roads for tailgating in ${home}`,
+            `Is pavement parking getting worse in ${home}?`,
+            "What time of day is worst for speeding?",
+          ];
+    const usage = () => {
+      const used = (me && db.chatUsed.get(me)) || 0;
+      return {
+        plan: viewer.plan ?? null,
+        canAsk: limit > 0,
+        limit,
+        used,
+        remaining: Math.max(0, limit - used),
+        resetsAt: "2026-10-24T00:00:00+01:00",
+        historyFrom: premium ? "2025-10-23" : null,
+        exampleQuestions: examples,
+        paused: false,
+      };
+    };
+    if (path === "/api/chat/usage" && method === "GET") return send(res, 200, usage());
+    if (path === "/api/chat/questions" && method === "POST") {
+      if (!requireUser()) return;
+      if (!premium) return problem(res, 403, "Ask Bad Jockeys is part of Premium.");
+      const used = db.chatUsed.get(me) ?? 0;
+      if (used >= limit) {
+        return problem(res, 403, `That's your ${limit} questions for today. You can ask again from midnight.`, {
+          code: "daily_limit",
+          limit,
+          resetsAt: "2026-10-24T00:00:00+01:00",
+        });
+      }
+      const body = await json();
+      db.chatUsed.set(me, used + 1);
+      const tailgating = /tailgating/i.test(body.question ?? "");
+      const answer = tailgating
+        ? {
+            text: "The A57 Warrington Road had the most tailgating reports in the last year.",
+            kind: "Answer",
+            card: {
+              type: "Places",
+              title: "Tailgating reports by road",
+              valueLabel: "reports",
+              points: [
+                { label: "A57 Warrington Road, Prescot", value: 14, hidden: false, latitude: 53.43, longitude: -2.8 },
+                { label: "High Street, Prescot", value: null, hidden: true, latitude: 53.43, longitude: -2.81 },
+              ],
+              columns: null,
+              rows: null,
+              hiddenRows: 1,
+            },
+            map: { latitude: 53.43, longitude: -2.8, zoom: 13, subcategories: ["Tailgating"] },
+            suggestions: ["Is tailgating getting worse?"],
+          }
+        : {
+            text: "There have been 42 incidents there this month.",
+            kind: "Answer",
+            card: {
+              type: "Number",
+              title: null,
+              valueLabel: "incidents this month",
+              points: [{ label: "Incidents", value: 42, hidden: false, latitude: null, longitude: null }],
+              columns: null,
+              rows: null,
+              hiddenRows: 0,
+            },
+            map: null,
+            suggestions: ["Which roads are worst?"],
+          };
+      return send(res, 200, { answer, usage: usage(), turnToken: `turn-${used + 1}` });
+    }
+  }
+
   if (path === "/api/trends" && method === "GET") {
     return send(res, 200, {
       hashtags: [
@@ -2669,6 +2764,14 @@ const server = createServer(async (req, res) => {
     if (url.pathname === "/__next-user" && req.method === "POST") {
       nextUser = (await readBody(req)).toString() || "roadhog";
       return send(res, 200, { nextUser });
+    }
+    // Gives a user a home area (Ask Bad Jockeys' examples follow it): { user, placeName, latitude, longitude }.
+    if (url.pathname === "/__home-area" && req.method === "POST") {
+      const body = JSON.parse((await readBody(req)).toString());
+      const user = USERS[body.user];
+      if (!user) return send(res, 400, "Unknown user");
+      db.areas.set(user.id, { placeName: body.placeName, latitude: body.latitude, longitude: body.longitude, radiusKm: 5 });
+      return send(res, 204);
     }
     if (url.pathname === "/health") return send(res, 200, "Healthy");
     if ((await identity(req, res, url)) !== false) return;

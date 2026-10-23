@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { loadAreaStats, loadHeatmap } from "@/actions/heatmap";
 import { getVehicleCatalogue } from "@/actions/vehicles";
 import { categoryLabel, describeTypes } from "@/lib/categories";
+import type { MapStart } from "@/lib/chat";
 import {
   changeLabel,
   DAY_CHOICES,
@@ -47,14 +48,27 @@ interface Area {
  * Screen 28: the incident map (Leaflet, BSD-2-Clause; OpenStreetMap tiles by default, set by MAP_TILE_URL). Each grid
  * cell the API returns is drawn as a square shaded on the brand's cyan scale by its count; cells with fewer than 3
  * incidents never come back from the API. Tapping a cell shows that area's figures. Filters are Premium: on the Free
- * plan they're shown locked, and the map is the last 7 days across the UK.
+ * plan they're shown locked, and the map is the last 7 days across the UK. `start` (Ask Bad Jockeys' "Open on the
+ * map") centres it on an area and filters it to up to 3 types.
  */
-export default function IncidentMap({ tileUrl, attribution }: { tileUrl: string; attribution: string }) {
+export default function IncidentMap({
+  tileUrl,
+  attribution,
+  start,
+}: {
+  tileUrl: string;
+  attribution: string;
+  start?: MapStart;
+}) {
   const element = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const layer = useRef<L.LayerGroup | null>(null);
   const [view, setView] = useState<View | null>(null);
-  const [filters, setFilters] = useState<MapFilters>(DEFAULT_FILTERS);
+  const [filters, setFilters] = useState<MapFilters>(() =>
+    start?.types.length ? { ...DEFAULT_FILTERS, categories: start.types } : DEFAULT_FILTERS,
+  );
+  // Read once, when the map is made: later changes come from moving the map.
+  const startView = useRef(start);
   const [data, setData] = useState<{ key: string; map: HeatmapDto | null; error: string | null } | null>(
     null,
   );
@@ -72,7 +86,13 @@ export default function IncidentMap({ tileUrl, attribution }: { tileUrl: string;
     if (!element.current) {
       return;
     }
-    const instance = L.map(element.current, { center: UK_CENTRE, zoom: 6, minZoom: 5, maxZoom: 16 });
+    const centre = startView.current?.centre ?? null;
+    const instance = L.map(element.current, {
+      center: centre ?? UK_CENTRE,
+      zoom: centre ? (startView.current?.zoom ?? 11) : 6,
+      minZoom: 5,
+      maxZoom: 16,
+    });
     L.tileLayer(tileUrl, { attribution, maxZoom: 19 }).addTo(instance);
     layer.current = L.layerGroup().addTo(instance);
     const emit = () => {
