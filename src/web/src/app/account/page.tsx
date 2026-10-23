@@ -117,15 +117,6 @@ export default async function AccountPage() {
           </span>
           <ExternalIcon />
         </a>
-        <Link href="/timelines" className="list-item">
-          <span className="col" style={{ gap: 0 }}>
-            <span>Your timelines</span>
-            <span className="small muted">
-              Custom tabs on Home: the types of bad driving and places you choose
-            </span>
-          </span>
-          <ChevronIcon />
-        </Link>
         <div className="list-item">
           <span className="col" style={{ gap: 0 }}>
             <span>Download your data</span>
