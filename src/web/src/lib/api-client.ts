@@ -34,6 +34,7 @@ import type {
   HeatmapQuery,
   HouseholdCarRequest,
   IncidentCategory,
+  IncidentGroup,
   NotificationSettingDto,
   PassengerTagStatus,
   ProblemDetails,
@@ -185,6 +186,8 @@ type ClientType<T> = new (baseUrl?: string, http?: Http) => T;
 
 export interface FeedQuery {
   category?: IncidentCategory;
+  /** Only posts with a subcategory in this group. */
+  group?: IncidentGroup;
   author?: string;
   /** Only posts with this hashtag (without the #). */
   hashtag?: string;
@@ -213,6 +216,7 @@ export function endpoints(api: ApiClient) {
           q.page ?? 1,
           q.pageSize ?? 20,
           q.hashtag,
+          q.group,
         ),
       mine: (token: string, page = 1, pageSize = 20) => posts(token).posts_ListMine(page, pageSize),
       /** One person's comments and replies, with the post each is on (their profile's Replies tab). */
@@ -455,12 +459,18 @@ export function endpoints(api: ApiClient) {
       list: (
         token: string | null,
         viewerId: string | null,
-        q: { cursor?: string | null; category?: IncidentCategory; pageSize?: number } = {},
+        q: {
+          cursor?: string | null;
+          category?: IncidentCategory;
+          group?: IncidentGroup;
+          pageSize?: number;
+        } = {},
       ) =>
         client(ReelsClient, { token, headers: viewer(viewerId) }).reels_List(
           q.cursor,
           q.category,
           q.pageSize,
+          q.group,
         ),
       /** Report that a reel has been watched for 3 seconds. Idempotent per viewer, reel and day. */
       play: (token: string | null, viewerId: string | null, postId: string) =>

@@ -78,14 +78,15 @@ test("category trends show each type's line, total and change; Free is the last 
   await page.goto("/");
   const trends = page.locator(".trends");
   await expect(trends.getByRole("heading", { name: "Category trends" })).toBeVisible();
-  const parking = trends.getByRole("link", { name: /Bad parking/ });
+  const parking = trends.getByRole("link", { name: /Disabled bay/ });
   await expect(parking).toContainText("48 incidents");
   await expect(parking).toContainText("▲ 60%");
   await expect(parking.getByRole("img")).toHaveAttribute(
     "aria-label",
-    "Bad parking: 48 incidents, counted a day",
+    "Disabled bay, no badge showing: 48 incidents, counted a day",
   );
-  await expect(trends.getByRole("link", { name: /Speeding/ })).not.toContainText("%");
+  await expect(parking).toContainText("Parking");
+  await expect(trends.getByRole("link", { name: /Speeding in a 20 or 30/ })).not.toContainText("%");
   await expect(
     trends.getByText("2 other types had fewer than 3 incidents, so they aren't shown."),
   ).toBeVisible();
@@ -100,7 +101,7 @@ test("Premium members choose a longer range and narrow trends to an area", async
   const trends = page.locator(".trends");
   await trends.getByRole("button", { name: "30 days" }).click();
   await expect(trends.getByRole("button", { name: "30 days" })).toHaveAttribute("aria-pressed", "true");
-  await expect(trends.getByRole("link", { name: /Bad parking/ })).toContainText("84 incidents");
+  await expect(trends.getByRole("link", { name: /Disabled bay/ })).toContainText("84 incidents");
   await expect(trends.getByLabel("Area")).toBeVisible();
   await trends.getByRole("button", { name: "Custom" }).click();
   await expect(trends.getByLabel("From")).toBeVisible();
@@ -129,11 +130,22 @@ test("category pages filter the feed, from Category trends, with an empty state"
   await page.goto("/");
   await page
     .locator(".trends")
-    .getByRole("link", { name: /Bad parking/ })
+    .getByRole("link", { name: /Disabled bay/ })
     .click();
-  await expect(page).toHaveURL(/\/c\/bad-parking$/);
+  await expect(page).toHaveURL(/\/c\/disabled-bay-no-badge-showing$/);
   await expect(page.getByText("Parked across two disabled bays, again")).toBeVisible();
   await expect(page.getByText("Undertaking a lorry on the M62")).toHaveCount(0);
+
+  // The subcategory links up to its group, whose page lists every kind of parking.
+  await page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("link", { name: "Parking" }).click();
+  await expect(page).toHaveURL(/\/c\/parking$/);
+  await expect(page.getByRole("heading", { name: "Parking", exact: true })).toBeVisible();
+  await expect(page.getByText("Parked across two disabled bays, again")).toBeVisible();
+  await expect(
+    page
+      .getByRole("navigation", { name: "Kinds of parking" })
+      .getByRole("link", { name: "On double yellow lines" }),
+  ).toHaveAttribute("href", "/c/on-double-yellow-lines");
 
   await page.goto("/c/tailgating");
   await expect(page.getByRole("heading", { name: "No tailgating posts yet" })).toBeVisible();
@@ -201,7 +213,10 @@ test("members switch between For you, Following and a custom timeline, and follo
   // Free members get one custom timeline.
   await page.goto("/timelines");
   await page.getByLabel("Name").fill("Parking");
-  await page.getByRole("group", { name: "Types of bad driving" }).getByLabel("Bad parking").check();
+  await page
+    .getByRole("group", { name: "Types of bad driving" })
+    .getByLabel("Parking", { exact: true })
+    .check();
   await page.getByRole("button", { name: "Add timeline" }).click();
   await expect(page.getByRole("link", { name: "Parking" })).toBeVisible();
   await expect(page.getByText("You have 1 of 1.")).toBeVisible();

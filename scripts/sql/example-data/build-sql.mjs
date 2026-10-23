@@ -9,23 +9,25 @@ import { fileURLToPath } from "node:url";
 
 import { ids, OWNER_EMAIL, PASSWORD } from "./data.mjs";
 import { buildExampleData } from "./generate.mjs";
+import { BY_VALUE, TAXONOMY } from "./taxonomy.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-const CATEGORIES = [
-  "RoadRage",
-  "DangerousOvertaking",
-  "Tailgating",
-  "MobilePhoneUse",
-  "Speeding",
-  "RedLightRunning",
-  "CuttingUp",
-  "Undertaking",
-  "LaneHogging",
-  "ClosePass",
-  "BadParking",
-  "Other",
-];
+/**
+ * A post's subcategories as the two flag columns (TypeFlags holds bits 0 to 63, TypeFlagsHigh 64 to 127): bit n is the
+ * subcategory at position n of the list, which is the order of IncidentCategory in BJK.Modules.
+ */
+function typeFlags(types) {
+  let low = 0n;
+  let high = 0n;
+  for (const type of types) {
+    const n = TAXONOMY.findIndex((t) => t.value === type);
+    if (n < 0) throw new Error(`Unknown subcategory ${type}`);
+    if (n < 64) low |= 1n << BigInt(n);
+    else high |= 1n << BigInt(n - 64);
+  }
+  return [BigInt.asIntN(64, low), BigInt.asIntN(64, high)];
+}
 
 const q = (value) => (value === null || value === undefined ? "NULL" : `N'${String(value).replace(/'/g, "''")}'`);
 const bit = (value) => (value === null || value === undefined ? "NULL" : value ? "1" : "0");
@@ -254,7 +256,7 @@ DECLARE @Posts TABLE (N int PRIMARY KEY, Id uniqueidentifier, At datetimeoffset)
     const id = ids.postId(p.n);
     const author = ids.userId(p.by);
     const [lat, lng, place] = p.at;
-    const flags = p.types.reduce((acc, t) => acc | (1 << CATEGORIES.indexOf(t)), 0);
+    const [flags, flagsHigh] = typeFlags(p.types);
     const [vType, vMake, vModel, vColour] = p.vehicle ?? [null, null, null, null];
     const uploaded = ukTime(p.ago, p.time, 20);
     const processed = ukTime(p.ago, p.time, 21);
@@ -278,7 +280,7 @@ DECLARE @Posts TABLE (N int PRIMARY KEY, Id uniqueidentifier, At datetimeoffset)
     const closesAt = hours === null ? "NULL" : ukTime(p.ago, p.time, 22 + hours * 60);
     const sentAt = hours !== null && p.ago * 24 - hours > 24 ? ukTime(p.ago, p.time, 30 + hours * 60) : "NULL";
     const reactionCount = Object.values(p.reactions).flat().length;
-    postRows.push(`('${id}', '${author}', ${q(p.title)}, ${q(p.text)}, ${q(p.types[0])}, ${flags}, ${ukTime(p.ago, p.time)}, ${lat}, ${lng}, ${q(place)},
+    postRows.push(`('${id}', '${author}', ${q(p.title)}, ${q(p.text)}, ${q(p.types[0])}, ${q(BY_VALUE.get(p.types[0]).group)}, ${flags}, ${flagsHigh}, ${ukTime(p.ago, p.time)}, ${lat}, ${lng}, ${q(place)},
   N'Published', N'Ready', ${ukTime(p.ago, p.time, 22)}, ${bit(Boolean(p.video))}, 0, 0, 0, ${p.video ? reactionCount + p.comments.length : 0}, N'None', N'None',
   ${bit(isDark(p.time))}, ${bit(p.reported)}, ${q(vType)}, ${q(vMake)}, ${q(vModel)}, ${q(vColour)}, ${closesAt}, ${sentAt}, ${ukTime(p.ago, p.time, 22)})`);
   }
@@ -290,7 +292,7 @@ DECLARE @Posts TABLE (N int PRIMARY KEY, Id uniqueidentifier, At datetimeoffset)
   );
   batched(
     add,
-    `INSERT badjockeys.posts.Posts (Id, AuthorId, Title, Description, Category, TypeFlags, IncidentAt, Latitude, Longitude, PlaceName,
+    `INSERT badjockeys.posts.Posts (Id, AuthorId, Title, Description, Category, [Group], TypeFlags, TypeFlagsHigh, IncidentAt, Latitude, Longitude, PlaceName,
   Status, MediaState, MediaReadyAt, HasVideo, IsAuthorDeactivated, IsFlagged, IsSensitive, ReelScore, SensitiveReview, SensitiveSource,
   IsDark, ReportedToPolice, VehicleType, VehicleMake, VehicleModel, VehicleColour, VoteClosesAt, VoteResultSentAt, CreatedAt) VALUES`,
     postRows,

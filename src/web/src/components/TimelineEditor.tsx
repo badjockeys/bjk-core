@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
 
 import { createTimeline, deleteTimeline, reorderTimelines, updateTimeline } from "@/actions/timelines";
-import { CATEGORY_CHOICES, categoryLabel } from "@/lib/categories";
 import { TIMELINE_RADIUSES, describeTimeline, moveItem, planName } from "@/lib/timelines";
-import type { IncidentCategory, PlaceDto, TimelineDto, TimelineRequest, TimelinesDto } from "@/lib/types";
+import type { PlaceDto, TimelineDto, TimelineRequest, TimelinesDto } from "@/lib/types";
 
+import { CategoryFilter } from "./CategoryFilter";
 import { PlaceSearch } from "./PlaceSearch";
 import { toast } from "./toast";
 
@@ -204,13 +204,6 @@ function TimelineForm({
   const [saving, startSaving] = useTransition();
   const hasPlace = body.latitude != null && body.longitude != null;
 
-  function toggle(type: IncidentCategory, on: boolean) {
-    setBody((b) => ({
-      ...b,
-      types: on ? [...b.types.filter((t) => t !== type), type] : b.types.filter((t) => t !== type),
-    }));
-  }
-
   function pick(place: PlaceDto) {
     setPlaceText(place.name);
     setBody((b) => ({
@@ -253,20 +246,13 @@ function TimelineForm({
           onChange={(e) => setBody((b) => ({ ...b, name: e.target.value }))}
         />
       </div>
-      <fieldset className="field">
-        <legend className="label">Types of bad driving</legend>
-        <div className="chips" style={{ flexWrap: "wrap", gap: 6 }}>
-          {CATEGORY_CHOICES.map((type) => {
-            const on = body.types.includes(type);
-            return (
-              <label key={type} className={`chip pill-choice${on ? " chip-on pill-on" : ""}`}>
-                <input type="checkbox" checked={on} onChange={(e) => toggle(type, e.target.checked)} />
-                {categoryLabel(type)}
-              </label>
-            );
-          })}
-        </div>
-      </fieldset>
+      <div className="field">
+        <CategoryFilter
+          legend="Types of bad driving"
+          value={body.types}
+          onChange={(types) => setBody((b) => ({ ...b, types }))}
+        />
+      </div>
       <div className="field">
         <label htmlFor={`${id}-place`} className="label">
           Where <span className="muted">(optional: anywhere if empty)</span>

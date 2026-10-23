@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { loadAreaStats, loadHeatmap } from "@/actions/heatmap";
 import { getVehicleCatalogue } from "@/actions/vehicles";
-import { CATEGORIES, categoryLabel } from "@/lib/categories";
+import { categoryLabel, describeTypes } from "@/lib/categories";
 import {
   changeLabel,
   DAY_CHOICES,
@@ -27,6 +27,8 @@ import {
 } from "@/lib/heatmap";
 import type { AreaStatsDto, HeatmapCell, HeatmapDays, HeatmapDto, VehicleCatalogue } from "@/lib/types";
 import { COLOUR_SWATCHES, vehicleTypeLabel } from "@/lib/vehicles";
+
+import { CategoryFilter } from "./CategoryFilter";
 
 const UK_CENTRE: L.LatLngExpression = [54.4, -2.9];
 
@@ -173,11 +175,7 @@ export default function IncidentMap({ tileUrl, attribution }: { tileUrl: string;
             disabled={locked}
             onClick={() => setMoreOpen((o) => !o)}
           >
-            {filters.categories.length === 0
-              ? "All types"
-              : filters.categories.length === 1
-                ? categoryLabel(filters.categories[0]!)
-                : `${filters.categories.length} types`}
+            {describeTypes(filters.categories)}
           </button>
           <FilterSelect
             label="Period"
@@ -311,26 +309,13 @@ function MoreFilters({
 
   return (
     <section id="hm-more" className="hm-more" aria-label="More filters">
-      <fieldset className="hm-group">
-        <legend className="label">Types of bad driving</legend>
-        <div className="row row-wrap" style={{ gap: 6 }}>
-          {CATEGORIES.map((c) => (
-            <label
-              key={c.value}
-              className={`pill-choice${filters.categories.includes(c.value) ? " pill-on" : ""}`}
-            >
-              <input
-                type="checkbox"
-                checked={filters.categories.includes(c.value)}
-                onChange={(e) =>
-                  onChange({ categories: toggle(filters.categories, c.value, e.target.checked) })
-                }
-              />
-              {c.label}
-            </label>
-          ))}
-        </div>
-      </fieldset>
+      <div className="hm-group">
+        <CategoryFilter
+          legend="Types of bad driving"
+          value={filters.categories}
+          onChange={(categories) => onChange({ categories })}
+        />
+      </div>
 
       <fieldset className="hm-group">
         <legend className="label">Dates (instead of the period)</legend>

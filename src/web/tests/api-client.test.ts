@@ -15,11 +15,13 @@ describe("api client", () => {
     const fetchImpl = fakeFetch(200, { items: [], page: 2, pageSize: 20, totalCount: 0 });
     const api = endpoints(createApiClient("https://api.example.com/", fetchImpl as unknown as typeof fetch));
 
-    const page = await api.posts.list("token-1", { category: "BadParking", page: 2 });
+    const page = await api.posts.list("token-1", { category: "DoubleYellows", page: 2 });
 
     expect(page.page).toBe(2);
     const [url, init] = fetchImpl.mock.calls[0] as unknown as [URL, RequestInit];
-    expect(url.toString()).toBe("https://api.example.com/api/posts?category=BadParking&page=2&pageSize=20");
+    expect(url.toString()).toBe(
+      "https://api.example.com/api/posts?category=DoubleYellows&page=2&pageSize=20",
+    );
     expect((init.headers as Record<string, string>).Authorization).toBe("Bearer token-1");
     expect(init.cache).toBe("no-store");
   });
@@ -28,7 +30,7 @@ describe("api client", () => {
     const fetchImpl = fakeFetch(200, { items: [], page: 1, pageSize: 1, totalCount: 7 });
     const api = endpoints(createApiClient("https://api.example.com", fetchImpl as unknown as typeof fetch));
 
-    await api.posts.list(null, { category: "ClosePass", pageSize: 1 }, 300);
+    await api.posts.list(null, { category: "ClosePassCyclist", pageSize: 1 }, 300);
 
     const [, init] = fetchImpl.mock.calls[0] as unknown as [
       URL,

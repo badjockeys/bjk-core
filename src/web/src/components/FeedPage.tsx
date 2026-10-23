@@ -1,8 +1,9 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import type { FeedSource } from "@/actions/posts";
 import { feedPage, homePage, myTimelines } from "@/lib/feed";
-import type { IncidentCategory, PagedResult, PostDto, TimelineDto } from "@/lib/types";
+import type { IncidentCategory, IncidentGroup, PagedResult, PostDto, TimelineDto } from "@/lib/types";
 import type { Viewer } from "@/lib/viewer";
 
 import { AppShell, FooterLinks } from "./AppShell";
@@ -20,6 +21,8 @@ import { WhoToFollowPanel } from "./WhoToFollowPanel";
 export async function FeedPage({
   viewer,
   category,
+  group,
+  subnav,
   label,
   basePath,
   page,
@@ -28,6 +31,10 @@ export async function FeedPage({
 }: {
   viewer: Viewer;
   category?: IncidentCategory;
+  /** The feed for a whole group of subcategories. */
+  group?: IncidentGroup;
+  /** Links shown under the heading (a group's subcategories). */
+  subnav?: ReactNode;
   label: string | null;
   basePath: string;
   page: number;
@@ -47,8 +54,8 @@ export async function FeedPage({
     timelines = mine?.timelines ?? [];
     source = home.kind === "timeline" ? { kind: "timeline", id: home.id } : { kind: home.kind };
   } else {
-    posts = await feedPage({ category }, page);
-    source = { kind: "feed", category };
+    posts = await feedPage({ category, group }, page);
+    source = { kind: "feed", category, group };
   }
   const current = home?.kind === "timeline" ? timelines.find((t) => t.id === home.id) : undefined;
 
@@ -69,6 +76,7 @@ export async function FeedPage({
       }
     >
       <FeedHeader viewer={viewer} title={label ?? "Home"} />
+      {subnav}
       {home && viewer.signedIn ? (
         <div className="feed-sticky">
           <HomeTabs current={home} timelines={timelines} />

@@ -66,7 +66,8 @@ const post: PostDto = {
   },
   title: "Parked across two disabled bays, again",
   description: "Third time this week.",
-  category: "BadParking",
+  category: "DisabledBay",
+  group: "Parking",
   incidentAt: "2026-10-18T07:05:00Z",
   location: { latitude: 53.81, longitude: -1.6, placeName: "Asda, Kirkstall, Leeds" },
   status: "Published",
@@ -122,19 +123,22 @@ describe("PostCard", () => {
     expect(screen.getByRole("link", { name: "Dashcam Dave" })).toHaveAttribute("href", "/@dashcam_dave");
     expect(screen.getByText("Parked across two disabled bays, again")).toBeInTheDocument();
     expect(screen.getByText("Asda, Kirkstall, Leeds")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Bad parking" })).toHaveAttribute("href", "/c/bad-parking");
+    expect(screen.getByRole("link", { name: "Disabled bay, no badge showing" })).toHaveAttribute(
+      "href",
+      "/c/disabled-bay-no-badge-showing",
+    );
     expect(screen.getByRole("link", { name: "3 photos" })).toHaveAttribute("href", `/p/${post.id}`);
     expect(screen.getByRole("link", { name: "7 comments" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "31 reactions. See who reacted" })).toBeInTheDocument();
   });
 
   it("shows every type of bad driving as a tag, main first", () => {
-    const tagged: PostDto = { ...post, category: "Tailgating", types: ["Tailgating", "RoadRage"] };
+    const tagged: PostDto = { ...post, category: "Tailgating", types: ["Tailgating", "ShoutingOrGestures"] };
     render(<PostCard post={tagged} viewer={ANONYMOUS} />);
 
     const tags = within(screen.getByRole("list", { name: "Types of bad driving" })).getAllByRole("link");
-    expect(tags.map((t) => t.textContent)).toEqual(["Tailgating", "Road rage"]);
-    expect(tags[1]).toHaveAttribute("href", "/c/road-rage");
+    expect(tags.map((t) => t.textContent)).toEqual(["Tailgating", "Shouting or gestures"]);
+    expect(tags[1]).toHaveAttribute("href", "/c/shouting-or-gestures");
   });
 
   it("shows the author a processing badge while the media are being processed", () => {
@@ -275,8 +279,13 @@ describe("PostFooter", () => {
 
 describe("VotePanel", () => {
   const vote: VoteSummaryDto = {
-    kind: "Fault",
-    choices: ["FilmingDriver", "OtherRoadUser", "Both", "Nobody"],
+    question: "Who's at fault?",
+    answers: [
+      { choice: "OtherRoadUser", label: "The undertaker" },
+      { choice: "FilmingDriver", label: "The filming driver" },
+      { choice: "Both", label: "Both" },
+      { choice: "Nobody", label: "Nobody" },
+    ],
     total: 3,
     results: null,
     myChoice: null,
@@ -301,7 +310,7 @@ describe("VotePanel", () => {
     expect(screen.queryByText("75%")).toBeNull();
     expect(screen.getByText(/Vote to see what others said/)).toBeVisible();
 
-    await userEvent.click(screen.getByRole("button", { name: "The other road user" }));
+    await userEvent.click(screen.getByRole("button", { name: "The undertaker" }));
     expect(actions.castVote).toHaveBeenCalledWith("p1", "OtherRoadUser");
     expect(await screen.findByText("75%")).toBeVisible();
     expect(screen.getByText("25%")).toBeVisible();

@@ -1,6 +1,7 @@
 // Helpers for the incident map (screen 28): colours, dates, labels and filters. No browser or server APIs, so they
 // can be tested on their own.
 
+import { compactTypes } from "./categories";
 import type {
   HeatmapAccess,
   HeatmapDays,
@@ -144,7 +145,7 @@ export function heatmapQuery(
     zoom,
     from: filters.from || addDays(today, 1 - days),
     to: filters.to || today,
-    categories: filters.categories.length > 0 ? filters.categories.join(",") : undefined,
+    categories: filters.categories.length > 0 ? compactTypes(filters.categories) : undefined,
     hours: filters.hours || undefined,
     days: filters.days === "All" ? undefined : filters.days,
     vehicleTypes: filters.vehicleTypes.length > 0 ? filters.vehicleTypes.join(",") : undefined,

@@ -35,7 +35,7 @@ describe("sharing videos to other apps", () => {
       "Tailgated on the A57 (Rainhill)\n\nMore on Bad Jockeys: https://badjockeys.com/p/1\n\n#dashcam #baddriving #tailgating #badjockeys",
     );
     expect(
-      shareCaption({ title: "Parked badly", category: "BadParking", location: { placeName: null } }, "u"),
-    ).toContain("#badparking");
+      shareCaption({ title: "Parked badly", category: "DoubleYellows", location: { placeName: null } }, "u"),
+    ).toContain("#ondoubleyellowlines");
   });
 });
