@@ -2214,7 +2214,7 @@ async function api(req, res, url) {
   }
   if (path === "/api/profiles/me/suggestions" && method === "GET") {
     if (!requireUser()) return;
-    // Everyone with a profile you don't follow stands in for "people near your home area".
+    // Everyone with a profile you don't follow stands in for "the most active posters near you".
     const people = [...db.profiles.values()]
       .filter((p) => p.id !== me && !follows(me, p.id))
       .slice(0, Number(url.searchParams.get("limit") ?? 3))
