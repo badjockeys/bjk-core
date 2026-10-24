@@ -17,7 +17,7 @@ IF USER_ID(N'bjk_reporting') IS NULL CREATE USER bjk_reporting FOR LOGIN bjk_rep
 GRANT SELECT ON SCHEMA::reporting TO bjk_reporting;
 GO
 
--- Ask Bad Jockeys (the AI chat) reads the incidents through this login, and nothing else: not the other
+-- Ask AI (the AI chat) reads the incidents through this login, and nothing else: not the other
 -- reporting views (reports, moderation, queues), not the tables behind them, not the identity database.
 -- $(ChatPassword) comes from apply.mjs; in deployed environments it's a container secret.
 USE master;

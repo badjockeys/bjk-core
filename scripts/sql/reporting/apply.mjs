@@ -44,7 +44,7 @@ export function reportingPassword() {
   return envPassword("BJK_REPORTING_PASSWORD", "Rpt");
 }
 
-/** BJK_CHAT_PASSWORD from .env (Ask Bad Jockeys' login: the incident tables only), created there first if it isn't set. */
+/** BJK_CHAT_PASSWORD from .env (Ask AI's login: the incident tables only), created there first if it isn't set. */
 export function chatPassword() {
   return envPassword("BJK_CHAT_PASSWORD", "Cht");
 }

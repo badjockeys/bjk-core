@@ -36,7 +36,7 @@ export function AskButton() {
       className="ask-fab"
       onClick={openAsk}
       aria-haspopup="dialog"
-      aria-label="Ask Bad Jockeys"
+      aria-label="Ask AI"
     >
       <AskIcon size={20} />
       <span>Ask</span>
@@ -73,7 +73,7 @@ function save(userId: string | null, entries: ChatEntry[]) {
 }
 
 /**
- * Ask Bad Jockeys, the Premium AI chat: a panel on the right on desktop, a full-height sheet on phones. Premium and
+ * Ask AI, the Premium AI chat: a panel on the right on desktop, a full-height sheet on phones. Premium and
  * Premium + members ask questions about reported bad driving and get a sentence or two, a card drawn from the figures
  * and follow-up suggestions. Free members see the locked preview with example questions about their own area (the API
  * tailors them to the home area). History lives only in this tab.
@@ -223,7 +223,7 @@ export function AskBadJockeys({ viewer }: { viewer: Viewer }) {
           <AskIcon size={26} />
           <div className="chat-head-text">
             <h2 id="ask-title" className="h2">
-              Ask Bad Jockeys
+              Ask AI
             </h2>
             <span className="small muted" aria-live="polite">
               {usage ? allowanceLabel(usage) : " "}
@@ -331,7 +331,7 @@ export function AskBadJockeys({ viewer }: { viewer: Viewer }) {
             rows={1}
             value={question}
             maxLength={MAX_QUESTION}
-            placeholder={locked ? "Ask Bad Jockeys is part of Premium" : "Ask about bad driving near you…"}
+            placeholder={locked ? "Ask AI is part of Premium" : "Ask about bad driving near you…"}
             disabled={!canAsk}
             onChange={(e) => setQuestion(e.target.value)}
             onKeyDown={onKeyDown}
@@ -390,7 +390,7 @@ function Locked({ viewer }: { viewer: Viewer }) {
   if (!viewer.signedIn) {
     return (
       <div className="chat-locked">
-        <strong>Join to ask Bad Jockeys</strong>
+        <strong>Join to use Ask AI</strong>
         <a className="btn btn-primary btn-sm" href={joinPath("/")}>
           Join free
         </a>
@@ -402,7 +402,7 @@ function Locked({ viewer }: { viewer: Viewer }) {
   }
   return (
     <div className="chat-locked">
-      <strong>Ask Bad Jockeys is part of Premium</strong>
+      <strong>Ask AI is part of Premium</strong>
       <span className="small muted">
         Premium members ask about their own area: the worst roads, the busiest times and whether it&apos;s
         getting better.

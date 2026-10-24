@@ -582,7 +582,7 @@ export function endpoints(api: ApiClient) {
        */
       usage: (token: string | null) => client(ChatClient, { token }).chat_GetUsage(),
       /**
-       * Ask Ask Bad Jockeys a question (Premium). `history` is the window's earlier answered turns, with their tokens.
+       * Send Ask AI a question (Premium). `history` is the window's earlier answered turns, with their tokens.
        * Without `near`, the API uses the member's home area for "near me".
        */
       ask: (token: string, question: string, history: ChatTurn[]) =>

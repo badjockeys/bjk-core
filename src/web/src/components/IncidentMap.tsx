@@ -48,7 +48,7 @@ interface Area {
  * Screen 28: the incident map (Leaflet, BSD-2-Clause; OpenStreetMap tiles by default, set by MAP_TILE_URL). Each grid
  * cell the API returns is drawn as a square shaded on the brand's cyan scale by its count; cells with fewer than 3
  * incidents never come back from the API. Tapping a cell shows that area's figures. Filters are Premium: on the Free
- * plan they're shown locked, and the map is the last 7 days across the UK. `start` (Ask Bad Jockeys' "Open on the
+ * plan they're shown locked, and the map is the last 7 days across the UK. `start` (Ask AI's "Open on the
  * map") centres it on an area and filters it to up to 3 types.
  */
 export default function IncidentMap({
