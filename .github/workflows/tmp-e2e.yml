@@ -1,0 +1,30 @@
+name: E2E debug (temporary)
+
+on:
+  push:
+    branches: ['tmp/e2e-debug']
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/web
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: src/web/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: The failing test, with errors as annotations
+        run: npx playwright test e2e/dashboard.spec.ts -g "phones" --reporter=github --retries=0
