@@ -622,6 +622,12 @@ locally it uses the real head-turn check and stand-ins for Yoti that answer age 
   profiles show follower and following counts, with lists at `/u/{handle}/followers` and `/following`. A post's ⋯
   menu can limit comments to people you follow. The optional mobile number lives on the identity server
   (Account → Mobile number).
+- **Dashboard** (owner, 24 Oct 2026): the right-hand panel is each member's dashboard. **Edit** moves the cards
+  (drag, or the arrows), hides or shows the built-in ones (Trending, Who to follow, Category trends) and edits or
+  deletes widgets. **Add a widget** (Premium 3, Premium + 5) sets up incidents in an area, one type's trend, when it
+  happens or top roads, for a postcode or town, a radius and a period, with a live preview. Free members see a
+  greyed-out "Your own stats" card; visitors "Join to make your own". On phones it's the **Dashboard** tab on your own
+  profile (`/u/{handle}?tab=dashboard`). In the mock API, `dave` is Premium.
 - **Post analytics:** under your own post, **Analytics** opens graphs of views (and local views), reactions, comments
   and shares since posting: hour by hour for 48 hours, then day by day, then week by week after 90 days, with a table
   view. Premium and Premium + only; on Free the graphs are blurred with a link to Premium (the API sends no points).

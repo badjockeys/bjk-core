@@ -4577,6 +4577,420 @@ export class CommunitiesClient {
     }
 }
 
+export class DashboardClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * Your dashboard in order, your plan's widget limit and how many you have.
+     */
+    dashboard_Get(signal?: AbortSignal): Promise<DashboardDto> {
+        let url_ = this.baseUrl + "/api/dashboard";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processDashboard_Get(_response);
+        });
+    }
+
+    protected processDashboard_Get(response: Response): Promise<DashboardDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as DashboardDto;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<DashboardDto>(null as any);
+    }
+
+    /**
+     * Adds a widget at the end. 403 on Free; 400 at the plan's limit.
+     * @param request What it shows, the place, radius (1, 2, 5, 10 or 25 km), period (7, 30, 90 or 365 days) and any types.
+     */
+    dashboard_CreateWidget(request: DashboardWidgetRequest, signal?: AbortSignal): Promise<DashboardDto> {
+        let url_ = this.baseUrl + "/api/dashboard/widgets";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processDashboard_CreateWidget(_response);
+        });
+    }
+
+    protected processDashboard_CreateWidget(response: Response): Promise<DashboardDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as DashboardDto;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<DashboardDto>(null as any);
+    }
+
+    /**
+     * Changes one of your widgets. 403 on Free.
+     * @param id The widget.
+     * @param request Its new settings.
+     */
+    dashboard_UpdateWidget(id: string, request: DashboardWidgetRequest, signal?: AbortSignal): Promise<DashboardDto> {
+        let url_ = this.baseUrl + "/api/dashboard/widgets/{id}";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processDashboard_UpdateWidget(_response);
+        });
+    }
+
+    protected processDashboard_UpdateWidget(response: Response): Promise<DashboardDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as DashboardDto;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<DashboardDto>(null as any);
+    }
+
+    /**
+     * Deletes one of your widgets (any plan).
+     * @param id The widget.
+     */
+    dashboard_DeleteWidget(id: string, signal?: AbortSignal): Promise<DashboardDto> {
+        let url_ = this.baseUrl + "/api/dashboard/widgets/{id}";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processDashboard_DeleteWidget(_response);
+        });
+    }
+
+    protected processDashboard_DeleteWidget(response: Response): Promise<DashboardDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as DashboardDto;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<DashboardDto>(null as any);
+    }
+
+    /**
+     * Puts your dashboard in this order: every card's key once (built-in cards by kind, widgets by id).
+     * @param request The keys, in the new order.
+     */
+    dashboard_Reorder(request: DashboardOrderRequest, signal?: AbortSignal): Promise<DashboardDto> {
+        let url_ = this.baseUrl + "/api/dashboard/order";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processDashboard_Reorder(_response);
+        });
+    }
+
+    protected processDashboard_Reorder(response: Response): Promise<DashboardDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as DashboardDto;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<DashboardDto>(null as any);
+    }
+
+    /**
+     * Hides or shows a built-in card (CategoryTrends, Trending or WhoToFollow).
+     * @param kind The card.
+     * @param request Whether it's hidden.
+     */
+    dashboard_SetCardHidden(kind: DashboardKind, request: DashboardCardRequest, signal?: AbortSignal): Promise<DashboardDto> {
+        let url_ = this.baseUrl + "/api/dashboard/cards/{kind}";
+        if (kind === undefined || kind === null)
+            throw new globalThis.Error("The parameter 'kind' must be defined.");
+        url_ = url_.replace("{kind}", encodeURIComponent("" + kind));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processDashboard_SetCardHidden(_response);
+        });
+    }
+
+    protected processDashboard_SetCardHidden(response: Response): Promise<DashboardDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as DashboardDto;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<DashboardDto>(null as any);
+    }
+
+    /**
+     * One of your widgets' figures. 403 on Free, or for a widget past your plan's limit.
+     * @param id The widget.
+     */
+    dashboard_WidgetData(id: string, signal?: AbortSignal): Promise<DashboardWidgetDataDto> {
+        let url_ = this.baseUrl + "/api/dashboard/widgets/{id}/data";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processDashboard_WidgetData(_response);
+        });
+    }
+
+    protected processDashboard_WidgetData(response: Response): Promise<DashboardWidgetDataDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as DashboardWidgetDataDto;
+            return result200;
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<DashboardWidgetDataDto>(null as any);
+    }
+
+    /**
+     * The figures a widget would show, before saving it (the "Add a widget" preview). 403 on Free.
+     * @param request The widget's settings.
+     */
+    dashboard_Preview(request: DashboardWidgetRequest, signal?: AbortSignal): Promise<DashboardWidgetDataDto> {
+        let url_ = this.baseUrl + "/api/dashboard/preview";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processDashboard_Preview(_response);
+        });
+    }
+
+    protected processDashboard_Preview(response: Response): Promise<DashboardWidgetDataDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as DashboardWidgetDataDto;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ValidationProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result403);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<DashboardWidgetDataDto>(null as any);
+    }
+}
+
 export class DraftsClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -10320,6 +10734,107 @@ export interface SharePostRequest {
     communityIds: string[];
 }
 
+/** The signed-in member's dashboard: the right-hand panel on desktop, and the Dashboard tab on their profile on phones. Limit is how many widgets their plan allows (Free 0, Premium 3, Premium + 5) and Used how many they have; the built-in cards don't count. */
+export interface DashboardDto {
+    items: DashboardItemDto[];
+    limit: number;
+    used: number;
+    plan: SubscriptionPlan;
+}
+
+/** One card on the dashboard, in order. Key identifies it for reordering: the built-in card's kind (CategoryTrends, Trending, WhoToFollow) or the widget's id. Built-in cards can be Hidden; widgets past the plan's limit (after a downgrade) are Locked: kept, but their figures aren't given until the member upgrades or deletes others. A widget's place is only ever shown to its owner. */
+export interface DashboardItemDto {
+    key: string;
+    kind: DashboardKind;
+    builtIn: boolean;
+    hidden: boolean;
+    locked: boolean;
+    id: string | null;
+    placeName: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    radiusKm: number | null;
+    periodDays: number | null;
+    types: IncidentCategory[];
+    position: number;
+}
+
+/** What a dashboard card shows. The first three are the built-in cards everyone gets (they can be moved or hidden, not deleted); the rest are widgets a Premium member sets up. Stored by name: add new ones at the end. */
+export type DashboardKind = "CategoryTrends" | "Trending" | "WhoToFollow" | "AreaIncidents" | "TypeTrend" | "WhenItHappens" | "TopRoads";
+
+/** A widget's settings. */
+export interface DashboardWidgetRequest {
+    kind: DashboardKind;
+    placeName: string;
+    latitude: number;
+    longitude: number;
+    radiusKm: number;
+    periodDays: number;
+    types: IncidentCategory[] | null;
+}
+
+/** Every card's key, in the new order. */
+export interface DashboardOrderRequest {
+    keys: string[];
+}
+
+/** Whether a built-in card is hidden. */
+export interface DashboardCardRequest {
+    hidden: boolean;
+}
+
+/** A widget's figures for its place, radius and period (the last PeriodDays UK days, up to today). The same privacy rules as the heat map: counted from public posts' rounded pins, and when fewer than MinCount (3) incidents match, Suppressed is true and nothing else is given. Each kind fills in its own parts: AreaIncidents: Total, ChangePercent (on the same number of days before; null if that had too few), Counts per period (PeriodStarts: days up to 92 days, then weeks) and TopCategories. TypeTrend: the same, for its one type, without TopCategories. WhenItHappens: Total, TimesOfDay (six 4-hour bands), Weekdays (Monday first) and BusiestHour; bands and days under the threshold have a null count. TopRoads: Total and up to 5 TopPlaces, each with at least the threshold. */
+export interface DashboardWidgetDataDto {
+    kind: DashboardKind;
+    suppressed: boolean;
+    minCount: number;
+    from: string;
+    to: string;
+    total: number | null;
+    changePercent: number | null;
+    period: TrendPeriod;
+    periodStarts: string[];
+    counts: number[];
+    topCategories: CategoryShareDto[];
+    topPlaces: PlaceCountDto[];
+    timesOfDay: TimeBandDto[];
+    weekdays: WeekdayCountDto[];
+    busiestHour: number | null;
+}
+
+/** How the trend lines are bucketed: days up to 92 days, weeks (from Monday) up to two years, then months. */
+export type TrendPeriod = "Day" | "Week" | "Month";
+
+/** How many of an area's incidents have this type of bad driving, and what percentage that is. A post can have several types, so the percentages can add up to more than 100. */
+export interface CategoryShareDto {
+    category: IncidentCategory;
+    count: number;
+    percent: number;
+    /** The group the subcategory is listed under. */
+    group: IncidentGroup;
+}
+
+/** A place name (usually a road and town, e.g. "A57 Warrington Road, Prescot") and its incidents. */
+export interface PlaceCountDto {
+    name: string;
+    count: number;
+}
+
+/** Four hours of the day (UK time, FromHour inclusive to ToHour exclusive) and its incidents; null under the threshold. */
+export interface TimeBandDto {
+    fromHour: number;
+    toHour: number;
+    count: number | null;
+}
+
+/** A day of the week and its incidents; null under the threshold. */
+export interface WeekdayCountDto {
+    day: DayOfWeek;
+    count: number | null;
+}
+
+export type DayOfWeek = "Sunday" | "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday";
+
 /** A saved draft, to reopen in the composer. */
 export interface DraftDto {
     /** The draft's id. */
@@ -10538,21 +11053,6 @@ export interface AreaStatsDto {
     previousFrom: string;
     previousTo: string;
     access: HeatmapAccessDto;
-}
-
-/** How many of an area's incidents have this type of bad driving, and what percentage that is. A post can have several types, so the percentages can add up to more than 100. */
-export interface CategoryShareDto {
-    category: IncidentCategory;
-    count: number;
-    percent: number;
-    /** The group the subcategory is listed under. */
-    group: IncidentGroup;
-}
-
-/** A place name (usually a road and town, e.g. "A57 Warrington Road, Prescot") and its incidents. */
-export interface PlaceCountDto {
-    name: string;
-    count: number;
 }
 
 /** Accept or decline being tagged as a passenger. */
@@ -10813,9 +11313,6 @@ export interface CategoryTrendDto {
     /** The group the subcategory is listed under. */
     group: IncidentGroup;
 }
-
-/** How the trend lines are bucketed: days up to 92 days, weeks (from Monday) up to two years, then months. */
-export type TrendPeriod = "Day" | "Week" | "Month";
 
 /** The lists a post's vehicle details are chosen from (and the heat map's vehicle filters use). */
 export interface VehicleCatalogueDto {
