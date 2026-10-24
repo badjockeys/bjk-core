@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { FeedSource } from "@/actions/posts";
 import { earliestExpiry } from "@/lib/links";
 import { isLiveFeed, newestOf } from "@/lib/new-posts";
-import { signInPath } from "@/lib/paths";
+import { joinPath } from "@/lib/paths";
 import type { PagedResult, PostDto } from "@/lib/types";
 import type { Viewer } from "@/lib/viewer";
 
@@ -82,8 +82,8 @@ export function EmptyCategory({ label, signedIn }: { label: string | null; signe
           Post photos or a video
         </Link>
       ) : (
-        // A plain link: signing in leaves for the identity server, which an in-app (RSC) navigation can't follow.
-        <a href={signInPath("/post/new")} className="btn btn-primary">
+        // A plain link: joining leaves for the identity server, which an in-app (RSC) navigation can't follow.
+        <a href={joinPath("/post/new")} className="btn btn-primary">
           Post photos or a video
         </a>
       )}

@@ -124,3 +124,10 @@ describe("view batches", () => {
     expect(sent[0]).toHaveLength(MAX_BATCH);
   });
 });
+
+describe("where visitors are sent", () => {
+  it("sends visitors to join (which links to sign in), not straight to sign in", async () => {
+    const { blockerHref } = await import("@/lib/blockers");
+    expect(blockerHref("signin", "/p/1")).toBe("/auth/join?returnTo=%2Fp%2F1");
+  });
+});

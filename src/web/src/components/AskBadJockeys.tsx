@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent, type Keyboard
 
 import { askChat, getChatUsage } from "@/actions/chat";
 import { allowanceLabel, entryId, historyFor, mapHref, MAX_QUESTION, type ChatEntry } from "@/lib/chat";
-import { signInPath } from "@/lib/paths";
+import { joinPath, signInPath } from "@/lib/paths";
 import type { ChatUsageDto } from "@/lib/types";
 import type { Viewer } from "@/lib/viewer";
 
@@ -390,9 +390,12 @@ function Locked({ viewer }: { viewer: Viewer }) {
   if (!viewer.signedIn) {
     return (
       <div className="chat-locked">
-        <strong>Sign in to ask Bad Jockeys</strong>
-        <a className="btn btn-primary btn-sm" href={signInPath("/")}>
-          Sign in
+        <strong>Join to ask Bad Jockeys</strong>
+        <a className="btn btn-primary btn-sm" href={joinPath("/")}>
+          Join free
+        </a>
+        <a className="link small" href={signInPath("/")}>
+          Already a member? Sign in
         </a>
       </div>
     );

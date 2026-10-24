@@ -3165,6 +3165,12 @@ dialog.composer-modal::backdrop {
   margin-top: 6px;
 }
 
+.sensitive-signin {
+  color: #ffffff;
+  font-size: 13px;
+  text-decoration: underline;
+}
+
 /* --- Premium --- */
 
 .plan-box {

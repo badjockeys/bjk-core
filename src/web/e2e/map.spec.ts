@@ -6,12 +6,12 @@ test.beforeEach(async ({ request }) => {
   await resetMock(request);
 });
 
-test("visitors are asked to sign in to see the incident map", async ({ page }) => {
+test("visitors are asked to join (or sign in) to see the incident map", async ({ page }) => {
   await page.goto("/map");
-  await expect(page.getByRole("heading", { name: "Sign in to see the incident map" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Sign in", exact: true }).first()).toHaveAttribute(
+  await expect(page.getByRole("heading", { name: "Join to see the incident map" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Join free", exact: true })).toHaveAttribute(
     "href",
-    "/auth/sign-in?returnTo=%2Fmap",
+    "/auth/join?returnTo=%2Fmap",
   );
 });
 

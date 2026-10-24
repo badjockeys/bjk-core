@@ -13,12 +13,12 @@ test("visitors see the feed, sensitive posts blurred and no comments", async ({ 
   await expect(page.getByText("Undertaking a lorry on the M62")).toBeVisible();
   await expect(page.getByText("Caught a bad driver on camera?")).toBeVisible();
 
-  // Sensitive posts are in the feed, but only as a blurred preview with "Sign in to view".
+  // Sensitive posts are in the feed, but only as a blurred preview with "Join to view" (and a sign-in link).
   const sensitive = page.getByRole("article").filter({ hasText: "Serious crash on the A64" });
   await expect(sensitive.getByText("Injuries or a serious crash")).toBeVisible();
-  await expect(sensitive.getByRole("link", { name: "Sign in to view" })).toHaveAttribute(
+  await expect(sensitive.getByRole("link", { name: "Join to view" })).toHaveAttribute(
     "href",
-    `/auth/sign-in?returnTo=${encodeURIComponent(`/p/${SEED.sensitivePost}`)}`,
+    `/auth/join?returnTo=${encodeURIComponent(`/p/${SEED.sensitivePost}`)}`,
   );
   await expect(sensitive.locator('img[src$="/media/m-5-preview.png"]')).toHaveCount(1);
   await expect(sensitive.locator('img[src$="/media/m-5.png"]')).toHaveCount(0);
@@ -32,7 +32,7 @@ test("visitors see the feed, sensitive posts blurred and no comments", async ({ 
   await expect(
     page.getByRole("heading", { level: 1, name: "Parked across two disabled bays, again" }),
   ).toBeVisible();
-  await expect(page.getByText("Sign in to see comments")).toBeVisible();
+  await expect(page.getByText("Join to see comments")).toBeVisible();
   await expect(page.getByText("Report it to the store too")).toHaveCount(0);
 
   // Preview cards for WhatsApp, X and Facebook.
@@ -49,12 +49,10 @@ test("visitors see the feed, sensitive posts blurred and no comments", async ({ 
   await page.goto(`/p/${SEED.sensitivePost}`);
   await expect(page.getByRole("heading", { level: 1, name: "Serious crash on the A64" })).toBeVisible();
   await expect(page.getByText("Sensitive content", { exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Sign in to view" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Join to view" })).toBeVisible();
 });
 
-test("visitors see every section in the side nav, but only Home works without signing in", async ({
-  page,
-}) => {
+test("visitors see every section in the side nav, but only Home works without joining", async ({ page }) => {
   await page.goto("/");
   const nav = page.getByRole("navigation", { name: "Main" }).first();
   for (const [name, path] of [
@@ -66,10 +64,9 @@ test("visitors see every section in the side nav, but only Home works without si
     ["Your profile", "/profile/new"],
     ["Account", "/account"],
   ] as const) {
-    await expect(nav.getByRole("link", { name: `${name} (sign in first)`, exact: true })).toHaveAttribute(
-      "href",
-      `/auth/sign-in?returnTo=${encodeURIComponent(path)}`,
-    );
+    await expect(
+      nav.getByRole("link", { name: `${name} (join or sign in first)`, exact: true }),
+    ).toHaveAttribute("href", `/auth/join?returnTo=${encodeURIComponent(path)}`);
   }
   await expect(nav.getByRole("link", { name: "Home", exact: true })).toHaveAttribute("href", "/");
 });
@@ -194,7 +191,7 @@ test("signing in goes to the identity server and comes back to the page", async 
   ).toBeVisible();
   expect(await page.evaluate(() => document.cookie)).not.toContain("bjk_session");
   await expect(page.getByText("Serious crash on the A64")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Sign in to view" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Join to view" })).toHaveCount(0);
 
   // Your own profile shows posts that are still processing, which only you can see.
   await page.goto("/@roadhog");

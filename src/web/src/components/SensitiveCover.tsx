@@ -1,4 +1,4 @@
-import { checkAgePath, signInPath } from "@/lib/paths";
+import { checkAgePath, joinPath, signInPath } from "@/lib/paths";
 
 /**
  * A sensitive post's media for someone who may not see it yet: the heavily blurred preview the API sends
@@ -28,9 +28,14 @@ export function SensitiveCover({
             Verify your age to view
           </a>
         ) : (
-          <a href={signInPath(returnTo)} className="btn btn-sm btn-primary">
-            Sign in to view
-          </a>
+          <>
+            <a href={joinPath(returnTo)} className="btn btn-sm btn-primary">
+              Join to view
+            </a>
+            <a href={signInPath(returnTo)} className="sensitive-signin">
+              Already a member? Sign in
+            </a>
+          </>
         )}
       </div>
     </div>

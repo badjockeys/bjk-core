@@ -287,14 +287,14 @@ export default async function PostPage({ params, searchParams }: Props) {
           </h2>
           <div className="notice">
             <span className="col">
-              <strong>Sign in to see comments</strong>
+              <strong>Join to see comments</strong>
               <span>Comments are only shown to members, to keep the conversation civil.</span>
               <span className="row" style={{ marginTop: 6 }}>
+                <a href={joinPath(here)} className="btn btn-sm btn-primary">
+                  Join free
+                </a>
                 <a href={signInPath(here)} className="btn btn-sm">
                   Sign in
-                </a>
-                <a href={joinPath(here)} className="btn btn-sm btn-primary">
-                  Join
                 </a>
               </span>
             </span>

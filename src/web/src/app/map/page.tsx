@@ -30,16 +30,16 @@ export default async function MapPage({
       <AppShell viewer={viewer} section="map" returnTo="/map" aside={<FooterLinks />}>
         <section className="centre stack" style={{ padding: "72px 32px" }}>
           <MapIcon size={56} />
-          <h1 className="h2">Sign in to see the incident map</h1>
+          <h1 className="h2">Join to see the incident map</h1>
           <p className="muted">
             See where bad driving is reported near you: hotspots by area, time of day and type of incident.
             Built from rounded locations, so no single incident can be pinpointed.
           </p>
-          <a href={signInPath("/map")} className="btn btn-primary">
-            Sign in
-          </a>
-          <a href={joinPath("/map")} className="btn">
+          <a href={joinPath("/map")} className="btn btn-primary">
             Join free
+          </a>
+          <a href={signInPath("/map")} className="btn">
+            Already a member? Sign in
           </a>
         </section>
       </AppShell>
