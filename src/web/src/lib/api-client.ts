@@ -21,6 +21,7 @@ import {
   ReelsClient,
   ReportsClient,
   TimelinesClient,
+  DashboardClient,
   TrendsClient,
   VaultClient,
   VehiclesClient,
@@ -32,8 +33,10 @@ import type {
   CommunityListKind,
   CommunityMembershipStatus,
   CommunityRequest,
+  DashboardWidgetRequest,
   CommunityRole,
   CommentSetting,
+  DashboardKind,
   HeatmapQuery,
   IncidentCategory,
   IncidentGroup,
@@ -352,6 +355,21 @@ export function endpoints(api: ApiClient) {
         profiles(token).profiles_Followers(handle, page, 20),
       following: (token: string | null, handle: string, page = 1) =>
         profiles(token).profiles_Following(handle, page, 20),
+    },
+    dashboard: {
+      /** Your dashboard: the built-in cards and your widgets in order, your plan's limit (Premium 3, Premium + 5). */
+      get: (token: string) => client(DashboardClient, { token }).dashboard_Get(),
+      createWidget: (token: string, body: DashboardWidgetRequest) =>
+        client(DashboardClient, { token }).dashboard_CreateWidget(body),
+      updateWidget: (token: string, id: string, body: DashboardWidgetRequest) =>
+        client(DashboardClient, { token }).dashboard_UpdateWidget(id, body),
+      deleteWidget: (token: string, id: string) => client(DashboardClient, { token }).dashboard_DeleteWidget(id),
+      reorder: (token: string, keys: string[]) => client(DashboardClient, { token }).dashboard_Reorder({ keys }),
+      setCardHidden: (token: string, kind: DashboardKind, hidden: boolean) =>
+        client(DashboardClient, { token }).dashboard_SetCardHidden(kind, { hidden }),
+      widgetData: (token: string, id: string) => client(DashboardClient, { token }).dashboard_WidgetData(id),
+      preview: (token: string, body: DashboardWidgetRequest) =>
+        client(DashboardClient, { token }).dashboard_Preview(body),
     },
     timelines: {
       /** For you: anyone; ranked, and boosted near the signed-in user's home area. */

@@ -49,9 +49,23 @@ jobs:
           global-json-file: global.json
       - run: dotnet restore src/BJK.Core.Api
       - run: dotnet build src/BJK.Core.Api --configuration Release --no-restore -p:GenerateApiClient=true
-      - name: Emit the client's diff as notices (gzip + base64, in parts)
+      - name: Prepare the diff (gzip + base64, 4000-character parts)
         run: |
           git diff --no-color src/web/src/lib/generated/api.ts | gzip -9 | base64 -w0 > /tmp/d.b64
-          split -b 60000 -d -a 2 /tmp/d.b64 /tmp/part.
-          n=0; for f in /tmp/part.*; do echo "::notice title=apidiff-${f##*.}::$(cat $f)"; n=$((n+1)); done
-          echo "::notice title=apidiff-count::$n $(sha256sum /tmp/d.b64 | cut -c1-16)"
+          split -b 4000 -d -a 2 /tmp/d.b64 /tmp/part.
+          echo "::notice title=apidiff-count::$(ls /tmp/part.* | wc -l) $(wc -c < /tmp/d.b64)"
+      - name: Emit parts 0-8
+        run: |
+          for n in $(seq 0 8); do f=$(printf "/tmp/part.%02d" $n); [ -f $f ] && echo "::notice title=apidiff-$(printf %02d $n)::$(cat $f)"; done; true
+      - name: Emit parts 9-17
+        run: |
+          for n in $(seq 9 17); do f=$(printf "/tmp/part.%02d" $n); [ -f $f ] && echo "::notice title=apidiff-$(printf %02d $n)::$(cat $f)"; done; true
+      - name: Emit parts 18-26
+        run: |
+          for n in $(seq 18 26); do f=$(printf "/tmp/part.%02d" $n); [ -f $f ] && echo "::notice title=apidiff-$(printf %02d $n)::$(cat $f)"; done; true
+      - name: Emit parts 27-35
+        run: |
+          for n in $(seq 27 35); do f=$(printf "/tmp/part.%02d" $n); [ -f $f ] && echo "::notice title=apidiff-$(printf %02d $n)::$(cat $f)"; done; true
+      - name: Emit parts 36-44
+        run: |
+          for n in $(seq 36 44); do f=$(printf "/tmp/part.%02d" $n); [ -f $f ] && echo "::notice title=apidiff-$(printf %02d $n)::$(cat $f)"; done; true
