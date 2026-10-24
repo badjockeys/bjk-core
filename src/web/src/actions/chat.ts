@@ -26,7 +26,7 @@ export async function getChatUsage(): Promise<ActionResult<ChatUsageDto>> {
   return run(() => api().chat.usage(token));
 }
 
-/** Ask Bad Jockeys a question. `history` is the window's earlier answered turns (the API checks their tokens). */
+/** Ask AI a question. `history` is the window's earlier answered turns (the API checks their tokens). */
 export async function askChat(question: string, history: ChatTurn[]): Promise<AskResult> {
   const text = question.trim().slice(0, MAX_QUESTION);
   if (!text) {
@@ -34,7 +34,7 @@ export async function askChat(question: string, history: ChatTurn[]): Promise<As
   }
   const token = await getAccessToken();
   if (!token) {
-    return { ok: false, error: "Sign in to ask Bad Jockeys.", problem: "signin" };
+    return { ok: false, error: "Sign in to use Ask AI.", problem: "signin" };
   }
 
   // Only well-formed turns, and only as many as the API reads: anything else would be dropped there anyway.
@@ -54,13 +54,13 @@ export async function askChat(question: string, history: ChatTurn[]): Promise<As
     return { ok: true, data: await api().chat.ask(token, text, turns) };
   } catch (error) {
     if (!(error instanceof ApiError)) {
-      console.error("Ask Bad Jockeys failed", error instanceof Error ? error.message : error);
+      console.error("Ask AI failed", error instanceof Error ? error.message : error);
       return { ok: false, error: "Something went wrong. Please try again.", problem: "other" };
     }
     const resetsAt = typeof error.problem?.resetsAt === "string" ? error.problem.resetsAt : undefined;
     if (error.status === 401) {
       logRefusedToken(error);
-      return { ok: false, error: "Sign in again to ask Bad Jockeys.", problem: "signin" };
+      return { ok: false, error: "Sign in again to use Ask AI.", problem: "signin" };
     }
     if (error.isDailyLimit) {
       return { ok: false, error: error.userMessage, problem: "limit", resetsAt };
@@ -76,7 +76,7 @@ export async function askChat(question: string, history: ChatTurn[]): Promise<As
         ok: false,
         error:
           error.problem?.detail ||
-          "Ask Bad Jockeys is busy right now. Try again in a minute; that question didn't count.",
+          "Ask AI is busy right now. Try again in a minute; that question didn't count.",
         problem: "busy",
       };
     }

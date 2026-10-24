@@ -21,7 +21,7 @@ export function IncidentMapLoader({
 }: {
   tileUrl: string;
   attribution: string;
-  /** Where to start (from Ask Bad Jockeys' "Open on the map"); the whole UK and every type without it. */
+  /** Where to start (from Ask AI's "Open on the map"); the whole UK and every type without it. */
   start?: MapStart;
 }) {
   return <IncidentMap tileUrl={tileUrl} attribution={attribution} start={start} />;

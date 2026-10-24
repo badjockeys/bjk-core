@@ -8,7 +8,7 @@
 # Covers: startup migrations; token validation (issuer, audience, expiry, token type, scopes); profiles; uploads to
 # object storage; the processing queue; posts, reactions, comments and reports; moderation rights; data export; the
 # user lifecycle events from the identity server (deactivate, reactivate, delete); reels (daily limits by plan) and the
-# incident heat map (suppression, entitlements); Ask Bad Jockeys' plan checks (no model server here); and a restart.
+# incident heat map (suppression, entitlements); Ask AI's plan checks (no model server here); and a restart.
 set -euo pipefail
 
 PROJECT=${PROJECT:-src/BJK.Core.Api}
@@ -457,7 +457,7 @@ request GET "/api/heatmap?bbox=$BBOX&zoom=14&from=2020-01-01&categories=ClosePas
   || fail "Expected Premium + with 5 years of history and filters: $RESPONSE"
 pass "Premium + gets filters and 5 years of history"
 
-# ---------- Ask Bad Jockeys (the Chat module) ----------
+# ---------- Ask AI (the Chat module) ----------
 # The chat is on hold with no model (Chat:Model is empty everywhere for now), so this covers the plan checks and the
 # placeholder's 503 "not switched on yet", which doesn't use up a question; the answers themselves are covered by
 # bjk-modules' Chat tests.
@@ -471,7 +471,7 @@ CHAT_QUESTION=$(body '{question: "How many incidents have there been this month?
 request POST /api/chat/questions "$CHAT_QUESTION"
 expect 401 "asking needs a token"
 request POST /api/chat/questions "$CHAT_QUESTION" "$TOKEN_B"
-expect 403 "Ask Bad Jockeys isn't on the Free plan"
+expect 403 "Ask AI isn't on the Free plan"
 request POST /api/chat/questions "$CHAT_QUESTION" "$TOKEN_PLUS"
 expect 503 "Premium + with no model gets the placeholder's 503"
 grep -q "switched on yet" <<< "$RESPONSE" || fail "Expected the placeholder's \"not switched on yet\": $RESPONSE"

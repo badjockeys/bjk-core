@@ -2,9 +2,9 @@ import { expect, test } from "@playwright/test";
 
 import { MOCK, resetMock, signIn } from "./helpers";
 
-// Ask Bad Jockeys is hidden while it's on hold (ASK_BAD_JOCKEYS_ENABLED in src/lib/chat.ts). Remove this line when
+// Ask AI is hidden while it's on hold (ASK_BAD_JOCKEYS_ENABLED in src/lib/chat.ts). Remove this line when
 // it's switched on again.
-test.skip(true, "Ask Bad Jockeys is switched off in the web app for now.");
+test.skip(true, "Ask AI is switched off in the web app for now.");
 
 test.beforeEach(async ({ request }) => {
   await resetMock(request);
@@ -17,8 +17,8 @@ test("Premium members ask about their own town and open the answer on the map", 
   });
   await signIn(page, "/");
 
-  await page.getByRole("button", { name: "Ask Bad Jockeys" }).click();
-  const chat = page.getByRole("dialog", { name: "Ask Bad Jockeys" });
+  await page.getByRole("button", { name: "Ask AI" }).click();
+  const chat = page.getByRole("dialog", { name: "Ask AI" });
   await expect(chat.getByText("20 questions left today")).toBeVisible();
   await expect(
     chat.getByRole("button", { name: "How many incidents have there been in Prescot this month?" }),
@@ -39,9 +39,9 @@ test("Premium members ask about their own town and open the answer on the map", 
 test("Free members without a home area see untailored examples and the locked preview", async ({ page }) => {
   await signIn(page, "/");
 
-  await page.getByRole("button", { name: "Ask Bad Jockeys" }).click();
-  const chat = page.getByRole("dialog", { name: "Ask Bad Jockeys" });
-  await expect(chat.getByText("Ask Bad Jockeys is part of Premium")).toBeVisible();
+  await page.getByRole("button", { name: "Ask AI" }).click();
+  const chat = page.getByRole("dialog", { name: "Ask AI" });
+  await expect(chat.getByText("Ask AI is part of Premium")).toBeVisible();
   await expect(
     chat.getByRole("button", { name: "Which towns have had the most incidents this month?" }),
   ).toBeDisabled();

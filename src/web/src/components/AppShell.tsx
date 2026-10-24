@@ -40,7 +40,7 @@ export type Section =
  * links), the page in the middle and a panel on the right. Phones: the page full width, with a floating glass tab
  * bar at the bottom (Home, Reels, Map, Profile, like Instagram and Facebook; Account is on your profile) and the +
  * button, or the sign-up bar for visitors. `dark` is the reels page: a black page and a dark glass bar. Every page
- * but reels has a floating Ask button for Ask Bad Jockeys (the AI chat; bottom right on desktop, bottom left on phones,
+ * but reels has a floating Ask button for Ask AI (the AI chat; bottom right on desktop, bottom left on phones,
  * above the tab bar or sign-up bar); visitors and Free members see its locked preview. Hidden while
  * ASK_BAD_JOCKEYS_ENABLED is false (the chat is on hold).
  */

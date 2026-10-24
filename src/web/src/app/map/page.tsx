@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 };
 
 /**
- * Screen 28: the incident map. Members only; the map itself needs the browser (IncidentMap). Ask Bad Jockeys' "Open on
+ * Screen 28: the incident map. Members only; the map itself needs the browser (IncidentMap). Ask AI's "Open on
  * the map" links here with where to centre it and which types to show (?lat=&lng=&zoom=&types=).
  */
 export default async function MapPage({

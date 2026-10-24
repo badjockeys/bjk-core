@@ -9718,7 +9718,7 @@ export interface ValidationProblemDetails extends HttpValidationProblemDetails {
     [key: string]: any;
 }
 
-/** Ask Bad Jockeys a question. Premium and Premium + only, within the day's allowance, and through the guard rails (ChatGuard): blocked questions don't use the allowance but count towards Chat:MisuseLimit. */
+/** Ask AI a question. Premium and Premium + only, within the day's allowance, and through the guard rails (ChatGuard): blocked questions don't use the allowance but count towards Chat:MisuseLimit. */
 export interface AskQuestionCommand {
     /** The question, up to 500 characters. */
     question: string;
