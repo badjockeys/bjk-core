@@ -101,6 +101,8 @@ test("on your own profile, phones get a Dashboard tab", async ({ page, request }
   await page.goto("/@dashcam_dave");
   await page.getByRole("link", { name: "Dashboard", exact: true }).click();
   await expect(page).toHaveURL(/tab=dashboard/);
+  await page.waitForTimeout(2000);
+  expect(page.url() + "\n" + (await page.locator("main").innerText())).toBe("dump");
   await expect(
     page.getByRole("region", { name: "Your dashboard" }).getByRole("button", { name: "Add a widget" }),
   ).toBeVisible();
