@@ -188,29 +188,31 @@ export default async function ProfilePage({ params, searchParams }: Props) {
           </p>
         ) : null}
       </section>
+      {/* Plain links: profiles live at /@handle (a rewrite of /u/[handle]), and Next.js's in-page navigation there
+          changes the address but not the page when only ?tab= changes, so the tabs load the page properly. */}
       <nav className="tabs tabs-fill" aria-label="Profile">
-        <Link
+        <a
           href={here}
           className={`tab${tab === "posts" ? " tab-on" : ""}`}
           aria-current={tab === "posts" ? "page" : undefined}
         >
           Posts
-        </Link>
-        <Link
+        </a>
+        <a
           href={`${here}?tab=replies`}
           className={`tab${tab === "replies" ? " tab-on" : ""}`}
           aria-current={tab === "replies" ? "page" : undefined}
         >
           Replies
-        </Link>
+        </a>
         {isMe ? (
-          <Link
+          <a
             href={`${here}?tab=dashboard`}
             className={`tab m-only${tab === "dashboard" ? " tab-on" : ""}`}
             aria-current={tab === "dashboard" ? "page" : undefined}
           >
             Dashboard
-          </Link>
+          </a>
         ) : null}
         {isMe ? (
           <Link href="/account/vault" className="tab">

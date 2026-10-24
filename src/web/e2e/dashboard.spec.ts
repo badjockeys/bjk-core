@@ -105,6 +105,13 @@ test("on your own profile, phones get a Dashboard tab", async ({ page, request }
     page.getByRole("region", { name: "Your dashboard" }).getByRole("button", { name: "Add a widget" }),
   ).toBeVisible();
 
+  // The profile's tabs switch the page (they're plain links: Next.js's in-page navigation didn't, on /@handle).
+  await page.getByRole("link", { name: "Replies", exact: true }).click();
+  await expect(page.getByRole("link", { name: "Replies", exact: true })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+
   // Not on other people's profiles.
   await page.goto("/@roadhog");
   await expect(page.getByRole("link", { name: "Dashboard", exact: true })).toHaveCount(0);
