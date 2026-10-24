@@ -52,6 +52,36 @@ test("visitors see the feed, sensitive posts blurred and no comments", async ({ 
   await expect(page.getByRole("link", { name: "Sign in to view" })).toBeVisible();
 });
 
+test("visitors see every section in the side nav, but only Home works without signing in", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const nav = page.getByRole("navigation", { name: "Main" }).first();
+  await expect(
+    nav.getByRole("link", {
+      name: /^(Home|Reels|Map|Communities|Notifications|Bookmarks|Your profile|Account)/,
+    }),
+  ).toHaveText([
+    "Home",
+    /^Reels/,
+    /^Map/,
+    /^Communities/,
+    /^Notifications/,
+    /^Bookmarks/,
+    /^Your profile/,
+    /^Account/,
+  ]);
+  await expect(nav.getByRole("link", { name: "Home" })).toHaveAttribute("href", "/");
+  await expect(nav.getByRole("link", { name: "Reels (sign in first)" })).toHaveAttribute(
+    "href",
+    "/auth/sign-in?returnTo=%2Freels",
+  );
+  await expect(nav.getByRole("link", { name: "Account (sign in first)" })).toHaveAttribute(
+    "href",
+    "/auth/sign-in?returnTo=%2Faccount",
+  );
+});
+
 test("members who haven't verified their age are offered the age check for sensitive posts", async ({
   page,
   request,

@@ -1369,6 +1369,15 @@ a.chip {
   background: var(--soft);
 }
 
+/* Signed out: every section is listed, but only Home works; the rest are greyed out and lead to sign in. */
+.nav-locked {
+  color: var(--muted);
+}
+
+.nav-locked svg {
+  opacity: 0.45;
+}
+
 /* The page you're on: bold black with the filled icon, like X (no coloured pill). */
 .nav-on {
   font-weight: 700;
