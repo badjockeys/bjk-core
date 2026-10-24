@@ -9,7 +9,6 @@ import { AskBadJockeys, AskButton } from "./AskBadJockeys";
 import { Avatar } from "./Avatar";
 import {
   CommunitiesIcon,
-  AccountIcon,
   BellIcon,
   BookmarkIcon,
   HomeIcon,
@@ -135,14 +134,6 @@ export function AppShell({
             icon={<ProfileIcon size={26} filled={section === "profile"} />}
           >
             Your profile
-          </NavItem>
-          <NavItem
-            href="/account"
-            on={section === "account"}
-            locked={locked}
-            icon={<AccountIcon size={26} filled={section === "account"} />}
-          >
-            Account
           </NavItem>
           {viewer.signedIn ? (
             <>

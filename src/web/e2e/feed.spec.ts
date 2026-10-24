@@ -62,7 +62,6 @@ test("visitors see every section in the side nav, but only Home works without jo
     ["Notifications", "/notifications"],
     ["Bookmarks", "/bookmarks"],
     ["Your profile", "/profile/new"],
-    ["Account", "/account"],
   ] as const) {
     await expect(
       nav.getByRole("link", { name: `${name} (join or sign in first)`, exact: true }),
@@ -78,6 +77,14 @@ test("visitors see every section in the side nav, but only Home works without jo
   expect(fits).toBe(true);
   await aside.evaluate((el) => el.scrollTo(0, el.scrollHeight));
   await expect(aside.getByRole("link", { name: "Report content" })).toBeInViewport();
+  // Its cards keep their full height (they used to be squashed to fit, cutting off the Join card's Sign in).
+  for (const card of await aside.locator(".card").all()) {
+    expect(await card.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
+  }
+  await aside.getByRole("link", { name: "Sign in", exact: true }).scrollIntoViewIfNeeded();
+  await expect(aside.getByRole("link", { name: "Sign in", exact: true })).toBeInViewport();
+  // Account is behind the ⋯ on your own profile, not in the side nav.
+  await expect(nav.getByRole("link", { name: /^Account/ })).toHaveCount(0);
 });
 
 test("members who haven't verified their age are offered the age check for sensitive posts", async ({
