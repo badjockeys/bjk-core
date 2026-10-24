@@ -9,7 +9,7 @@ test.beforeEach(async ({ request }) => {
 test("visitors are asked to sign in to see the incident map", async ({ page }) => {
   await page.goto("/map");
   await expect(page.getByRole("heading", { name: "Sign in to see the incident map" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Sign in" }).first()).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "Sign in", exact: true }).first()).toHaveAttribute(
     "href",
     "/auth/sign-in?returnTo=%2Fmap",
   );

@@ -57,29 +57,21 @@ test("visitors see every section in the side nav, but only Home works without si
 }) => {
   await page.goto("/");
   const nav = page.getByRole("navigation", { name: "Main" }).first();
-  await expect(
-    nav.getByRole("link", {
-      name: /^(Home|Reels|Map|Communities|Notifications|Bookmarks|Your profile|Account)/,
-    }),
-  ).toHaveText([
-    "Home",
-    /^Reels/,
-    /^Map/,
-    /^Communities/,
-    /^Notifications/,
-    /^Bookmarks/,
-    /^Your profile/,
-    /^Account/,
-  ]);
-  await expect(nav.getByRole("link", { name: "Home" })).toHaveAttribute("href", "/");
-  await expect(nav.getByRole("link", { name: "Reels (sign in first)" })).toHaveAttribute(
-    "href",
-    "/auth/sign-in?returnTo=%2Freels",
-  );
-  await expect(nav.getByRole("link", { name: "Account (sign in first)" })).toHaveAttribute(
-    "href",
-    "/auth/sign-in?returnTo=%2Faccount",
-  );
+  for (const [name, path] of [
+    ["Reels", "/reels"],
+    ["Map", "/map"],
+    ["Communities", "/communities"],
+    ["Notifications", "/notifications"],
+    ["Bookmarks", "/bookmarks"],
+    ["Your profile", "/profile/new"],
+    ["Account", "/account"],
+  ] as const) {
+    await expect(nav.getByRole("link", { name: `${name} (sign in first)`, exact: true })).toHaveAttribute(
+      "href",
+      `/auth/sign-in?returnTo=${encodeURIComponent(path)}`,
+    );
+  }
+  await expect(nav.getByRole("link", { name: "Home", exact: true })).toHaveAttribute("href", "/");
 });
 
 test("members who haven't verified their age are offered the age check for sensitive posts", async ({
