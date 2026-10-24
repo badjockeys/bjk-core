@@ -64,7 +64,7 @@ launch() {
   if [ "$app" = worker ]; then image=${WORKER_IMAGE:-}; project=$WORKER_PROJECT; else image=${API_IMAGE:-}; project=$PROJECT; fi
   if [ -n "${LAUNCH_TIMEOUT:-}" ]; then limit=(timeout "$LAUNCH_TIMEOUT"); fi
   if [ -n "$image" ]; then
-    names=$(env "${vars[@]}" | grep -oE '^([A-Za-z0-9]+__[A-Za-z0-9_]+|ASPNETCORE_[A-Z_]+|DOTNET_[A-Z_]+|OTEL_[A-Z_]+)=' \
+    names=$(env "${vars[@]}" | grep -oE '^([A-Za-z0-9]+__[A-Za-z0-9_-]+|ASPNETCORE_[A-Z_]+|DOTNET_[A-Z_]+|OTEL_[A-Z_]+)=' \
       | tr -d '=' | grep -v 'ModelPath$' || true)
     for name in $names; do passthrough+=(-e "$name"); done
     env "${vars[@]}" "${limit[@]}" docker run --rm --network host ${LAUNCH_NAME:+--name "$LAUNCH_NAME"} "${passthrough[@]}" "$image" "${args[@]}"
