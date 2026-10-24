@@ -197,11 +197,15 @@ describe("sensitive posts", () => {
     ],
   };
 
-  it("show visitors the blurred preview and ask them to sign in", () => {
+  it("show visitors the blurred preview and ask them to join, with a sign-in link", () => {
     const { container } = render(<PostCard post={sensitive} viewer={ANONYMOUS} />);
     expect(screen.getByText("Sensitive content")).toBeInTheDocument();
     expect(screen.getByText("Injuries or a serious crash")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Sign in to view" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Join to view" })).toHaveAttribute(
+      "href",
+      `/auth/join?returnTo=${encodeURIComponent(`/p/${post.id}`)}`,
+    );
+    expect(screen.getByRole("link", { name: "Already a member? Sign in" })).toHaveAttribute(
       "href",
       `/auth/sign-in?returnTo=${encodeURIComponent(`/p/${post.id}`)}`,
     );

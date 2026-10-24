@@ -69,7 +69,7 @@ export function AppShell({
 }) {
   const myProfile = viewer.handle ? profilePath(viewer.handle) : "/profile/new";
   const showSignup = !viewer.signedIn;
-  /** Visitors see every section, but only Home works: the rest are greyed out and lead to sign in (owner, 24 Oct). */
+  /** Visitors see every section, but only Home works: the rest are greyed out and lead to join (owner, 24 Oct). */
   const locked = !viewer.signedIn;
   const classes = [
     "shell",
@@ -220,17 +220,17 @@ function NavItem({
 }: {
   href: string;
   on: boolean;
-  /** Signed out: greyed out, and goes to sign in, then on to the section. */
+  /** Signed out: greyed out, and goes to join (which links to sign in), then on to the section. */
   locked?: boolean;
   icon: ReactNode;
   children: ReactNode;
 }) {
   if (locked) {
     return (
-      <Link href={signInPath(href)} className="nav-i nav-locked" title="Sign in to use this">
+      <Link href={joinPath(href)} className="nav-i nav-locked" title="Join or sign in to use this">
         {icon}
         {children}
-        <span className="sr-only"> (sign in first)</span>
+        <span className="sr-only"> (join or sign in first)</span>
       </Link>
     );
   }

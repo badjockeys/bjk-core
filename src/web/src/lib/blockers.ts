@@ -1,11 +1,14 @@
-import { checkAgePath, signInPath } from "./paths";
+import { checkAgePath, joinPath } from "./paths";
 import type { Blocker } from "./viewer";
 
-/** Where to send someone who can't do something yet: sign in, the age check, or making a profile. */
+/**
+ * Where to send someone who can't do something yet: join (visitors; the join page links to sign in for members,
+ * owner 24 Oct 2026), the age check, or making a profile.
+ */
 export function blockerHref(blocker: Blocker, returnTo: string): string | null {
   switch (blocker) {
     case "signin":
-      return signInPath(returnTo);
+      return joinPath(returnTo);
     case "age":
       return checkAgePath(returnTo);
     case "profile":
