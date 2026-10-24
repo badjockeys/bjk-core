@@ -25,6 +25,8 @@ ORIGINALS_BUCKET=${Media__Storage__OriginalsBucket:-bjk-ci-originals}
 
 APP_PID=""
 WORKER_PID=""
+APP_CONTAINER=bjk-smoke-api
+WORKER_CONTAINER=bjk-smoke-media-worker
 PASSED=()
 : > "$APP_LOG"
 : > "$WORKER_LOG"
@@ -37,6 +39,7 @@ on_exit() {
   local status=$?
   if [ -n "$APP_PID" ]; then kill "$APP_PID" 2>/dev/null || true; fi
   if [ -n "$WORKER_PID" ]; then kill "$WORKER_PID" 2>/dev/null || true; fi
+  docker rm -f "$APP_CONTAINER" "$WORKER_CONTAINER" > /dev/null 2>&1 || true
   if [ $status -ne 0 ]; then
     echo "::error title=App log (last 40 lines)::$(tail -40 "$APP_LOG" | sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g')"
     echo "::error title=Worker log (last 40 lines)::$(tail -40 "$WORKER_LOG" | sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g')"
@@ -49,7 +52,8 @@ trap on_exit EXIT
 # publish), otherwise the Release build. The apps' settings (Section__Key) and the ASP.NET Core, .NET and
 # OpenTelemetry variables are passed into the container, except model paths: each image carries its own models, so
 # the worker is tested with the ones it ships. Containers share the runner's network, so localhost is the same as for
-# dotnet run. LAUNCH_TIMEOUT=<seconds> stops it after that long.
+# dotnet run. LAUNCH_TIMEOUT=<seconds> stops it after that long. LAUNCH_NAME=<name> names the container, so it can be
+# stopped with docker stop (killing the docker run client doesn't reliably stop it).
 launch() {
   local app=$1; shift
   local vars=() args=() names passthrough=() name image project limit=()
@@ -63,14 +67,15 @@ launch() {
     names=$(env "${vars[@]}" | grep -oE '^([A-Za-z0-9]+__[A-Za-z0-9_]+|ASPNETCORE_[A-Z_]+|DOTNET_[A-Z_]+|OTEL_[A-Z_]+)=' \
       | tr -d '=' | grep -v 'ModelPath$' || true)
     for name in $names; do passthrough+=(-e "$name"); done
-    env "${vars[@]}" "${limit[@]}" docker run --rm --network host "${passthrough[@]}" "$image" "${args[@]}"
+    env "${vars[@]}" "${limit[@]}" docker run --rm --network host ${LAUNCH_NAME:+--name "$LAUNCH_NAME"} "${passthrough[@]}" "$image" "${args[@]}"
   else
     env "${vars[@]}" "${limit[@]}" dotnet run --project "$project" --configuration Release --no-build --no-launch-profile -- "${args[@]}"
   fi
 }
 
 start_app() {
-  launch api "$@" >> "$APP_LOG" 2>&1 &
+  docker rm -f "$APP_CONTAINER" > /dev/null 2>&1 || true
+  LAUNCH_NAME=$APP_CONTAINER launch api "$@" >> "$APP_LOG" 2>&1 &
   APP_PID=$!
   for _ in $(seq 1 60); do
     if curl -fs "$BASE_URL/health" > /dev/null 2>&1; then echo "ok  app is healthy"; return; fi
@@ -81,13 +86,16 @@ start_app() {
 }
 
 stop_app() {
-  kill "$APP_PID"
+  # The container, if it's one: docker stop returns once it has shut down and freed the port.
+  docker stop --time 30 "$APP_CONTAINER" > /dev/null 2>&1 || true
+  kill "$APP_PID" 2>/dev/null || true
   wait "$APP_PID" 2>/dev/null || true
   APP_PID=""
 }
 
 start_worker() {
-  launch worker DOTNET_ENVIRONMENT=Development >> "$WORKER_LOG" 2>&1 &
+  docker rm -f "$WORKER_CONTAINER" > /dev/null 2>&1 || true
+  LAUNCH_NAME=$WORKER_CONTAINER launch worker DOTNET_ENVIRONMENT=Development >> "$WORKER_LOG" 2>&1 &
   WORKER_PID=$!
   sleep 5
   kill -0 "$WORKER_PID" 2>/dev/null || fail "The media worker exited during startup."
@@ -95,7 +103,8 @@ start_worker() {
 }
 
 stop_worker() {
-  kill "$WORKER_PID"
+  docker stop --time 30 "$WORKER_CONTAINER" > /dev/null 2>&1 || true
+  kill "$WORKER_PID" 2>/dev/null || true
   wait "$WORKER_PID" 2>/dev/null || true
   WORKER_PID=""
 }
