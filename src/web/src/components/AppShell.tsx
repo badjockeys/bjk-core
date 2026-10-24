@@ -10,6 +10,7 @@ import { Avatar } from "./Avatar";
 import {
   CommunitiesIcon,
   AccountIcon,
+  BellIcon,
   BookmarkIcon,
   HomeIcon,
   LogoMark,
@@ -68,6 +69,8 @@ export function AppShell({
 }) {
   const myProfile = viewer.handle ? profilePath(viewer.handle) : "/profile/new";
   const showSignup = !viewer.signedIn;
+  /** Visitors see every section, but only Home works: the rest are greyed out and lead to sign in (owner, 24 Oct). */
+  const locked = !viewer.signedIn;
   const classes = [
     "shell",
     bottomNav && viewer.signedIn ? "has-bnav" : "",
@@ -89,44 +92,60 @@ export function AppShell({
           <NavItem
             href="/reels"
             on={section === "reels"}
+            locked={locked}
             icon={<ReelsIcon size={26} filled={section === "reels"} />}
           >
             Reels
           </NavItem>
-          <NavItem href="/map" on={section === "map"} icon={<MapIcon size={26} filled={section === "map"} />}>
+          <NavItem
+            href="/map"
+            on={section === "map"}
+            locked={locked}
+            icon={<MapIcon size={26} filled={section === "map"} />}
+          >
             Map
+          </NavItem>
+          <NavItem
+            href="/communities"
+            on={section === "communities"}
+            locked={locked}
+            icon={<CommunitiesIcon size={26} filled={section === "communities"} />}
+          >
+            Communities
+          </NavItem>
+          {viewer.signedIn ? (
+            <NotificationBell label className={`nav-i${section === "notifications" ? " nav-on" : ""}`} />
+          ) : (
+            <NavItem href="/notifications" on={false} locked icon={<BellIcon size={26} />}>
+              Notifications
+            </NavItem>
+          )}
+          <NavItem
+            href="/bookmarks"
+            on={section === "bookmarks"}
+            locked={locked}
+            icon={<BookmarkIcon size={26} on={section === "bookmarks"} />}
+          >
+            Bookmarks
+          </NavItem>
+          <NavItem
+            href={myProfile}
+            on={section === "profile"}
+            locked={locked}
+            icon={<ProfileIcon size={26} filled={section === "profile"} />}
+          >
+            Your profile
+          </NavItem>
+          <NavItem
+            href="/account"
+            on={section === "account"}
+            locked={locked}
+            icon={<AccountIcon size={26} filled={section === "account"} />}
+          >
+            Account
           </NavItem>
           {viewer.signedIn ? (
             <>
-              <NavItem
-                href="/communities"
-                on={section === "communities"}
-                icon={<CommunitiesIcon size={26} filled={section === "communities"} />}
-              >
-                Communities
-              </NavItem>
-              <NotificationBell label className={`nav-i${section === "notifications" ? " nav-on" : ""}`} />
-              <NavItem
-                href="/bookmarks"
-                on={section === "bookmarks"}
-                icon={<BookmarkIcon size={26} on={section === "bookmarks"} />}
-              >
-                Bookmarks
-              </NavItem>
-              <NavItem
-                href={myProfile}
-                on={section === "profile"}
-                icon={<ProfileIcon size={26} filled={section === "profile"} />}
-              >
-                Your profile
-              </NavItem>
-              <NavItem
-                href="/account"
-                on={section === "account"}
-                icon={<AccountIcon size={26} filled={section === "account"} />}
-              >
-                Account
-              </NavItem>
               <div className="x-me">
                 <Avatar name={viewer.displayName ?? viewer.email} url={viewer.avatarUrl} />
                 <span className="c-sub">
@@ -195,14 +214,26 @@ export function AppShell({
 function NavItem({
   href,
   on,
+  locked = false,
   icon,
   children,
 }: {
   href: string;
   on: boolean;
+  /** Signed out: greyed out, and goes to sign in, then on to the section. */
+  locked?: boolean;
   icon: ReactNode;
   children: ReactNode;
 }) {
+  if (locked) {
+    return (
+      <Link href={signInPath(href)} className="nav-i nav-locked" title="Sign in to use this">
+        {icon}
+        {children}
+        <span className="sr-only"> (sign in first)</span>
+      </Link>
+    );
+  }
   return (
     <Link href={href} className={`nav-i${on ? " nav-on" : ""}`} aria-current={on ? "page" : undefined}>
       {icon}
