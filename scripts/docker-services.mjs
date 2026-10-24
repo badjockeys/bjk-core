@@ -1,6 +1,7 @@
-// Shared by setup-local.mjs and start-docker.mjs: starts the "bad-jockeys" Docker group (bjk-core's
-// docker-compose.yml: SQL Server, S3Mock, and Elasticsearch, Kibana and the OpenTelemetry collector), first clearing
-// away the groups and containers it replaced. Uses only Node.js built-ins.
+// Shared by setup-local.mjs and start-docker.mjs: starts the "bad-jockeys" Docker group's source profile (bjk-core's
+// docker-compose.yml: SQL Server, S3Mock, and Elasticsearch, Kibana and the OpenTelemetry collector; what the apps
+// need when F5 runs them from source), first clearing away the groups and containers it replaced. Uses only Node.js
+// built-ins.
 
 import { spawn, spawnSync } from "node:child_process";
 import { mkdirSync, openSync } from "node:fs";
@@ -62,11 +63,16 @@ function removeReplaced() {
  */
 export function startServices(core, { wait = false } = {}) {
   removeReplaced();
-  const compose = (args, options) => spawnSync("docker", ["compose", ...args], { cwd: core, stdio: "inherit", ...options });
+  const compose = (args, options) =>
+    spawnSync("docker", ["compose", "--profile", "source", ...args], { cwd: core, stdio: "inherit", ...options });
   if (wait) return compose(["up", "-d", "--wait", "--remove-orphans"]).status === 0;
   if (compose(["up", "-d", "--wait", ...ESSENTIAL]).status !== 0) return false;
   mkdirSync(join(core, ".local"), { recursive: true });
   const log = openSync(join(core, ".local", "elastic-start.log"), "w");
-  spawn("docker", ["compose", "up", "-d", "--remove-orphans"], { cwd: core, stdio: ["ignore", log, log], detached: true }).unref();
+  spawn("docker", ["compose", "--profile", "source", "up", "-d", "--remove-orphans"], {
+    cwd: core,
+    stdio: ["ignore", log, log],
+    detached: true,
+  }).unref();
   return true;
 }

@@ -9,6 +9,8 @@
 # object storage; the processing queue; posts, reactions, comments and reports; moderation rights; data export; the
 # user lifecycle events from the identity server (deactivate, reactivate, delete); reels (daily limits by plan) and the
 # incident heat map (suppression, entitlements); Ask Bad Jockeys' plan checks (no model server here); and a restart.
+#
+# With API_IMAGE and WORKER_IMAGE set (CI), it runs those container images; otherwise the Release build (dotnet run).
 set -euo pipefail
 
 PROJECT=${PROJECT:-src/BJK.Core.Api}
@@ -42,8 +44,33 @@ on_exit() {
 }
 trap on_exit EXIT
 
+# launch api|worker [VAR=value ...] [-- APP_ARGS ...]  - runs the API or the media worker in the foreground with these
+# extra settings: the container image in API_IMAGE or WORKER_IMAGE when set (CI tests the images it's about to
+# publish), otherwise the Release build. The apps' settings (Section__Key) and the ASP.NET Core, .NET and
+# OpenTelemetry variables are passed into the container, except model paths: each image carries its own models, so
+# the worker is tested with the ones it ships. Containers share the runner's network, so localhost is the same as for
+# dotnet run. LAUNCH_TIMEOUT=<seconds> stops it after that long.
+launch() {
+  local app=$1; shift
+  local vars=() args=() names passthrough=() name image project limit=()
+  while [ $# -gt 0 ]; do
+    if [ "$1" = "--" ]; then shift; args=("$@"); break; fi
+    vars+=("$1"); shift
+  done
+  if [ "$app" = worker ]; then image=${WORKER_IMAGE:-}; project=$WORKER_PROJECT; else image=${API_IMAGE:-}; project=$PROJECT; fi
+  if [ -n "${LAUNCH_TIMEOUT:-}" ]; then limit=(timeout "$LAUNCH_TIMEOUT"); fi
+  if [ -n "$image" ]; then
+    names=$(env "${vars[@]}" | grep -oE '^([A-Za-z0-9]+__[A-Za-z0-9_]+|ASPNETCORE_[A-Z_]+|DOTNET_[A-Z_]+|OTEL_[A-Z_]+)=' \
+      | tr -d '=' | grep -v 'ModelPath$' || true)
+    for name in $names; do passthrough+=(-e "$name"); done
+    env "${vars[@]}" "${limit[@]}" docker run --rm --network host "${passthrough[@]}" "$image" "${args[@]}"
+  else
+    env "${vars[@]}" "${limit[@]}" dotnet run --project "$project" --configuration Release --no-build --no-launch-profile -- "${args[@]}"
+  fi
+}
+
 start_app() {
-  env "$@" dotnet run --project "$PROJECT" --configuration Release --no-build --no-launch-profile >> "$APP_LOG" 2>&1 &
+  launch api "$@" >> "$APP_LOG" 2>&1 &
   APP_PID=$!
   for _ in $(seq 1 60); do
     if curl -fs "$BASE_URL/health" > /dev/null 2>&1; then echo "ok  app is healthy"; return; fi
@@ -60,7 +87,7 @@ stop_app() {
 }
 
 start_worker() {
-  DOTNET_ENVIRONMENT=Development dotnet run --project "$WORKER_PROJECT" --configuration Release --no-build --no-launch-profile >> "$WORKER_LOG" 2>&1 &
+  launch worker DOTNET_ENVIRONMENT=Development >> "$WORKER_LOG" 2>&1 &
   WORKER_PID=$!
   sleep 5
   kill -0 "$WORKER_PID" 2>/dev/null || fail "The media worker exited during startup."
@@ -565,13 +592,13 @@ stop_app
 # ---------- settings checks (--check-settings) ----------
 
 # Development: the CI settings are fine, so the check passes.
-dotnet run --project "$PROJECT" --configuration Release --no-build --no-launch-profile -- --check-settings > check.log 2>&1 \
+launch api -- --check-settings > check.log 2>&1 \
   || { cat check.log; fail "--check-settings failed in Development."; }
 grep -q "Settings check passed" check.log || fail "--check-settings didn't say it passed."
 pass "--check-settings passes in Development"
 
 # Anywhere else, every missing or stand-in setting is listed at once, and it exits 1 without starting.
-if ASPNETCORE_ENVIRONMENT=Production dotnet run --project "$PROJECT" --configuration Release --no-build --no-launch-profile -- --check-settings > check.log 2>&1; then
+if launch api ASPNETCORE_ENVIRONMENT=Production -- --check-settings > check.log 2>&1; then
   cat check.log; fail "--check-settings passed in Production with local settings."
 fi
 # Matched by setting name: without user secrets most are missing, and the rest are stand-ins ("must be ...").
@@ -581,14 +608,14 @@ for expected in "Email:SendGrid:ApiKey " "SMS:Twilio:AccountSid " "Cors:AllowedO
 done
 pass "--check-settings in Production lists every missing setting and exits 1"
 
-if DOTNET_ENVIRONMENT=Production dotnet run --project "$WORKER_PROJECT" --configuration Release --no-build --no-launch-profile -- --check-settings > check.log 2>&1; then
+if launch worker DOTNET_ENVIRONMENT=Production -- --check-settings > check.log 2>&1; then
   cat check.log; fail "The media worker's --check-settings passed in Production with local settings."
 fi
 grep -qF "Media:Storage:SensitiveBucket is missing" check.log || { cat check.log; fail "The media worker's --check-settings didn't report the sensitive bucket."; }
 pass "media worker --check-settings in Production lists what's missing"
 
 # The API itself refuses to start in Production with local settings.
-if ASPNETCORE_ENVIRONMENT=Production timeout 60 dotnet run --project "$PROJECT" --configuration Release --no-build --no-launch-profile > check.log 2>&1; then
+if LAUNCH_TIMEOUT=60 launch api ASPNETCORE_ENVIRONMENT=Production > check.log 2>&1; then
   fail "The API started in Production with local settings."
 fi
 grep -qF "Email:SendGrid:ApiKey " check.log || { cat check.log; fail "The API's refusal to start didn't name the missing settings."; }
