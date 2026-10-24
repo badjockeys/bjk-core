@@ -16,7 +16,8 @@ RUN dotnet publish src/BJK.Core.MediaWorker/BJK.Core.MediaWorker.csproj --config
 COPY pipelines/scripts/download-redaction-models.sh /tmp/
 RUN sh /tmp/download-redaction-models.sh /opt/bjk/models
 
-FROM mcr.microsoft.com/dotnet/runtime:10.0
+# ASP.NET Core's runtime, not the plain .NET one: the modules the worker uses need the Microsoft.AspNetCore.App framework.
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
 # ffmpeg and ffprobe do the conversions. Debian's build includes libx264 (video) and libwebp (photos).
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ffmpeg \

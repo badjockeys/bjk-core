@@ -21,6 +21,9 @@ const string ChatConnectionStringName = "BadJockeysChat";
 
 var builder = WebApplication.CreateBuilder(args);
 
+// The released image on a developer's machine (docker-compose.yml's "release" profile) must have their user secrets.
+RequiredUserSecrets.Check(builder.Environment);
+
 // Logs, traces and metrics over OTLP: locally Elastic's OpenTelemetry collector in the Docker group
 // (launchSettings.json), Elastic Cloud when deployed. See "Logs, traces and metrics" in the bjk-modules README.
 builder.AddBjkObservability("bjk-core-api");

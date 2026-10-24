@@ -12,6 +12,9 @@ const string ConnectionStringName = "BadJockeysDatabase";
 
 var builder = Host.CreateApplicationBuilder(args);
 
+// The released image on a developer's machine (docker-compose.yml's "release" profile) must have their user secrets.
+BJK.Core.MediaWorker.RequiredUserSecrets.Check(builder.Environment);
+
 builder.AddBjkObservability("bjk-media-worker");
 
 builder.Services.AddMediaProcessing(builder.Configuration, ConnectionStringName);

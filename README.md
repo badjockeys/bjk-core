@@ -14,7 +14,14 @@ The Bad Jockeys web app (Next.js) and API host (ASP.NET Core), built as two cont
 
 ## Running it locally
 
-One script installs the tools and sets everything up on a new computer: `powershell -ExecutionPolicy Bypass -File scripts\setup\setup.ps1` on Windows, `bash scripts/setup/setup.sh` on a Mac. Then, in the VS Code workspace it opens (`badjockeys.code-workspace`), run the task **"Run Bad Jockeys"**. The [local development guide](docs/local-development.md) has the details.
+One script installs the tools and sets everything up on a new computer: `powershell -ExecutionPolicy Bypass -File scripts\setup\setup.ps1` on Windows, `bash scripts/setup/setup.sh` on a Mac. It also creates your settings: your .NET user secrets, `src/web/.env.local` and `.env`. Then there are two ways to run it, picked with a profile of `docker-compose.yml`:
+
+| Profile | The apps come from | How |
+|---|---|---|
+| `source` | Your code | In the VS Code workspace the setup opens (`badjockeys.code-workspace`), press F5 ("Bad Jockeys") or run the task **"Run Bad Jockeys"**. They start the `source` containers (SQL Server, S3Mock, Elastic) for you |
+| `release` | The images CI published to GHCR: exactly what gets deployed | `docker compose --profile release up -d --wait`, or the task **"Run the released build"**. Add `tag=<bjk-core commit SHA>` for a particular build. Stop it with `docker compose --profile release down` |
+
+Both use the same databases, files and user secrets, so you can switch between them. Step by step, with what each part does: [Run the released build](docs/local-development.md#run-the-released-build). Everything else: the [local development guide](docs/local-development.md).
 
 Going live: see [Going live](docs/local-development.md#going-live) for every setting a deployed environment must change, and what accounts are still needed.
 
@@ -24,7 +31,19 @@ Going live: see [Going live](docs/local-development.md#going-live) for every set
 
 `src/BJK.Core.MediaWorker` is the media processing worker. It takes jobs off the `media.process` queue, blurs faces and number plates, converts each upload with ffmpeg (720p H.264 video, or WebP photos up to 2048 pixels, plus a thumbnail, with metadata such as GPS stripped), and publishes the results. Its image includes the blurring models. It needs ffmpeg installed and shares the API's user secrets. Run it with `dotnet run --project src/BJK.Core.MediaWorker --launch-profile worker`.
 
-On your machine, SQL Server and file storage (S3Mock, standing in for Cloudflare R2, so no Cloudflare account is needed) run in Docker from this repo's `docker-compose.yml`, as one group called `bad-jockeys` (`docker compose up -d --wait`).
+On your machine, SQL Server and file storage (S3Mock, standing in for Cloudflare R2, so no Cloudflare account is needed) run in Docker from this repo's `docker-compose.yml`, as one group called `bad-jockeys` (`docker compose --profile source up -d --wait`).
+
+## Container images and CI
+
+Every pull request builds the API, media worker and web app images and runs the end-to-end smoke test against the API and worker **images** (not the build output), so what's tested is what's published. On master, once that passes, CI builds each image for Intel/AMD and Apple silicon and publishes it to GHCR, tagged with the commit's SHA (full and first 7 characters) and `latest`:
+
+| Image | Dockerfile |
+|---|---|
+| `ghcr.io/badjockeys/bjk-core-api` | `src/BJK.Core.Api/Dockerfile` |
+| `ghcr.io/badjockeys/bjk-core-media-worker` | `src/BJK.Core.MediaWorker/Dockerfile` (with ffmpeg and the blurring and content models) |
+| `ghcr.io/badjockeys/bjk-core-web` | `src/web/Dockerfile` |
+
+bjk-identity-server publishes `ghcr.io/badjockeys/bjk-identity-server` the same way. The `release` profile runs these locally, and the deploy pipeline (not built yet; it waits for the Terraform) will roll out the same SHA-tagged images to DEV, QA, Staging and Live. `.github/workflows/ci.yml`: jobs `build` (.NET, images, smoke test), `web` (lint, types, tests, image, end-to-end tests), then on master `publish` (each image on an x86-64 and an ARM runner) and `tag`.
 
 Logs, traces and metrics: the apps send them over OpenTelemetry to Elastic's collector in the same Docker group, which stores them in Elasticsearch; view them in **Kibana** at http://localhost:5601 (sign in as `elastic`, password `BJK_ELASTIC_PASSWORD` in `.env`). When deployed they go to Elastic Cloud. See [Logs, traces and metrics](docs/local-development.md#logs-traces-and-metrics).
 

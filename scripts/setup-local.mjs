@@ -34,6 +34,7 @@ import { fileURLToPath } from "node:url";
 import { removeOldGroups, startServices } from "./docker-services.mjs";
 import { findFfmpeg } from "./ffmpeg-tools.mjs";
 import { ensureElasticEnv, readEnvValue } from "./elastic-env.mjs";
+import { ensureUserSecretsDir, userSecretsDir } from "./user-secrets-dir.mjs";
 import { OWNER_EMAIL, OWNER_PLAN } from "./sql/example-data/data.mjs";
 import { applyReporting, chatPassword, reportingPassword } from "./sql/reporting/apply.mjs";
 import { ownerId, seedExampleData } from "./sql/example-data/seed.mjs";
@@ -288,10 +289,7 @@ function writeIfMissing(file, content, label) {
  * with the C# Dev Kit), and what the app reads in Development. The setup writes straight into it.
  */
 function userSecretsFile(id) {
-  const root = isWindows
-    ? join(process.env.APPDATA ?? join(homedir(), "AppData", "Roaming"), "Microsoft", "UserSecrets")
-    : join(homedir(), ".microsoft", "usersecrets");
-  return join(root, id, "secrets.json");
+  return join(userSecretsDir(), id, "secrets.json");
 }
 
 /** The API's (shared with the media worker) and the identity server's user secrets. */
@@ -556,6 +554,9 @@ function createConfig() {
   chatPassword();
   const addedElastic = ensureElasticEnv(core);
   if (addedElastic.length) ok(`bjk-core/.env: added ${addedElastic.join(", ")} for Elasticsearch and Kibana`);
+  // Where your user secrets are, for the released build (docker compose --profile release) to mount.
+  const secretsDir = ensureUserSecretsDir(core);
+  if (secretsDir) ok(`bjk-core/.env: added BJK_USER_SECRETS_DIR=${secretsDir} for the released build`);
 
   const fromTemplate = (template, edit) => {
     // The templates leave the SQL password empty (Password=;): it's the one in bjk-core/.env.
@@ -646,7 +647,7 @@ function startDocker() {
   removeOldGroups();
   if (!startServices(core, { wait: true })) {
     fail(
-      "A Docker service didn't start. Run 'docker compose ps' and 'docker compose logs <service>' in bjk-core to see why." +
+      "A Docker service didn't start. Run 'docker compose --profile source ps' and 'docker compose logs <service>' in bjk-core to see why." +
         (process.platform === "darwin"
           ? " On Apple Silicon, check Rosetta is on in Docker Desktop's settings. Elasticsearch needs about 2 GB of Docker's memory."
           : ""),

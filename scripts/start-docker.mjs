@@ -16,6 +16,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { removeOldGroups, startServices } from "./docker-services.mjs";
 import { ensureElasticEnv } from "./elastic-env.mjs";
+import { ensureUserSecretsDir } from "./user-secrets-dir.mjs";
 
 const core = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const WAIT_SECONDS = 180;
@@ -76,8 +77,10 @@ if (!existsSync(join(core, ".env"))) {
 }
 const added = ensureElasticEnv(core);
 if (added.length) console.log(`Added ${added.join(", ")} to bjk-core/.env for the Elastic containers.`);
+const secretsDir = ensureUserSecretsDir(core);
+if (secretsDir) console.log(`Added BJK_USER_SECRETS_DIR=${secretsDir} to bjk-core/.env for the released build.`);
 removeOldGroups();
-if (!startServices(core)) fail(`SQL Server or S3Mock didn't start. Run 'docker compose logs' in ${core} to see why.`);
+if (!startServices(core)) fail(`SQL Server or S3Mock didn't start. Run 'docker compose --profile source logs' in ${core} to see why.`);
 console.log("SQL Server and S3Mock are running; Elasticsearch, Kibana and the collector are starting (Docker group bad-jockeys).");
 
 // F5 and "Run Bad Jockeys": open Kibana in the browser once it answers, without holding up the apps.

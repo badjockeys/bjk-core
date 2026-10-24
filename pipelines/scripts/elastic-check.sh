@@ -17,10 +17,10 @@ es() { curl -s -u "elastic:$BJK_ELASTIC_PASSWORD" -H "Content-Type: application/
 
 case "${1:-}" in
   start)
-    if ! docker compose up -d --wait --wait-timeout 300 elasticsearch kibana otel-collector; then
-      docker compose ps -a
+    if ! docker compose --profile source up -d --wait --wait-timeout 300 elasticsearch kibana otel-collector; then
+      docker compose --profile source ps -a
       for service in elasticsearch kibana-setup kibana otel-collector; do
-        echo "::group::$service log"; docker compose logs --tail 80 "$service" || true; echo "::endgroup::"
+        echo "::group::$service log"; docker compose --profile source logs --tail 80 "$service" || true; echo "::endgroup::"
       done
       fail "The Elastic containers didn't start (logs above)."
     fi
@@ -41,7 +41,7 @@ case "${1:-}" in
       traces=$(count 'traces-*' "$service"); logs=$(count 'logs-*' "$service"); metrics=$(count 'metrics-*' "$service")
       echo "$service: $traces spans, $logs log records, $metrics metric documents"
     done
-    [ "$(count 'traces-*' bjk-core-api)" -gt 0 ] || { es "/_cat/indices?v"; docker compose logs --tail 80 otel-collector; fail "No traces from bjk-core-api reached Elasticsearch."; }
+    [ "$(count 'traces-*' bjk-core-api)" -gt 0 ] || { es "/_cat/indices?v"; docker compose --profile source logs --tail 80 otel-collector; fail "No traces from bjk-core-api reached Elasticsearch."; }
     [ "$(count 'logs-*' bjk-core-api)" -gt 0 ] || fail "No logs from bjk-core-api reached Elasticsearch."
     [ "$(count 'traces-*' bjk-media-worker)" -gt 0 ] || [ "$(count 'logs-*' bjk-media-worker)" -gt 0 ] \
       || fail "Nothing from bjk-media-worker reached Elasticsearch."

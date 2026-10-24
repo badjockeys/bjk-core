@@ -1,18 +1,29 @@
-# The services Bad Jockeys needs on your machine, in one Docker group called "bad-jockeys". The apps themselves
-# (identity server, API, media worker, web app) run outside Docker; see docs/local-development.md.
+# Bad Jockeys on your machine, in one Docker group called "bad-jockeys". Every service belongs to a profile, and you
+# pick one (docs/local-development.md has the step-by-step guide):
 #
-#   docker compose up -d --wait   starts them and waits until they're all ready (Kibana takes a minute or two)
-#   docker compose stop           stops them and keeps the data
-#   docker compose down -v        removes them and ALL local data (databases, queues, uploaded files, logs)
+#   source    What the apps need when you run them from source (F5 in VS Code): SQL Server, S3Mock, and
+#             Elasticsearch, Kibana and the OpenTelemetry collector.
+#   release   The same, plus the four apps themselves (identity server, API, media worker, web app) as the images CI
+#             published to ghcr.io/badjockeys, using your own user secrets. tag=<bjk-core commit sha> picks the API,
+#             media worker and web images; identity_tag=<bjk-identity-server commit sha> picks the identity server's
+#             (its own repo, so its own SHAs). Either left out means latest.
 #
-# The passwords come from .env (git-ignored) next to this file; scripts/setup-local.mjs creates it, or copy
-# .env.example to .env and fill it in. You rarely need these commands: the setup, "Run Bad Jockeys" and F5 start them for you.
+#   docker compose --profile source up -d --wait     starts the source profile and waits until it's ready
+#   docker compose --profile release up -d --wait    the released build: http://localhost:3000
+#   tag=3f2a9c1 docker compose --profile release up -d --wait   a specific bjk-core build (PowerShell: $env:tag="3f2a9c1")
+#   docker compose --profile release down            removes the containers, keeps the data (then F5 works again)
+#   docker compose --profile "*" down -v             removes everything and ALL local data (databases, queues, files, logs)
+#
+# The passwords and BJK_USER_SECRETS_DIR come from .env (git-ignored) next to this file; the setup
+# (scripts/setup/setup.sh or setup.ps1) creates it. You rarely need the source commands: the setup, "Run Bad Jockeys"
+# and F5 start them for you.
 name: bad-jockeys
 
 services:
   # SQL Server 2022: both databases (idsrv for the identity server, badjockeys for the API) and the message queues
   # (schema messaging of badjockeys).
   sql:
+    profiles: [source, release]
     image: mcr.microsoft.com/mssql/server:2022-latest
     # SQL Server only ships for x86-64; on Apple Silicon Docker Desktop runs it under Rosetta.
     platform: linux/amd64
@@ -34,6 +45,7 @@ services:
   # Adobe's S3Mock: the local stand-in for Cloudflare R2. It speaks the same S3 API, so the API and the media worker
   # don't know the difference, and it doesn't check keys or signatures, so any access key works.
   s3:
+    profiles: [source, release]
     image: adobe/s3mock:3.12.0
     container_name: bad-jockeys-s3mock
     ports:
@@ -54,6 +66,7 @@ services:
   # The same version as Elastic Cloud when deployed, where only the apps' OTLP address and key change. Free (basic)
   # licence; data is kept in the elastic-data volume. The setup adds the three BJK_ELASTIC_/BJK_KIBANA_ values to .env.
   elasticsearch:
+    profiles: [source, release]
     image: docker.elastic.co/elasticsearch/elasticsearch:9.5.5
     container_name: bad-jockeys-elasticsearch
     environment:
@@ -88,6 +101,7 @@ services:
   # Sets the password Kibana signs in to Elasticsearch with (the built-in kibana_system user), then stops. Kibana
   # can't use the "elastic" superuser.
   kibana-setup:
+    profiles: [source, release]
     image: docker.elastic.co/elasticsearch/elasticsearch:9.5.5
     container_name: bad-jockeys-kibana-setup
     depends_on:
@@ -106,6 +120,7 @@ services:
     restart: "no"
 
   kibana:
+    profiles: [source, release]
     image: docker.elastic.co/kibana/kibana:9.5.5
     container_name: bad-jockeys-kibana
     depends_on:
@@ -135,6 +150,7 @@ services:
   # Elastic's distribution of the OpenTelemetry collector: takes OTLP from the apps and writes it to Elasticsearch in
   # OpenTelemetry's own format, adding the summaries Kibana's service views need (src/observability/edot-collector.yml).
   otel-collector:
+    profiles: [source, release]
     image: docker.elastic.co/elastic-agent/elastic-otel-collector:9.5.5
     container_name: bad-jockeys-otel-collector
     depends_on:
@@ -150,6 +166,154 @@ services:
       - "127.0.0.1:4317:4317"
       - "127.0.0.1:4318:4318"
     restart: unless-stopped
+
+  # ---------- The released build (profile "release") ----------
+  #
+  # The four app images from GHCR, run the way F5 runs them: Development, with your user secrets (mounted read-only
+  # and required: an app stops at once, naming the path, if its file is missing) and src/web/.env.local. They share
+  # one network, like programs on your machine, so localhost:1433, localhost:9090 and the rest mean the same as for
+  # F5 and your settings work unchanged. The only differences, set below: inside Docker the apps serve plain HTTP
+  # (as behind Container Apps' ingress), so the identity server and the API are http://localhost:5001 and
+  # http://localhost:5101, and each image uses its own ffmpeg and models.
+
+  # Holds the shared network: it publishes the apps' ports to your machine, and forwards localhost:1433 (SQL Server),
+  # localhost:9090 (S3Mock) and localhost:4318 (the OpenTelemetry collector) to those containers.
+  apps-network:
+    profiles: [release]
+    image: alpine:3.22
+    container_name: bad-jockeys-apps-network
+    depends_on:
+      sql:
+        condition: service_healthy
+      s3:
+        condition: service_started
+    command: >
+      sh -c 'apk add --no-cache --quiet socat && {
+        socat TCP-LISTEN:1433,fork,reuseaddr TCP:sql:1433 &
+        socat TCP-LISTEN:9090,fork,reuseaddr TCP:s3:9090 &
+        socat TCP-LISTEN:4318,fork,reuseaddr TCP:otel-collector:4318 &
+        wait; }'
+    ports:
+      - "127.0.0.1:3000:3000"   # web app
+      - "127.0.0.1:5001:5001"   # identity server
+      - "127.0.0.1:5101:5101"   # API
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 1433 && nc -z 127.0.0.1 9090 && nc -z 127.0.0.1 4318"]
+      interval: 2s
+      timeout: 2s
+      retries: 60
+
+  identity-server:
+    profiles: [release]
+    image: ghcr.io/badjockeys/bjk-identity-server:${identity_tag:-latest}
+    pull_policy: always
+    container_name: bad-jockeys-identity-server
+    network_mode: service:apps-network
+    depends_on:
+      apps-network:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:5001
+      BJK_REQUIRE_USER_SECRETS: "true"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://localhost:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      # Plain HTTP inside Docker (your user secrets say https://localhost:5001, for F5).
+      Email__PublicOrigin: http://localhost:5001
+      Email__PasswordResetUrl: http://localhost:5001/Account/ResetPassword
+    volumes:
+      - type: bind
+        source: ${BJK_USER_SECRETS_DIR:-./.local/BJK_USER_SECRETS_DIR-is-not-set}/bjk-identity-server
+        target: /home/app/.microsoft/usersecrets/bjk-identity-server
+        read_only: true
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/5001 && printf 'GET /health HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q Healthy <&3"]
+      interval: 5s
+      timeout: 5s
+      start_period: 30s
+      retries: 36
+
+  api:
+    profiles: [release]
+    image: ghcr.io/badjockeys/bjk-core-api:${tag:-latest}
+    pull_policy: always
+    container_name: bad-jockeys-api
+    network_mode: service:apps-network
+    depends_on:
+      apps-network:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:5101
+      BJK_REQUIRE_USER_SECRETS: "true"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://localhost:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      # The identity server is plain HTTP inside Docker (your user secrets say https://localhost:5001, for F5).
+      Authentication__Authority: http://localhost:5001
+      Authentication__RequireHttpsMetadata: "false"
+    volumes:
+      - type: bind
+        source: ${BJK_USER_SECRETS_DIR:-./.local/BJK_USER_SECRETS_DIR-is-not-set}/bjk-core-api
+        target: /home/app/.microsoft/usersecrets/bjk-core-api
+        read_only: true
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/5101 && printf 'GET /health HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q Healthy <&3"]
+      interval: 5s
+      timeout: 5s
+      start_period: 30s
+      retries: 36
+
+  # Shares the API's user secrets, as with F5. The API creates the database, so the worker starts once it's healthy.
+  media-worker:
+    profiles: [release]
+    image: ghcr.io/badjockeys/bjk-core-media-worker:${tag:-latest}
+    pull_policy: always
+    container_name: bad-jockeys-media-worker
+    network_mode: service:apps-network
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      DOTNET_ENVIRONMENT: Development
+      BJK_REQUIRE_USER_SECRETS: "true"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://localhost:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      # The image's own ffmpeg (your user secrets may point at one on your machine). Its models are set by the image.
+      Media__Processing__FfmpegPath: ffmpeg
+      Media__Processing__FfprobePath: ffprobe
+    volumes:
+      - type: bind
+        source: ${BJK_USER_SECRETS_DIR:-./.local/BJK_USER_SECRETS_DIR-is-not-set}/bjk-core-api
+        target: /home/app/.microsoft/usersecrets/bjk-core-api
+        read_only: true
+        bind:
+          create_host_path: false
+
+  # Reads src/web/.env.local like npm run dev. The image's own health check (/healthz) tells --wait when it's ready.
+  web:
+    profiles: [release]
+    image: ghcr.io/badjockeys/bjk-core-web:${tag:-latest}
+    pull_policy: always
+    container_name: bad-jockeys-web
+    network_mode: service:apps-network
+    depends_on:
+      identity-server:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    env_file:
+      - path: src/web/.env.local
+        required: false
+    environment:
+      # Plain HTTP inside Docker (.env.local says https, for F5), and no certificate to trust.
+      API_BASE_URL: http://localhost:5101
+      IDSRV_AUTHORITY: http://localhost:5001
+      IDSRV_ALLOW_HTTP: "true"
+      NODE_EXTRA_CA_CERTS: ""
 
 volumes:
   sql-data:

@@ -87,11 +87,44 @@ jobs:
             exit 1
           fi
 
-      - name: Build the container images
+      # The images this commit would publish, built for the runner's chip (x86-64) and loaded into Docker so the
+      # smoke test runs them. The cache is shared with the publish job's x86-64 builds, which reuse these layers.
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build the API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/BJK.Core.Api/Dockerfile
+          platforms: linux/amd64
+          load: true
+          tags: bjk-core-api:ci
+          secrets: nuget=${{ env.NuGetPackageSourceCredentials_badjockeys }}
+          cache-from: type=gha,scope=api-linux-amd64
+          cache-to: type=gha,scope=api-linux-amd64,mode=max
+
+      - name: Build the media worker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/BJK.Core.MediaWorker/Dockerfile
+          platforms: linux/amd64
+          load: true
+          tags: bjk-core-media-worker:ci
+          secrets: nuget=${{ env.NuGetPackageSourceCredentials_badjockeys }}
+          cache-from: type=gha,scope=media-worker-linux-amd64
+          cache-to: type=gha,scope=media-worker-linux-amd64,mode=max
+
+      # What the images need besides the apps: ffmpeg with the encoders and the models in the worker, and no root.
+      - name: Image contents
         run: |
-          docker build --file src/BJK.Core.Api/Dockerfile --secret id=nuget,env=NuGetPackageSourceCredentials_badjockeys --tag bjk-core-api:ci .
-          docker build --file src/BJK.Core.MediaWorker/Dockerfile --secret id=nuget,env=NuGetPackageSourceCredentials_badjockeys --tag bjk-core-media-worker:ci .
           docker run --rm --entrypoint ffmpeg bjk-core-media-worker:ci -hide_banner -encoders | grep -E 'libx264|libwebp'
+          docker run --rm --entrypoint sh bjk-core-media-worker:ci -c \
+            'test -s "$Media__Redaction__FaceModelPath" && test -s "$Media__Redaction__PlateModelPath" && test -s "$Media__Redaction__PersonModelPath" && test -s "$Media__SensitiveDetection__ModelPath"' \
+            || { echo "::error title=Image::The media worker image is missing a model."; exit 1; }
+          for image in bjk-core-api:ci bjk-core-media-worker:ci; do
+            test "$(docker run --rm --entrypoint id "$image" -u)" != "0" || { echo "::error title=Image::$image runs as root."; exit 1; }
+          done
 
       # The smoke test runs the worker on the runner, so it needs ffmpeg here too (exiftool checks GPS is stripped).
       # apt on the runners sometimes hangs for good (23 Oct 2026), so after 4 minutes it gives up and uses static
@@ -149,8 +182,11 @@ jobs:
       - name: Start the logs and traces containers
         run: bash pipelines/scripts/elastic-check.sh start
 
+      # Runs the two images above rather than the build output, so what's tested is what's published.
       - name: End-to-end smoke test
         env:
+          API_IMAGE: bjk-core-api:ci
+          WORKER_IMAGE: bjk-core-media-worker:ci
           ASPNETCORE_ENVIRONMENT: Development
           ASPNETCORE_URLS: http://localhost:5100
           SQL_CONTAINER: ${{ job.services.sql.id }}
@@ -246,10 +282,25 @@ jobs:
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: bash "$CI_STEP" "Build" npm run build
 
-      - name: Container image
+      - uses: docker/setup-buildx-action@v3
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+
+      # Cached for the publish job's x86-64 build, as in the build job.
+      - name: Build the web image
+        id: image
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        uses: docker/build-push-action@v6
+        with:
+          context: src/web
+          platforms: linux/amd64
+          load: true
+          tags: bjk-core-web:ci
+          cache-from: type=gha,scope=web-linux-amd64
+          cache-to: type=gha,scope=web-linux-amd64,mode=max
+
+      - name: Container image
+        if: ${{ !cancelled() && steps.image.outcome == 'success' }}
         run: |
-          bash "$CI_STEP" "Docker build" docker build --tag bjk-core-web:ci .
           docker run -d --name web -p 3100:3000 \
             -e APP_URL=http://localhost:3100 -e API_BASE_URL=http://localhost:4010 \
             -e IDSRV_AUTHORITY=http://localhost:4010 -e IDSRV_CLIENT_SECRET=ci -e AUTH_SECRET=ci-secret-ci-secret-ci-secret-ci-secret \
@@ -271,3 +322,114 @@ jobs:
           bash "$CI_STEP" "End-to-end tests" npm run e2e
           node -e 'const s=require("./test-results/results.json").stats; console.log(`::notice title=Web end-to-end tests::${s.expected} passed, ${s.unexpected} failed, ${s.flaky} flaky, ${s.skipped} skipped`)'
 
+  # On master only, once both jobs above have passed: each image for x86-64 (Azure, Windows PCs) and for ARM (Apple
+  # silicon Macs), built on a runner with that chip and pushed to GHCR without a tag yet.
+  publish:
+    needs: [build, web]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    strategy:
+      matrix:
+        image: [api, media-worker, web]
+        platform: [linux/amd64, linux/arm64]
+        include:
+          - image: api
+            context: .
+            file: src/BJK.Core.Api/Dockerfile
+            description: Bad Jockeys API
+          - image: media-worker
+            context: .
+            file: src/BJK.Core.MediaWorker/Dockerfile
+            description: Bad Jockeys media processing worker
+          - image: web
+            context: src/web
+            file: src/web/Dockerfile
+            description: Bad Jockeys web app
+    runs-on: ${{ matrix.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+      packages: write   # push to ghcr.io/badjockeys
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Platform name
+        run: echo "PLATFORM_PAIR=${PLATFORM//\//-}" >> "$GITHUB_ENV"
+        env:
+          PLATFORM: ${{ matrix.platform }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          platforms: ${{ matrix.platform }}
+          secrets: nuget=${{ env.NuGetPackageSourceCredentials_badjockeys }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.title=bjk-core-${{ matrix.image }}
+            org.opencontainers.image.description=${{ matrix.description }}
+          outputs: type=image,name=ghcr.io/badjockeys/bjk-core-${{ matrix.image }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=${{ matrix.image }}-${{ env.PLATFORM_PAIR }}
+          cache-to: type=gha,scope=${{ matrix.image }}-${{ env.PLATFORM_PAIR }},mode=max
+
+      - name: Keep the digest
+        run: |
+          mkdir -p "$RUNNER_TEMP/digests"
+          touch "$RUNNER_TEMP/digests/${DIGEST#sha256:}"
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.image }}-${{ env.PLATFORM_PAIR }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # Joins each image's two builds into one that works on either chip, and tags it with the commit (full and short
+  # SHA) and latest, e.g. ghcr.io/badjockeys/bjk-core-api:3f2a9c1. All three images of a commit share its SHA.
+  tag:
+    needs: publish
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        image: [api, media-worker, web]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-${{ matrix.image }}-*
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag the image
+        working-directory: ${{ runner.temp }}/digests
+        env:
+          IMAGE: ghcr.io/badjockeys/bjk-core-${{ matrix.image }}
+          SHA: ${{ github.sha }}
+        run: |
+          docker buildx imagetools create \
+            --tag "$IMAGE:$SHA" --tag "$IMAGE:${SHA::7}" --tag "$IMAGE:latest" \
+            $(printf "$IMAGE@sha256:%s " *)
+          docker buildx imagetools inspect "$IMAGE:$SHA"
+          echo "::notice title=Published::$IMAGE:${SHA::7} (also :$SHA and :latest)"
+          echo "- \`$IMAGE:${SHA::7}\`, also \`:$SHA\` and \`:latest\`, for x86-64 and ARM" >> "$GITHUB_STEP_SUMMARY"

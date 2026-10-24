@@ -1,6 +1,6 @@
 # Running Bad Jockeys locally
 
-This guide gets the whole platform running on your machine:
+This guide gets the whole platform running on your machine, from your own code (most of this guide) or from the images CI publishes ([Run the released build](#run-the-released-build)):
 
 | Piece | Repo | Runs on | Address |
 |---|---|---|---|
@@ -60,9 +60,133 @@ Expect to approve a few things: Windows UAC prompts or your Mac password for ins
 
 To debug, use VS Code's **Run and Debug** panel instead: pick **"Bad Jockeys"** and press F5 to start SQL Server and S3Mock in Docker (opening Docker Desktop first if it's closed, and waiting for it; Elasticsearch, Kibana and the collector start alongside without holding things up, and Kibana opens in your browser when it's ready), then build and start all four with the debugger attached (breakpoints work in the .NET code and in the web app's server code), and the web app opens in your browser when it's ready. Shift+F5 stops them all. Each app is also there on its own ("Identity server", "API", "Media worker", "Web app"), to restart just one. The web app and the media worker wait for the apps they depend on, as with the task. The .NET ones also make sure Docker is running first, so they work on their own too. If Docker can't be started (say it's still updating), it stops with a message saying so, before any app tries to connect. "Run Bad Jockeys" (Terminal → Run Task…) does the same without the debugger, Docker check included.
 
-"Run Bad Jockeys" starts the identity server, the API, the media worker and the web app, each in its own terminal. Nothing starts before what it needs: the web app waits until the identity server and the API answer, and the media worker waits for the API (which creates the database and queues it reads). Started on its own without them, each waits up to 5 minutes, then says which app to start. Other tasks: "Start Docker services" and "Stop Docker services". Steps 1 to 8 below explain everything the scripts do, if you'd rather do it by hand or something goes wrong.
+"Run Bad Jockeys" starts the identity server, the API, the media worker and the web app, each in its own terminal. Nothing starts before what it needs: the web app waits until the identity server and the API answer, and the media worker waits for the API (which creates the database and queues it reads). Started on its own without them, each waits up to 5 minutes, then says which app to start. Other tasks: "Start Docker services" and "Stop Docker services", and "Run the released build" and "Stop the released build" ([Run the released build](#run-the-released-build)). Steps 1 to 8 below explain everything the scripts do, if you'd rather do it by hand or something goes wrong.
 
 Neither app needs you to create its database. Each one creates its database and applies schema changes when it starts, and refuses any change that would delete data (see [Database changes](#database-changes)).
+
+## Run the released build
+
+There are two ways to run Bad Jockeys on your machine. Both use the same Docker group (`bad-jockeys`), the same databases and files, and the same settings. They differ in where the four apps come from, and you choose with a **profile** of `docker-compose.yml`:
+
+| Profile | The apps come from | Docker runs | Use it to |
+|---|---|---|---|
+| `source` | Your code, run by F5 or "Run Bad Jockeys" in VS Code | SQL Server, S3Mock, Elasticsearch, Kibana, the OpenTelemetry collector | Write and debug code (this is what the rest of this guide sets up) |
+| `release` | The images CI published to GitHub's container registry (GHCR) | The same, plus the identity server, API, media worker and web app | Run exactly what gets deployed: check master, try a teammate's merged change without building, or reproduce a problem on a deployed build |
+
+Every push to master that passes CI publishes four images, each for Intel/AMD and Apple silicon:
+
+| Image | From |
+|---|---|
+| `ghcr.io/badjockeys/bjk-identity-server` | bjk-identity-server |
+| `ghcr.io/badjockeys/bjk-core-api` | bjk-core, `src/BJK.Core.Api` |
+| `ghcr.io/badjockeys/bjk-core-media-worker` | bjk-core, `src/BJK.Core.MediaWorker` |
+| `ghcr.io/badjockeys/bjk-core-web` | bjk-core, `src/web` |
+
+Each is tagged with the commit it was built from (the full SHA and its first 7 characters) and `latest`. The deploy pipeline will roll out these same images, so what you run here is byte for byte what DEV, QA, Staging and Live run. Only the settings differ.
+
+### Step by step: the first time
+
+You need Docker Desktop and your settings, which the setup gives you. You don't need .NET, Node.js or a build.
+
+1. **Get bjk-core.** Clone it, or let the setup clone all four repos (see [Quick start](#quick-start-one-command)):
+   ```bash
+   git clone https://github.com/badjockeys/bjk-core.git
+   cd bjk-core
+   ```
+2. **Run the setup** (once per computer; it's safe to run again):
+
+   | Computer | Run |
+   |---|---|
+   | Mac | `bash scripts/setup/setup.sh` |
+   | Windows | `powershell -ExecutionPolicy Bypass -File scripts\setup\setup.ps1` |
+
+   Among other things it creates the three files the released build reads. You never create these by hand:
+
+   | File | Holds | Read by |
+   |---|---|---|
+   | `~/.microsoft/usersecrets/bjk-identity-server/secrets.json` (Windows: `%APPDATA%\Microsoft\UserSecrets\...`) | The identity server's settings | Identity server |
+   | `~/.microsoft/usersecrets/bjk-core-api/secrets.json` | The API's settings | API and media worker |
+   | `bjk-core/src/web/.env.local` | The web app's settings | Web app |
+   | `bjk-core/.env` | Docker's passwords, and `BJK_USER_SECRETS_DIR`: the user secrets folder above | Docker Compose |
+
+3. **Check your user secrets are where Docker will look** (optional, but it's the usual cause of trouble):
+   ```bash
+   grep BJK_USER_SECRETS_DIR .env          # e.g. BJK_USER_SECRETS_DIR=/Users/you/.microsoft/usersecrets
+   ls ~/.microsoft/usersecrets             # bjk-core-api  bjk-identity-server
+   ```
+4. **Start it:**
+   ```bash
+   docker compose --profile release up -d --wait
+   ```
+   The first time, Docker downloads the images (a few GB, most of it SQL Server and Elastic, which the setup has usually fetched already). It returns once everything is healthy; Kibana takes a minute or two.
+5. **Open http://localhost:3000.** Sign in as an example member (e.g. `dave@example.test`, password `BadJockeys!2026`; see [Example users and posts](#example-users-and-posts)) or your own account. It's the same data as when you run from source.
+6. **Stop it** when you're done:
+   ```bash
+   docker compose --profile release down
+   ```
+   This removes the app containers and keeps all the data.
+
+In VS Code the same is **Terminal → Run Task… → "Run the released build"** (it asks which builds; press Enter for `latest`) and **"Stop the released build"**.
+
+### Every time after that
+
+| To | Run (in bjk-core) |
+|---|---|
+| Run the newest master | `docker compose --profile release up -d --wait` (it checks for newer images every time) |
+| Run a particular bjk-core build | `tag=3f2a9c1 docker compose --profile release up -d --wait` (PowerShell: `$env:tag="3f2a9c1"; docker compose --profile release up -d --wait`) |
+| Run a particular identity server build too | Add `identity_tag=<bjk-identity-server SHA>`. It has its own SHAs because it's its own repo |
+| Pin a build until you change it | Put `tag=3f2a9c1` (and/or `identity_tag=...`) in `bjk-core/.env` |
+| See what's running and healthy | `docker compose --profile release ps` |
+| Follow one app's log | `docker compose logs -f api` (or `identity-server`, `media-worker`, `web`). Logs and traces also reach Kibana, as from source |
+| Go back to running from source | `docker compose --profile release down`, then F5 as usual |
+| Check which images a command would use | `docker compose --profile release config --images` |
+
+`tag` picks the API, media worker and web app (all built from one bjk-core commit), and `identity_tag` picks the identity server. Without them you get `latest`. A build's SHA is in its CI run's summary ("Published"), on the repo's **Packages** page, or `git log --oneline origin/master`. Only commits on master that passed CI have images.
+
+### What happens when you run it
+
+`docker compose --profile release up` starts everything in the `source` profile, then:
+
+1. **`apps-network`** (a small Alpine container) holds one network that the four apps share, like programs on your computer. Inside it, `localhost:1433` reaches SQL Server, `localhost:9090` S3Mock and `localhost:4318` the OpenTelemetry collector. It also publishes the apps' ports to your computer: 3000 (web app), 5001 (identity server) and 5101 (API). That's why the addresses in your settings work unchanged, and why upload links the API signs for `localhost:9090` open in your browser.
+2. **The identity server and API** start. Each gets `ASPNETCORE_ENVIRONMENT=Development` from the compose file, which is what makes .NET read user secrets at all.
+3. **Each .NET app finds its own user secrets file** in three parts:
+
+   | Part | Comes from |
+   |---|---|
+   | The folder, `/home/app/.microsoft/usersecrets` in the container | Your `BJK_USER_SECRETS_DIR` folder, mounted there read-only by the compose file. `/home/app` is the image user's home, where .NET looks |
+   | The sub-folder, e.g. `bjk-core-api` | `<UserSecretsId>` in the app's project file, compiled into the app, so the image carries it |
+   | The file name, `secrets.json` | Fixed by .NET |
+
+   So the containers read the very files that F5 reads and that **Manage User Secrets** edits. Change a setting there, then restart that container (`docker compose restart api`) to pick it up.
+4. **The media worker** starts once the API is healthy (the API creates the database), using the API's user secrets as with F5.
+5. **The web app** reads `src/web/.env.local`, as `npm run dev` does.
+
+A few settings are set by the compose file or the image instead, because they can't be the same inside Docker. Environment variables always win over user secrets, so these take over and nothing else changes:
+
+| Setting | In Docker | Why |
+|---|---|---|
+| `ASPNETCORE_ENVIRONMENT`, `DOTNET_ENVIRONMENT` | `Development` | User secrets are only read in Development |
+| `Authentication:Authority` (API), `IDSRV_AUTHORITY` (web), `Email:PublicOrigin`, `Email:PasswordResetUrl` (identity server) | `http://localhost:5001...` | Inside Docker the apps serve plain HTTP, as they do behind Container Apps' ingress when deployed, so there's no development certificate to trust. Same ports as F5 |
+| `API_BASE_URL` (web) | `http://localhost:5101` | The same |
+| `Authentication:RequireHttpsMetadata` (API), `IDSRV_ALLOW_HTTP` (web) | `false`, `true` | Allow that plain-HTTP identity server |
+| `Media:Processing:FfmpegPath`, `FfprobePath` (worker) | `ffmpeg`, `ffprobe` | The image's own ffmpeg, not the one on your computer |
+| `Media:Redaction:*ModelPath`, `Media:SensitiveDetection:ModelPath` (worker), `AgeAssurance:Liveness:ModelPath` (identity server) | The models inside the image | Set by the images themselves |
+| `BJK_REQUIRE_USER_SECRETS` | `true` | Makes your user secrets mandatory (below) |
+
+**Your user secrets are mandatory.** If `BJK_USER_SECRETS_DIR` is missing or points at the wrong folder, Docker refuses to start the app. If the folder is there but an app's `secrets.json` isn't, that app stops at once and names the path it looked in. Either way, nothing quietly runs on stand-ins.
+
+When deployed, none of this applies. There's no mount and the environment isn't `Development`, so user secrets are never read. Each environment's settings come from its Container App, and the apps refuse to start until every setting has a live value (see [Going live](#going-live)).
+
+### If something goes wrong
+
+- **`bind source path does not exist: .../bjk-core-api`** (or `.../BJK_USER_SECRETS_DIR-is-not-set/...`): `BJK_USER_SECRETS_DIR` in `bjk-core/.env` is missing or wrong. Run the setup, or press F5 once, which adds it.
+- **An app stops with `BJK_REQUIRE_USER_SECRETS is true, but there's no user secrets file at ...`:** the folder exists but that app's file doesn't. Run the setup.
+- **`port is already allocated`** for 3000, 5001 or 5101: the apps are still running from source. Stop them (Shift+F5, or close the "Run Bad Jockeys" terminals), then try again. The same in reverse: stop the released build before F5.
+- **`manifest unknown`:** there's no image with that tag. Check it's a master commit whose CI passed, and that `identity_tag` is a bjk-identity-server SHA, not a bjk-core one.
+- **`denied` or `unauthorized` when pulling:** the image isn't public on GHCR. A GitHub org owner sets each package's visibility to public once (the package's **Package settings**).
+- **`dependency failed to start: container bad-jockeys-web is unhealthy`** (or another app): see why with `docker compose logs web`. For the web app it's usually a missing `src/web/.env.local`: run the setup.
+- **An older build won't start against your database:** the apps only ever migrate the database forward, so after running a newer build (or your own code), an older one may not match it. Run the newer one, or start from empty databases with `docker compose --profile "*" down -v` (this deletes all local data), then run the setup again for the example data.
+- **Debugging:** the images have no debugger attached. To step through code, run from source.
 
 ## 1. Install the prerequisites
 
@@ -144,10 +268,10 @@ Both run in Docker from bjk-core's `docker-compose.yml`, as one group called **b
 cd ~/Git/GitHub/badjockeys/bjk-core
 cp .env.example .env
 # edit .env: BJK_SQL_PASSWORD=<8+ characters with upper case, lower case, a digit and a symbol>
-docker compose up -d --wait      # returns once SQL Server is healthy (about 30 seconds the first time)
+docker compose --profile source up -d --wait      # returns once SQL Server is healthy (about 30 seconds the first time)
 ```
 
-The setup script, "Run Bad Jockeys" and F5 all do this for you, opening Docker Desktop first if it's closed.
+The setup script, "Run Bad Jockeys" and F5 all do this for you, opening Docker Desktop first if it's closed. `--profile source` is what the apps need when you run them from source; the other profile, `release`, also runs the published apps ([Run the released build](#run-the-released-build)).
 
 > **Moving from the old layout:** SQL Server used to come from bjk-identity-server's own compose file, in a separate Docker group. The scripts remove the two old groups (`bjk-identity-server` and `bjk-core`) the first time they start `bad-jockeys`, and carry your SQL password over from `bjk-identity-server/.env`. The new group starts with empty databases and storage; the old data stays in Docker volumes until you delete it (the script prints the `docker volume rm` command).
 
@@ -161,9 +285,9 @@ There's no message broker to run: the queues are tables in the `messaging` schem
 
 | Command (in bjk-core) | Does |
 |---|---|
-| `docker compose stop` | Stops both and keeps the data |
-| `docker compose up -d --wait` | Starts them again |
-| `docker compose down -v` | Removes the containers **and all local data** (databases, queues, uploaded files), so you start fresh |
+| `docker compose --profile source stop` | Stops them and keeps the data |
+| `docker compose --profile source up -d --wait` | Starts them again |
+| `docker compose --profile "*" down -v` | Removes the containers of both profiles **and all local data** (databases, queues, uploaded files), so you start fresh |
 
 ## 5. Local file storage
 
@@ -186,7 +310,7 @@ Accepted files: videos in MP4, MOV, M4V, 3GP, WebM, MKV or AVI, and photos in JP
 
 The web app uploads a file as soon as it's chosen, so uploads can be left behind (a closed tab, a photo removed before posting). Once an hour the API deletes uploads over `Media:UnusedOriginalRetention` (24 hours) old that aren't in a post, a draft or an avatar: all their files go, and the record is marked `Deleted`. Taking a photo out of a saved draft deletes it straight away, unless a post or another draft uses it.
 
-S3Mock doesn't check keys, so the `local` keys in the template work as they are. Files survive `docker compose stop` and restarts; `docker compose down -v` deletes them, together with the databases, so the two always stay in step.
+S3Mock doesn't check keys, so the `local` keys in the template work as they are. Files survive `docker compose --profile source stop` and restarts; `docker compose --profile "*" down -v` deletes them, together with the databases, so the two always stay in step.
 
 ### Using Cloudflare R2 instead (later)
 
@@ -790,7 +914,7 @@ The identity server, the API, the media worker and the web app's server send the
 | `elasticsearch` | Stores everything, in the `elastic-data` volume, so it survives restarts | http://localhost:9200 |
 | `kibana` | Search and charts | **http://localhost:5601** |
 
-The apps find the collector through `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318` (the .NET apps' `launchSettings.json`, the web app's `.env.local`). Sign in to Kibana as **`elastic`** with `BJK_ELASTIC_PASSWORD` from `bjk-core/.env`; the setup creates it, along with `BJK_KIBANA_SYSTEM_PASSWORD` (the `kibana_system` user the Kibana server uses behind the scenes; you never sign in with it) and `BJK_KIBANA_ENCRYPTION_KEY` (for saved alert rules). An older `.env` gets them (and has `BJK_KIBANA_PASSWORD` renamed to `BJK_KIBANA_SYSTEM_PASSWORD`) the next time you run the setup or press F5. Never change them afterwards: Elasticsearch keeps the password it first started with. If you must, `docker compose down` and `docker volume rm bad-jockeys_elastic-data bad-jockeys_kibana-data` first (this deletes the stored logs).
+The apps find the collector through `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318` (the .NET apps' `launchSettings.json`, the web app's `.env.local`). Sign in to Kibana as **`elastic`** with `BJK_ELASTIC_PASSWORD` from `bjk-core/.env`; the setup creates it, along with `BJK_KIBANA_SYSTEM_PASSWORD` (the `kibana_system` user the Kibana server uses behind the scenes; you never sign in with it) and `BJK_KIBANA_ENCRYPTION_KEY` (for saved alert rules). An older `.env` gets them (and has `BJK_KIBANA_PASSWORD` renamed to `BJK_KIBANA_SYSTEM_PASSWORD`) the next time you run the setup or press F5. Never change them afterwards: Elasticsearch keeps the password it first started with. If you must, `docker compose --profile "*" down` and `docker volume rm bad-jockeys_elastic-data bad-jockeys_kibana-data` first (this deletes the stored logs).
 
 F5 ("Bad Jockeys") and the task "Run Bad Jockeys" start the apps as soon as SQL Server is ready, start the Elastic containers alongside (Kibana takes a minute or two the first time; progress in `.local/elastic-start.log`), and open Kibana when it answers. Elasticsearch needs about 1.5 GB of memory and Kibana about 1 GB, so give Docker Desktop at least 6 GB.
 
@@ -813,20 +937,20 @@ Module tables and migrations live in **bjk-modules**. The API picks up a change 
 To start from empty databases (this also empties the local file storage):
 
 ```bash
-cd ~/Git/GitHub/badjockeys/bjk-core && docker compose down -v && docker compose up -d --wait
+cd ~/Git/GitHub/badjockeys/bjk-core && docker compose --profile "*" down -v && docker compose --profile source up -d --wait
 ```
 
 ## Troubleshooting
 
 - **`NU1301` or `401 Unauthorized` on restore.** The NuGet token isn't set in this terminal, or has expired (step 3). Check with `echo $NuGetPackageSourceCredentials_badjockeys`.
 - **`Connection string '...' is not configured` or `The ... field is required`.** Your user secrets are missing (run the setup; step 6), or the app isn't running in Development. The `https` launch profile sets Development.
-- **`Login failed for user 'sa'`.** The password in your user secret doesn't match `bjk-core/.env`. If you changed `.env` after the container was first created, SQL Server still has the old password: in bjk-core run `docker compose down -v` (this deletes local data), then `docker compose up -d --wait`.
+- **`Login failed for user 'sa'`.** The password in your user secret doesn't match `bjk-core/.env`. If you changed `.env` after the container was first created, SQL Server still has the old password: in bjk-core run `docker compose --profile "*" down -v` (this deletes local data), then `docker compose --profile source up -d --wait`.
 - **`A network-related or instance-specific error`.** SQL Server isn't running or isn't healthy yet. Run `docker ps`, then `docker compose logs sql` in bjk-core.
 - **A job or event doesn't arrive.** Look in the queue tables (`SELECT * FROM [messaging].[media.process]`) and their `.failed` tables; [messaging.md](messaging.md) shows how to read why a message was dead-lettered.
 - **Photos fail with `Encoder not found` (`image.webp`).** Your ffmpeg has no WebP encoder: Homebrew's plain `ffmpeg` doesn't. Run the setup again; it installs `ffmpeg-full` and points your user secrets at it. Then restart the media worker.
 - **An upload stays at `Processing`.** The media worker isn't running, or it can't find ffmpeg: check its console for `ffmpeg` errors, and set `Media:Processing:FfmpegPath` to the full path (`which ffmpeg`).
 - **An upload goes to `Failed`.** The file isn't a video or photo ffmpeg can read, or it's over the size or length limits. The worker logs the reason.
-- **`Connection refused` on port 9090.** S3Mock isn't running: `docker compose up -d --wait` in bjk-core.
+- **`Connection refused` on port 9090.** S3Mock isn't running: `docker compose --profile source up -d --wait` in bjk-core.
 - **`port is already allocated` for 1433 or 9090.** Something else holds the port, often a container from the old layout. The scripts remove those; by hand: `docker ps`, then `docker rm -f <the container>`.
 - **The browser upload fails with a CORS error.** The storage doesn't allow `PUT` from `http://localhost:3000` (for R2, see step 5).
 - **`SignatureDoesNotMatch` or `InvalidAccessKeyId` from R2.** The R2 keys are wrong, or the token isn't scoped to the dev buckets.
