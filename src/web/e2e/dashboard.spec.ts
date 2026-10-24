@@ -102,7 +102,14 @@ test("on your own profile, phones get a Dashboard tab", async ({ page, request }
   await page.getByRole("link", { name: "Dashboard", exact: true }).click();
   await expect(page).toHaveURL(/tab=dashboard/);
   await page.waitForTimeout(2000);
-  expect(page.url() + "\n" + (await page.locator("main").innerText())).toBe("dump");
+  const afterClick = await page.getByRole("region", { name: "Your dashboard" }).count();
+  await page.goto("/@dashcam_dave");
+  await page.getByRole("link", { name: "Replies", exact: true }).click();
+  await page.waitForTimeout(2000);
+  const repliesAfterClick = await page.getByRole("link", { name: "Replies", exact: true }).getAttribute("aria-current");
+  await page.goto("/@dashcam_dave?tab=dashboard");
+  const afterGoto = await page.getByRole("region", { name: "Your dashboard" }).count();
+  expect({ afterClick, repliesAfterClick, afterGoto }).toEqual({});
   await expect(
     page.getByRole("region", { name: "Your dashboard" }).getByRole("button", { name: "Add a widget" }),
   ).toBeVisible();
