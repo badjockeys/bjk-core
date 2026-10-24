@@ -27,7 +27,7 @@ GO
 DROP VIEW IF EXISTS reporting.RoadUsers;
 GO
 
--- ---------- Incidents (for Ask Bad Jockeys and reports) ----------
+-- ---------- Incidents (for Ask AI and reports) ----------
 -- Every live incident with all its details, one row per incident and subcategory (owner, 23 Oct 2026). Ask Bad
 -- Jockeys (the AI chat) reads reporting.Incidents and reporting.Subcategories through the bjk_chat login and nothing
 -- else. No ids, authors, titles, descriptions or exact pins: an incident's place is its public place name and a

@@ -175,7 +175,7 @@ describe("ChatCard", () => {
   });
 });
 
-describe("Ask Bad Jockeys", () => {
+describe("Ask AI", () => {
   const premium: Viewer = {
     ...ANONYMOUS,
     signedIn: true,
@@ -197,7 +197,7 @@ describe("Ask Bad Jockeys", () => {
         <AskBadJockeys viewer={viewer} />
       </>,
     );
-    await userEvent.click(screen.getByRole("button", { name: "Ask Bad Jockeys" }));
+    await userEvent.click(screen.getByRole("button", { name: "Ask AI" }));
   }
 
   it("shows the member's own example questions and answers one", async () => {
@@ -251,7 +251,7 @@ describe("Ask Bad Jockeys", () => {
 
     await openWindow();
 
-    expect(await screen.findByText("Ask Bad Jockeys is part of Premium")).toBeInTheDocument();
+    expect(await screen.findByText("Ask AI is part of Premium")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Worst roads for tailgating in Prescot" })).toBeDisabled();
     expect(screen.getByLabelText("Your question")).toBeDisabled();
     expect(screen.getByRole("link", { name: "See Premium" })).toHaveAttribute("href", "/premium");
@@ -280,7 +280,7 @@ describe("Ask Bad Jockeys", () => {
     actions.askChat.mockResolvedValueOnce({
       ok: false,
       problem: "busy",
-      error: "Ask Bad Jockeys is busy right now. Try again in a minute; that question didn't count.",
+      error: "Ask AI is busy right now. Try again in a minute; that question didn't count.",
     });
     actions.askChat.mockResolvedValueOnce({
       ok: true,
@@ -310,7 +310,7 @@ describe("Ask Bad Jockeys", () => {
           <AskBadJockeys viewer={premium} />
         </>,
       );
-      await user.click(screen.getByRole("button", { name: "Ask Bad Jockeys" }));
+      await user.click(screen.getByRole("button", { name: "Ask AI" }));
       await screen.findByText("18 questions left today");
       await user.type(screen.getByLabelText("Your question"), "How many?{Enter}");
 

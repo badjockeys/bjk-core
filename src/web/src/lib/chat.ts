@@ -1,4 +1,4 @@
-// Ask Bad Jockeys, the Premium AI chat: the helpers the chat window uses that don't need the browser, so they can be
+// Ask AI, the Premium AI chat: the helpers the chat window uses that don't need the browser, so they can be
 // tested on their own. The API decides everything that matters (plans, limits, what's allowed, hiding small counts);
 // these only shape what it sends for the screen.
 
@@ -15,7 +15,7 @@ import type {
 } from "./types";
 
 /**
- * Whether the app shows Ask Bad Jockeys (the Ask button and the chat window). Off while the chat is on hold until a
+ * Whether the app shows Ask AI (the Ask button and the chat window). Off while the chat is on hold until a
  * model is chosen (owner, 23 Oct 2026); the API answers "not switched on yet" anyway. To switch it on, set this to
  * true once `Chat:Model` is filled in, and un-skip `e2e/chat.spec.ts`.
  */
@@ -167,13 +167,11 @@ export function entryId(): string {
 export function problemMessage(problem: ChatProblem, detail?: string): string {
   switch (problem) {
     case "signin":
-      return "Sign in to ask Bad Jockeys.";
+      return "Sign in to use Ask AI.";
     case "premium":
-      return "Ask Bad Jockeys is part of Premium.";
+      return "Ask AI is part of Premium.";
     case "busy":
-      return (
-        detail || "Ask Bad Jockeys is busy right now. Try again in a minute; that question didn't count."
-      );
+      return detail || "Ask AI is busy right now. Try again in a minute; that question didn't count.";
     default:
       return detail || "Something went wrong. Please try again.";
   }

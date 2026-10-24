@@ -81,7 +81,7 @@ const MODELS = [
   },
 ];
 
-// Ask Bad Jockeys (the Premium AI chat) is on hold until a model is chosen (owner, 23 Oct 2026): Chat:Model stays empty,
+// Ask AI (the Premium AI chat) is on hold until a model is chosen (owner, 23 Oct 2026): Chat:Model stays empty,
 // so the API's chat is a logged placeholder. The setup only makes the history key.
 /** The chat settings the setup writes into the API's user secrets. */
 const chatSettings = () => ({ HistoryKey: secret() });
@@ -438,7 +438,7 @@ function migrateCoreSecrets(file) {
   // False is the default everywhere, so it needn't be in the file.
   if (json.Safety?.RequireAgeVerification === false) delete json.Safety.RequireAgeVerification;
   if (json.Safety && Object.keys(json.Safety).length === 0) delete json.Safety;
-  // Ask Bad Jockeys (23 Oct 2026): the bjk_chat login and a history key. A connection string you've set yourself is
+  // Ask AI (23 Oct 2026): the bjk_chat login and a history key. A connection string you've set yourself is
   // kept; the bjk_chat password follows BJK_CHAT_PASSWORD in bjk-core/.env. The chat is on hold, so the Ollama model
   // the setup used to add (qwen3:8b) is taken out; a model you've set yourself is kept.
   json.ConnectionStrings = { ...(json.ConnectionStrings ?? {}) };
@@ -549,7 +549,7 @@ function createConfig() {
     writeIfMissing(envFile, env, carried ? "bjk-core/.env (SQL password carried over from bjk-identity-server/.env)" : "bjk-core/.env");
   }
 
-  // The reports' and Ask Bad Jockeys' read-only logins, and the Elastic containers' passwords and key.
+  // The reports' and Ask AI's read-only logins, and the Elastic containers' passwords and key.
   reportingPassword();
   chatPassword();
   const addedElastic = ensureElasticEnv(core);
@@ -562,7 +562,7 @@ function createConfig() {
     // The templates leave the SQL password empty (Password=;): it's the one in bjk-core/.env.
     const json = JSON.parse(readFileSync(template, "utf8"));
     for (const [name, value] of Object.entries(json.ConnectionStrings ?? {})) {
-      // Every connection signs in as sa, except Ask Bad Jockeys' read-only bjk_chat login.
+      // Every connection signs in as sa, except Ask AI's read-only bjk_chat login.
       json.ConnectionStrings[name] = value.replace(/Password=;/, `Password=${name === "BadJockeysChat" ? chatPassword() : password};`);
     }
     edit(json);

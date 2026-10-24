@@ -16,7 +16,7 @@ using NSwag.Generation.Processors.Security;
 
 const string ConnectionStringName = "BadJockeysDatabase";
 
-// Ask Bad Jockeys' read-only bjk_chat login: it can read reporting.Incidents and reporting.Subcategories only.
+// Ask AI's read-only bjk_chat login: it can read reporting.Incidents and reporting.Subcategories only.
 const string ChatConnectionStringName = "BadJockeysChat";
 
 var builder = WebApplication.CreateBuilder(args);

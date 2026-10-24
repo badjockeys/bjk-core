@@ -593,8 +593,8 @@ On your machine nothing needs a supplier account: S3Mock stands in for R2, email
 | `Plans:Overrides` | Empty | **Stripe billing** (not built yet) |
 | `Notifications:AppUrl`, `Posts:AppUrl` | The web app, e.g. `https://badjockeys.com` | The live domain |
 | `ConnectionStrings:BadJockeysChat` (secret) | Azure SQL `badjockeys` as the read-only `bjk_chat` login (`scripts/sql/reporting/login.sql`), `Encrypt=True` | The live server |
-| `Chat:Model:Endpoint`, `Chat:Model:Name`, `Chat:Model:ApiKey` (secret) | Empty while Ask Bad Jockeys is on hold (the logged placeholder). Later: the chosen model service (OpenAI-compatible, ending `/v1`), its model or deployment name and key | The owner's choice of model |
-| `Chat:HistoryKey` (secret) | A long random string (`openssl rand -base64 48`): signs Ask Bad Jockeys' chat history | |
+| `Chat:Model:Endpoint`, `Chat:Model:Name`, `Chat:Model:ApiKey` (secret) | Empty while Ask AI is on hold (the logged placeholder). Later: the chosen model service (OpenAI-compatible, ending `/v1`), its model or deployment name and key | The owner's choice of model |
+| `Chat:HistoryKey` (secret) | A long random string (`openssl rand -base64 48`): signs Ask AI's chat history | |
 | `Notifications:Push:PublicKey`, `PrivateKey` (secret) | **Required**: a VAPID key pair made once per environment and never changed (changing it stops every phone's push subscription). Make one with `node -e "const k=require('crypto').generateKeyPairSync('ec',{namedCurve:'prime256v1'}).privateKey.export({format:'jwk'});console.log(Buffer.concat([Buffer.from([4]),Buffer.from(k.x,'base64url'),Buffer.from(k.y,'base64url')]).toString('base64url'),k.d)"` (public key first) | |
 | `Notifications:Push:Subject` | `mailto:support@badjockeys.com` (the default): who push services contact about problems | |
 | `Posts:ReportsInbox` (from bjk-modules #30) | `support@badjockeys.com` (the default) | The mailbox must exist |
@@ -800,11 +800,11 @@ Communities (`/communities` in the web app; `api/communities` in the Posts modul
 
 The e2e mock server (`src/web/e2e/mock-server.mjs`) seeds three communities, so the web tests cover joining, discussions and sharing from the post form.
 
-## Ask Bad Jockeys (the AI chat)
+## Ask AI (the AI chat)
 
 **On hold (owner, 23 Oct 2026): no model is chosen and the chat is hidden.** `ASK_BAD_JOCKEYS_ENABLED` in `src/web/src/lib/chat.ts` is `false`, so the Ask button and window don't appear (their code and unit tests stay; the e2e tests are skipped). The API keeps the Chat module with `Chat:Model` empty: asking logs event 4905 and answers 503 "not switched on yet", counting nothing. The setup no longer installs Ollama; if it's on your computer from before, you can remove it (`ollama rm qwen3:8b`, then `brew uninstall ollama` or uninstall it in Windows' Settings), and the setup takes the old model settings out of your user secrets. To switch the chat on: fill in `Chat:Model`, set the flag to `true`, and un-skip `e2e/chat.spec.ts`.
 
-When it's on: Premium members ask questions about reported bad driving ("Worst roads for tailgating in Prescot") from the floating **Ask** button on every page except reels (bottom right on desktop, where it opens a chat window; bottom left on phones, where the chat is full screen). Visitors and Free members see a locked preview with example questions. The Chat module (bjk-modules README, "Ask Bad Jockeys") does the work; the API hosts it, and the web app's window is `src/components/AskBadJockeys.tsx`.
+When it's on: Premium members ask questions about reported bad driving ("Worst roads for tailgating in Prescot") from the floating **Ask** button on every page except reels (bottom right on desktop, where it opens a chat window; bottom left on phones, where the chat is full screen). Visitors and Free members see a locked preview with example questions. The Chat module (bjk-modules README, "Ask AI") does the work; the API hosts it, and the web app's window is `src/components/AskBadJockeys.tsx`.
 
 - **The model** is whatever `Chat:Model` points at (any OpenAI-compatible service). Without one, the window says the chat isn't switched on and the question doesn't count. If a model is slow to start, the window says so after 5 seconds.
 - **Its data** is read through the read-only `bjk_chat` login (`ConnectionStrings:BadJockeysChat`, password `BJK_CHAT_PASSWORD` in `bjk-core/.env`), which the setup creates with the reporting views (`node scripts/sql/reporting/apply.mjs`). Until that has run, the chat can't answer.
@@ -847,7 +847,7 @@ If you change `known-image-test.png`, update the two hashes in `scripts/sql/safe
 
 ## AI suggestions (removed)
 
-The owner removed every AI suggestion on 22 Oct 2026, for good: "Suggest a description", the "Looks like: ..." type chips and the trim screen's suggested 30 seconds. The trim screen starts on the first 30 seconds. The setup removes their old settings (`Media:Describe`, `Posts:TypeSuggestions`, `Queues:MediaDescriptions`) from your user secrets, and Ollama isn't used for them (it's now only Ask Bad Jockeys' model). CLIP stays in the media worker for the nudity and graphic content checks.
+The owner removed every AI suggestion on 22 Oct 2026, for good: "Suggest a description", the "Looks like: ..." type chips and the trim screen's suggested 30 seconds. The trim screen starts on the first 30 seconds. The setup removes their old settings (`Media:Describe`, `Posts:TypeSuggestions`, `Queues:MediaDescriptions`) from your user secrets, and Ollama isn't used for them (it's now only Ask AI's model). CLIP stays in the media worker for the nudity and graphic content checks.
 
 ## Example users and posts
 
@@ -899,7 +899,7 @@ The counts-only `reporting` views behind the reports are kept and applied locall
 - **Incidents (23 Oct 2026).** `reporting.Incidents` is a live view with one row per live incident and subcategory. It has the UK date, hour and weekday, a square of about 1 km, the public place name, the group and subcategory, the vehicle, after dark, reported to police, video or photo, and its reaction, comment and view counts. It has no ids, authors, text or exact pins.
   - **Counting:** count incidents with `WHERE IsMainType = 1`, since each incident has exactly one main subcategory; count all rows to count by subcategory.
   - **Lookup:** `reporting.Subcategories` is a view listing the 74 subcategories and 13 groups with their names (written into the view, so `reporting` holds views only). When `IncidentTaxonomy` in BJK.Modules changes, regenerate its list.
-  - **Who reads it:** Ask Bad Jockeys, the AI chat, reads these two through `bjk_chat`, which can read nothing else. Locally its password is `BJK_CHAT_PASSWORD` in `bjk-core/.env`. The reports can read them too.
+  - **Who reads it:** Ask AI, the AI chat, reads these two through `bjk_chat`, which can read nothing else. Locally its password is `BJK_CHAT_PASSWORD` in `bjk-core/.env`. The reports can read them too.
   - **If it gets slow** (lots of posts, lots of chat questions), it can become a table refreshed on a schedule, with the same name and columns, so the chat needs no change.
   - **CI checks** there are 74 subcategories, that every live post appears with exactly one main subcategory, and that `bjk_chat` can't read anything else.
 - `reporting.PostsByType` counts every subcategory on a post, not just the main one, and `reporting.IncidentTimes` is in UK time (both fixed 23 Oct 2026).

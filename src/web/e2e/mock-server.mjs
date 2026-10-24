@@ -230,7 +230,7 @@ function seed() {
     ]),
     notificationSettings: new Map(),
     areas: new Map(),
-    // Ask Bad Jockeys: questions asked today, by user.
+    // Ask AI: questions asked today, by user.
     chatUsed: new Map(),
   };
   db.posts.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -876,7 +876,7 @@ async function api(req, res, url) {
         /(?<![\p{L}\p{N}_/&#])#([A-Za-z][A-Za-z0-9_]{1,49})(?![A-Za-z0-9_])/gu,
       ),
     ].map((m) => m[1]);
-  // Ask Bad Jockeys, as the Chat module answers: example questions follow the home area (a town is named, a postcode
+  // Ask AI, as the Chat module answers: example questions follow the home area (a town is named, a postcode
   // district gets "near me", none gets place-free ones); Premium only, 20 a day.
   if (path.startsWith("/api/chat/")) {
     const premium = viewer.plan === "premium" || viewer.plan === "premium_plus";
@@ -919,7 +919,7 @@ async function api(req, res, url) {
     if (path === "/api/chat/usage" && method === "GET") return send(res, 200, usage());
     if (path === "/api/chat/questions" && method === "POST") {
       if (!requireUser()) return;
-      if (!premium) return problem(res, 403, "Ask Bad Jockeys is part of Premium.");
+      if (!premium) return problem(res, 403, "Ask AI is part of Premium.");
       const used = db.chatUsed.get(me) ?? 0;
       if (used >= limit) {
         return problem(
@@ -2969,7 +2969,7 @@ const server = createServer(async (req, res) => {
       nextUser = (await readBody(req)).toString() || "roadhog";
       return send(res, 200, { nextUser });
     }
-    // Gives a user a home area (Ask Bad Jockeys' examples follow it): { user, placeName, latitude, longitude }.
+    // Gives a user a home area (Ask AI's examples follow it): { user, placeName, latitude, longitude }.
     if (url.pathname === "/__home-area" && req.method === "POST") {
       const body = JSON.parse((await readBody(req)).toString());
       const user = USERS[body.user];

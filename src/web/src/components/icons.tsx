@@ -461,7 +461,7 @@ export function BadgeIcon(p: IconProps) {
   );
 }
 
-/** Ask Bad Jockeys (the AI chat): a speech bubble with a spark. */
+/** Ask AI (the AI chat): a speech bubble with a spark. */
 export function AskIcon({ filled, ...p }: IconProps & { filled?: boolean }) {
   return (
     <Svg {...p}>
