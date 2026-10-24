@@ -69,6 +69,15 @@ test("visitors see every section in the side nav, but only Home works without jo
     ).toHaveAttribute("href", `/auth/join?returnTo=${encodeURIComponent(path)}`);
   }
   await expect(nav.getByRole("link", { name: "Home", exact: true })).toHaveAttribute("href", "/");
+
+  // The right-hand panel scrolls on its own when its cards are taller than the window.
+  const aside = page.locator("aside.d-aside");
+  await page.setViewportSize({ width: 1280, height: 500 });
+  await expect(aside).toHaveCSS("overflow-y", "auto");
+  const fits = await aside.evaluate((el) => el.getBoundingClientRect().bottom <= window.innerHeight + 1);
+  expect(fits).toBe(true);
+  await aside.evaluate((el) => el.scrollTo(0, el.scrollHeight));
+  await expect(aside.getByRole("link", { name: "Report content" })).toBeInViewport();
 });
 
 test("members who haven't verified their age are offered the age check for sensitive posts", async ({

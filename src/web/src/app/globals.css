@@ -3039,6 +3039,18 @@ dialog.composer-modal::backdrop {
     position: sticky;
     top: 0;
     align-self: flex-start;
+    /* Pinned like X's, but never taller than the window: it scrolls on its own when its cards don't fit. */
+    max-height: 100vh;
+    max-height: 100dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    padding-bottom: 24px;
+  }
+
+  /* Visitors: the sign-up bar covers the bottom of the window, so the panel stops short of it. */
+  .has-signup .d-aside {
+    padding-bottom: 112px;
   }
 
   .has-bnav .d-main {
