@@ -97,7 +97,8 @@ test("Premium members add, change and delete their own widgets, up to 3", async 
 test("on your own profile, phones get a Dashboard tab", async ({ page, request }) => {
   await request.post(`${MOCK}/__next-user`, { data: "dave" });
   await page.setViewportSize({ width: 390, height: 844 });
-  await signIn(page, "/u/dashcam_dave");
+  await signIn(page, "/");
+  await page.goto("/@dashcam_dave");
   await page.getByRole("link", { name: "Dashboard", exact: true }).click();
   await expect(page).toHaveURL(/tab=dashboard/);
   await expect(
@@ -105,6 +106,6 @@ test("on your own profile, phones get a Dashboard tab", async ({ page, request }
   ).toBeVisible();
 
   // Not on other people's profiles.
-  await page.goto("/u/roadhog");
+  await page.goto("/@roadhog");
   await expect(page.getByRole("link", { name: "Dashboard", exact: true })).toHaveCount(0);
 });
