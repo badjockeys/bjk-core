@@ -1,5 +1,19 @@
 {
   "version": "2.0.0",
+  "inputs": [
+    {
+      "id": "releaseTag",
+      "type": "promptString",
+      "description": "Which build of the API, media worker and web app: a bjk-core commit SHA (7 characters are enough) or latest",
+      "default": "latest"
+    },
+    {
+      "id": "identityTag",
+      "type": "promptString",
+      "description": "Which identity server build: a bjk-identity-server commit SHA (7 characters are enough) or latest",
+      "default": "latest"
+    }
+  ],
   "tasks": [
     {
       "label": "Set up (one-off)",
@@ -109,12 +123,44 @@
     {
       "label": "Stop Docker services",
       "type": "shell",
-      "command": "docker compose stop",
+      "command": "docker compose --profile \"*\" stop",
       "options": {
         "cwd": "${workspaceFolder}"
       },
       "problemMatcher": [],
-      "detail": "Stops SQL Server, S3Mock, Elasticsearch, Kibana and the collector (Docker group bad-jockeys), keeping their data"
+      "detail": "Stops everything in the Docker group bad-jockeys (both profiles), keeping the data"
+    },
+    {
+      "label": "Run the released build",
+      "detail": "docker compose --profile release: the four app images from GHCR with your user secrets, at http://localhost:3000. Stop the apps you run from source first (same ports)",
+      "type": "shell",
+      "command": "docker compose --profile release up -d --wait",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "tag": "${input:releaseTag}",
+          "identity_tag": "${input:identityTag}"
+        }
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      }
+    },
+    {
+      "label": "Stop the released build",
+      "detail": "Removes the released build's containers (the data is kept), so the apps can run from source again",
+      "type": "shell",
+      "command": "docker compose --profile release down",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      }
     },
     {
       "label": "Start Docker services",

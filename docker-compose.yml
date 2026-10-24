@@ -4,12 +4,13 @@
 #   source    What the apps need when you run them from source (F5 in VS Code): SQL Server, S3Mock, and
 #             Elasticsearch, Kibana and the OpenTelemetry collector.
 #   release   The same, plus the four apps themselves (identity server, API, media worker, web app) as the images CI
-#             published to ghcr.io/badjockeys, using your own user secrets. Pick a build with tag=<commit sha>;
-#             without it you get latest.
+#             published to ghcr.io/badjockeys, using your own user secrets. tag=<bjk-core commit sha> picks the API,
+#             media worker and web images; identity_tag=<bjk-identity-server commit sha> picks the identity server's
+#             (its own repo, so its own SHAs). Either left out means latest.
 #
 #   docker compose --profile source up -d --wait     starts the source profile and waits until it's ready
 #   docker compose --profile release up -d --wait    the released build: http://localhost:3000
-#   tag=3f2a9c1 docker compose --profile release up -d --wait   a specific build (PowerShell: $env:tag="3f2a9c1")
+#   tag=3f2a9c1 docker compose --profile release up -d --wait   a specific bjk-core build (PowerShell: $env:tag="3f2a9c1")
 #   docker compose --profile release down            removes the containers, keeps the data (then F5 works again)
 #   docker compose --profile "*" down -v             removes everything and ALL local data (databases, queues, files, logs)
 #
@@ -204,7 +205,7 @@ services:
 
   identity-server:
     profiles: [release]
-    image: ghcr.io/badjockeys/bjk-identity-server:${tag:-latest}
+    image: ghcr.io/badjockeys/bjk-identity-server:${identity_tag:-latest}
     pull_policy: always
     container_name: bad-jockeys-identity-server
     network_mode: service:apps-network

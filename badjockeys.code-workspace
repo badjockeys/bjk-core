@@ -35,39 +35,7 @@
   },
   "tasks": {
     "version": "2.0.0",
-    "inputs": [
-      {
-        "id": "releaseTag",
-        "type": "promptString",
-        "description": "Which build: a commit SHA (7 characters is enough) or latest",
-        "default": "latest"
-      }
-    ],
     "tasks": [
-      {
-        // The released build: the four app images from GHCR plus SQL Server, S3Mock and Elastic, with your user secrets
-        // (docker-compose.yml's release profile). Stop F5 first: both use ports 3000, 5001 and 5101.
-        "label": "Run the released build",
-        "type": "process",
-        "command": "docker",
-        "args": ["compose", "--profile", "release", "up", "-d", "--wait"],
-        "options": {
-          "cwd": "${workspaceFolder:bjk-core}",
-          "env": { "tag": "${input:releaseTag}" }
-        },
-        "problemMatcher": [],
-        "presentation": { "reveal": "always", "panel": "shared", "clear": true }
-      },
-      {
-        // Removes the released build's containers (the data is kept), so F5 can use the ports again.
-        "label": "Stop the released build",
-        "type": "process",
-        "command": "docker",
-        "args": ["compose", "--profile", "release", "down"],
-        "options": { "cwd": "${workspaceFolder:bjk-core}" },
-        "problemMatcher": [],
-        "presentation": { "reveal": "always", "panel": "shared", "clear": true }
-      },
       {
         "label": "Build identity server",
         "type": "process",
