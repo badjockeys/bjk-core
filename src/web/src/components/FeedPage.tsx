@@ -10,9 +10,7 @@ import { AppShell, FooterLinks } from "./AppShell";
 import { EmptyCategory, Feed } from "./Feed";
 import { Composer, FeedHeader } from "./FeedHeader";
 import { HomeTabs, type HomeTab } from "./HomeTabs";
-import { TrendingPanel } from "./TrendingPanel";
-import { TrendsPanel } from "./TrendsPanel";
-import { WhoToFollowPanel } from "./WhoToFollowPanel";
+import { Dashboard } from "./Dashboard";
 
 /**
  * Screens 01–03: the home timelines (For you, Following, custom; UI step 6), or the feed for one category (from
@@ -68,9 +66,7 @@ export async function FeedPage({
       fab
       aside={
         <>
-          <TrendingPanel />
-          {viewer.signedIn ? <WhoToFollowPanel /> : null}
-          <TrendsPanel />
+          <Dashboard viewer={viewer} returnTo={basePath} />
           <FooterLinks />
         </>
       }

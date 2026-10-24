@@ -537,3 +537,25 @@ export function PeopleIcon({ color = INK, ...p }: IconProps) {
     </Svg>
   );
 }
+
+export function LockIcon({ color = MUTED, ...p }: IconProps) {
+  return (
+    <Svg size={16} {...p}>
+      <rect x="5" y="11" width="14" height="10" rx="2" fill="none" stroke={color} strokeWidth="2" />
+      <path d="M8 11V8a4 4 0 018 0v3" fill="none" stroke={color} strokeWidth="2" />
+    </Svg>
+  );
+}
+
+export function GripIcon({ color = MUTED, ...p }: IconProps) {
+  return (
+    <Svg size={18} {...p}>
+      {[6, 12, 18].map((y) => (
+        <g key={y}>
+          <circle cx="9" cy={y} r="1.5" fill={color} />
+          <circle cx="15" cy={y} r="1.5" fill={color} />
+        </g>
+      ))}
+    </Svg>
+  );
+}

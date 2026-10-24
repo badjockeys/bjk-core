@@ -6,6 +6,7 @@ import { cache } from "react";
 import { AppShell, FooterLinks } from "@/components/AppShell";
 import { Avatar } from "@/components/Avatar";
 import { BackButton } from "@/components/BackButton";
+import { Dashboard } from "@/components/Dashboard";
 import { TrendsPanel } from "@/components/TrendsPanel";
 import { Feed } from "@/components/Feed";
 import { FollowButton } from "@/components/FollowButton";
@@ -69,7 +70,9 @@ export default async function ProfilePage({ params, searchParams }: Props) {
   if (query.tab === "vault" && isMe) {
     redirect("/account/vault");
   }
-  const tab: "posts" | "replies" = query.tab === "replies" ? "replies" : "posts";
+  // Dashboard: your own widgets and cards, on your own profile only (phones' place for the right-hand panel).
+  const tab: "posts" | "replies" | "dashboard" =
+    query.tab === "replies" ? "replies" : query.tab === "dashboard" && isMe ? "dashboard" : "posts";
   const here = profilePath(profile.handle);
 
   // Your own profile includes posts still processing, held or hidden, which only you can see.
@@ -185,28 +188,43 @@ export default async function ProfilePage({ params, searchParams }: Props) {
           </p>
         ) : null}
       </section>
+      {/* Plain links: profiles live at /@handle (a rewrite of /u/[handle]), and Next.js's in-page navigation there
+          changes the address but not the page when only ?tab= changes, so the tabs load the page properly. */}
       <nav className="tabs tabs-fill" aria-label="Profile">
-        <Link
+        <a
           href={here}
           className={`tab${tab === "posts" ? " tab-on" : ""}`}
           aria-current={tab === "posts" ? "page" : undefined}
         >
           Posts
-        </Link>
-        <Link
+        </a>
+        <a
           href={`${here}?tab=replies`}
           className={`tab${tab === "replies" ? " tab-on" : ""}`}
           aria-current={tab === "replies" ? "page" : undefined}
         >
           Replies
-        </Link>
+        </a>
+        {isMe ? (
+          <a
+            href={`${here}?tab=dashboard`}
+            className={`tab m-only${tab === "dashboard" ? " tab-on" : ""}`}
+            aria-current={tab === "dashboard" ? "page" : undefined}
+          >
+            Dashboard
+          </a>
+        ) : null}
         {isMe ? (
           <Link href="/account/vault" className="tab">
             Vault
           </Link>
         ) : null}
       </nav>
-      {tab === "replies" ? (
+      {tab === "dashboard" ? (
+        <section className="dash-tab pad" aria-label="Your dashboard">
+          <Dashboard viewer={viewer} returnTo={`${here}?tab=dashboard`} />
+        </section>
+      ) : tab === "replies" ? (
         blocked ? null : !viewer.signedIn ? (
           <section className="centre">
             <h2 className="h2">Sign in to see replies</h2>

@@ -206,6 +206,7 @@ function seed() {
     // Larry follows roadhog, so he's suggested first when roadhog tags a passenger.
     follows: new Set([`${USERS.larry.id}>${USERS.roadhog.id}`]),
     timelines: [],
+    dashboard: [],
     appeals: [],
     reelPlays: new Map(),
     // Per user: the bell, and settings that differ from the defaults.
@@ -1528,6 +1529,203 @@ async function api(req, res, url) {
       return send(res, 204);
     }
     if (rest === "/report" && method === "POST") return send(res, 204);
+    return problem(res, 404, "Not found.");
+  }
+
+  // Dashboard (owner, 24 Oct 2026): built-in cards and widgets (Premium 3, Premium + 5; Free none).
+  if (path.startsWith("/api/dashboard")) {
+    if (!requireUser()) return;
+    const BUILT_IN = ["Trending", "WhoToFollow", "CategoryTrends"];
+    const limit = viewer.plan === "premium_plus" ? 5 : viewer.plan === "premium" ? 3 : 0;
+    const plan =
+      viewer.plan === "premium_plus" ? "PremiumPlus" : viewer.plan === "premium" ? "Premium" : "Free";
+    const rows = () => db.dashboard.filter((d) => d.userId === me).sort((a, b) => a.position - b.position);
+    const keyOf = (d) => (BUILT_IN.includes(d.kind) ? d.kind : d.id);
+    const materialise = () => {
+      let next = rows().reduce((m, d) => Math.max(m, d.position + 1), 0);
+      for (const kind of BUILT_IN)
+        if (!rows().some((d) => d.kind === kind))
+          db.dashboard.push({ id: randomUUID(), userId: me, kind, hidden: false, position: next++ });
+    };
+    const dto = () => {
+      let widgets = 0;
+      const items = rows().map((d) => {
+        const builtIn = BUILT_IN.includes(d.kind);
+        const locked = !builtIn && ++widgets > limit;
+        return {
+          key: keyOf(d),
+          kind: d.kind,
+          builtIn,
+          hidden: !!d.hidden,
+          locked,
+          id: builtIn ? null : d.id,
+          placeName: d.placeName ?? null,
+          latitude: d.latitude ?? null,
+          longitude: d.longitude ?? null,
+          radiusKm: d.radiusKm ?? null,
+          periodDays: d.periodDays ?? null,
+          types: d.types ?? [],
+          position: 0,
+        };
+      });
+      for (const kind of BUILT_IN.filter((k) => !rows().some((d) => d.kind === k)))
+        items.push({
+          key: kind,
+          kind,
+          builtIn: true,
+          hidden: false,
+          locked: false,
+          id: null,
+          placeName: null,
+          latitude: null,
+          longitude: null,
+          radiusKm: null,
+          periodDays: null,
+          types: [],
+          position: 0,
+        });
+      items.forEach((i, n) => (i.position = n));
+      return { items, limit, used: rows().filter((d) => !BUILT_IN.includes(d.kind)).length, plan };
+    };
+    const premiumOnly = () => {
+      if (limit === 0) {
+        problem(res, 403, "Your own dashboard widgets are part of Premium.");
+        return false;
+      }
+      return true;
+    };
+    const figures = (w) => {
+      const days = w.periodDays;
+      const base = {
+        kind: w.kind,
+        suppressed: false,
+        minCount: 3,
+        from: "2026-09-25",
+        to: "2026-10-24",
+        period: days > 92 ? "Week" : "Day",
+      };
+      const empty = {
+        total: null,
+        changePercent: null,
+        periodStarts: [],
+        counts: [],
+        topCategories: [],
+        topPlaces: [],
+        timesOfDay: [],
+        weekdays: [],
+        busiestHour: null,
+      };
+      // A place called "Nowhere" has too few incidents, to show the hidden state.
+      if (/nowhere/i.test(w.placeName)) return { ...base, ...empty, suppressed: true };
+      const counts = Array.from({ length: 8 }, (_, i) => [1, 3, 0, 4, 2, 6, 5, 6][i]);
+      if (w.kind === "WhenItHappens")
+        return {
+          ...base,
+          ...empty,
+          total: 27,
+          timesOfDay: [0, 4, 8, 12, 16, 20].map((h, i) => ({
+            fromHour: h,
+            toHour: h + 4,
+            count: [null, 3, 11, 5, 6, null][i],
+          })),
+          weekdays: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map(
+            (day, i) => ({
+              day,
+              count: [6, 5, 4, 4, 5, null, null][i],
+            }),
+          ),
+          busiestHour: 8,
+        };
+      if (w.kind === "TopRoads")
+        return {
+          ...base,
+          ...empty,
+          total: 27,
+          topPlaces: [
+            { name: "A57 Warrington Road, Prescot", count: 9 },
+            { name: "Eccleston Street, Prescot", count: 4 },
+          ],
+        };
+      return {
+        ...base,
+        ...empty,
+        total: 27,
+        changePercent: 12,
+        periodStarts: counts.map((_, i) => `2026-10-${String(17 + i).padStart(2, "0")}`),
+        counts,
+        topCategories:
+          w.kind === "AreaIncidents"
+            ? [{ category: "Tailgating", group: "FollowingTooClose", count: 9, percent: 33 }]
+            : [],
+      };
+    };
+    const valid = (b) =>
+      ["AreaIncidents", "TypeTrend", "WhenItHappens", "TopRoads"].includes(b.kind) &&
+      b.placeName &&
+      [1, 2, 5, 10, 25].includes(b.radiusKm) &&
+      [7, 30, 90, 365].includes(b.periodDays) &&
+      (b.kind !== "TypeTrend" || (b.types ?? []).length === 1);
+
+    if (path === "/api/dashboard" && method === "GET") return send(res, 200, dto());
+    if (path === "/api/dashboard/widgets" && method === "POST") {
+      if (!premiumOnly()) return;
+      const body = await json();
+      if (!valid(body)) return invalid(res, "PlaceName", "Choose a place: a postcode or a town.");
+      if (rows().filter((d) => !BUILT_IN.includes(d.kind)).length >= limit)
+        return invalid(
+          res,
+          "Widgets",
+          `Your plan allows ${limit} widgets. Delete one, or upgrade to Premium + for more.`,
+        );
+      materialise();
+      const position = rows().reduce((m, d) => Math.max(m, d.position + 1), 0);
+      db.dashboard.push({ id: randomUUID(), userId: me, position, ...body, types: body.types ?? [] });
+      return send(res, 200, dto());
+    }
+    const widget = path.match(/^\/api\/dashboard\/widgets\/([0-9a-f-]{36})(\/data)?$/);
+    if (widget) {
+      const row = rows().find((d) => d.id === widget[1] && !BUILT_IN.includes(d.kind));
+      if (method === "DELETE") {
+        db.dashboard = db.dashboard.filter((d) => d !== row);
+        return send(res, 200, dto());
+      }
+      if (!premiumOnly()) return;
+      if (!row) return problem(res, 404, "Widget not found.");
+      if (method === "PUT") {
+        const body = await json();
+        if (!valid(body)) return invalid(res, "PlaceName", "Choose a place: a postcode or a town.");
+        Object.assign(row, body, { types: body.types ?? [] });
+        return send(res, 200, dto());
+      }
+      if (widget[2] && method === "GET") {
+        if (dto().items.find((i) => i.id === row.id)?.locked)
+          return problem(res, 403, "Your plan allows fewer widgets than you have.");
+        return send(res, 200, figures(row));
+      }
+    }
+    if (path === "/api/dashboard/preview" && method === "POST") {
+      if (!premiumOnly()) return;
+      const body = await json();
+      if (!valid(body)) return invalid(res, "PlaceName", "Choose a place: a postcode or a town.");
+      return send(res, 200, figures(body));
+    }
+    if (path === "/api/dashboard/order" && method === "PUT") {
+      materialise();
+      const { keys } = await json();
+      const all = rows();
+      if (keys.length !== all.length || !keys.every((k) => all.some((d) => keyOf(d) === k)))
+        return invalid(res, "Keys", "List each card on your dashboard once, in the new order.");
+      keys.forEach((k, i) => (all.find((d) => keyOf(d) === k).position = i));
+      return send(res, 200, dto());
+    }
+    const card = path.match(/^\/api\/dashboard\/cards\/(\w+)$/);
+    if (card && method === "PUT") {
+      if (!BUILT_IN.includes(card[1])) return invalid(res, "Kind", "Only the built-in cards can be hidden.");
+      materialise();
+      const { hidden } = await json();
+      rows().find((d) => d.kind === card[1]).hidden = !!hidden;
+      return send(res, 200, dto());
+    }
     return problem(res, 404, "Not found.");
   }
 
