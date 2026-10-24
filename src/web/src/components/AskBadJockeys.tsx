@@ -31,13 +31,7 @@ const SLOW_AFTER_MS = 5000;
  */
 export function AskButton() {
   return (
-    <button
-      type="button"
-      className="ask-fab"
-      onClick={openAsk}
-      aria-haspopup="dialog"
-      aria-label="Ask AI"
-    >
+    <button type="button" className="ask-fab" onClick={openAsk} aria-haspopup="dialog" aria-label="Ask AI">
       <AskIcon size={20} />
       <span>Ask</span>
     </button>

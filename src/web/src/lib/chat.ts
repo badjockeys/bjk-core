@@ -171,9 +171,7 @@ export function problemMessage(problem: ChatProblem, detail?: string): string {
     case "premium":
       return "Ask AI is part of Premium.";
     case "busy":
-      return (
-        detail || "Ask AI is busy right now. Try again in a minute; that question didn't count."
-      );
+      return detail || "Ask AI is busy right now. Try again in a minute; that question didn't count.";
     default:
       return detail || "Something went wrong. Please try again.";
   }
