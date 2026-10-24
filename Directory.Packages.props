@@ -7,14 +7,14 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- Bad Jockeys modules, from GitHub Packages (bjk-modules). Keep them on the same version. -->
-    <PackageVersion Include="BJK.Modules.Media" Version="0.2.0-ci.213" />
-    <PackageVersion Include="BJK.Modules.Profiles" Version="0.2.0-ci.213" />
-    <PackageVersion Include="BJK.Modules.Posts" Version="0.2.0-ci.213" />
-    <PackageVersion Include="BJK.Modules.Notifications" Version="0.2.0-ci.213" />
-    <PackageVersion Include="BJK.Modules.Chat" Version="0.2.0-ci.213" />
-    <PackageVersion Include="BJK.Modules.Email" Version="0.2.0-ci.213" />
-    <PackageVersion Include="BJK.Modules.SMS" Version="0.2.0-ci.213" />
-    <PackageVersion Include="BJK.Modules.Observability" Version="0.2.0-ci.213" />
+    <PackageVersion Include="BJK.Modules.Media" Version="0.2.0-ci.215" />
+    <PackageVersion Include="BJK.Modules.Profiles" Version="0.2.0-ci.215" />
+    <PackageVersion Include="BJK.Modules.Posts" Version="0.2.0-ci.215" />
+    <PackageVersion Include="BJK.Modules.Notifications" Version="0.2.0-ci.215" />
+    <PackageVersion Include="BJK.Modules.Chat" Version="0.2.0-ci.215" />
+    <PackageVersion Include="BJK.Modules.Email" Version="0.2.0-ci.215" />
+    <PackageVersion Include="BJK.Modules.SMS" Version="0.2.0-ci.215" />
+    <PackageVersion Include="BJK.Modules.Observability" Version="0.2.0-ci.215" />
 
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.13" />
     <!-- API reference: the OpenAPI document and Swagger UI, generated from the controllers at run time. -->
