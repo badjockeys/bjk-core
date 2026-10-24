@@ -3048,6 +3048,11 @@ dialog.composer-modal::backdrop {
     padding-bottom: 24px;
   }
 
+  /* Its cards keep their full height (a flex column would squash them to fit, cutting them off); the panel scrolls. */
+  .d-aside > * {
+    flex-shrink: 0;
+  }
+
   /* Visitors: the sign-up bar covers the bottom of the window, so the panel stops short of it. */
   .has-signup .d-aside {
     padding-bottom: 112px;
@@ -5285,6 +5290,10 @@ ol.widget-list li span {
 /* Free: the greyed-out card that shows what Premium adds. */
 .widget-locked {
   border-style: dashed;
+}
+
+.widget-teaser .card-h {
+  padding: 0;
 }
 
 .widget-locked .card-h,

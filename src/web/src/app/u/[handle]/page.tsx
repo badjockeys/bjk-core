@@ -10,8 +10,9 @@ import { Dashboard } from "@/components/Dashboard";
 import { TrendsPanel } from "@/components/TrendsPanel";
 import { Feed } from "@/components/Feed";
 import { FollowButton } from "@/components/FollowButton";
-import { AccountIcon, CalendarIcon, PinIcon } from "@/components/icons";
+import { CalendarIcon, PinIcon } from "@/components/icons";
 import { ProfileBadges } from "@/components/ProfileBadges";
+import { MyProfileMenu } from "@/components/MyProfileMenu";
 import { ProfileMoreMenu } from "@/components/ProfileMoreMenu";
 import { ProfileReplies } from "@/components/ProfileReplies";
 import type { FeedSource } from "@/actions/posts";
@@ -132,10 +133,8 @@ export default async function ProfilePage({ params, searchParams }: Props) {
               <Link href="/profile/edit" className="btn btn-sm">
                 Edit profile
               </Link>
-              {/* Phones: Account lives here, as on Instagram, since the bottom bar has four tabs. */}
-              <Link href="/account" className="icon-btn m-only" aria-label="Account settings">
-                <AccountIcon size={24} />
-              </Link>
+              {/* Account lives here, as on Instagram (owner, 24 Oct 2026: not in the side nav). */}
+              <MyProfileMenu handle={profile.handle} />
             </div>
           ) : (
             <div className="row" style={{ gap: 8 }}>
